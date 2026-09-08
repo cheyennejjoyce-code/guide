@@ -1,0 +1,2101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>ATL Thrift Guide — by 2nd Studio</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+:root{
+  --cream:#FDFAF6;
+  --cream-card:#FFFFFF;
+  --ink:#2B2530;
+  --ink-soft:#8A8496;
+  --royal:#B8695E;
+  --royal-dark:#8A5A44;
+  --royal-tint:#F3D9D4;
+  --gold:#C99A4A;
+  --gold-tint:#F6E7C9;
+  --line:#EEE6D8;
+  --line-strong:#DED2C3;
+  --danger:#B84A3E;
+  --shadow-none:none;
+  --radius-card:24px;
+  --radius-pill:999px;
+  --font-display:'Fraunces', Georgia, serif;
+  --font-body:'Inter', -apple-system, sans-serif;
+}
+:root:not([data-theme="light"]) {
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --cream:#241F26;
+    --cream-card:#2E2830;
+    --ink:#FBF5F0;
+    --ink-soft:#C9BFC5;
+    --royal:#E8A99E;
+    --royal-dark:#F3D9D4;
+    --royal-tint:#4A3038;
+    --gold:#E0BB79;
+    --gold-tint:#463A20;
+    --line:#453A42;
+    --line-strong:#5A4D55;
+  }
+}
+:root[data-theme="dark"]{
+  --cream:#241F26;
+  --cream-card:#2E2830;
+  --ink:#FBF5F0;
+  --ink-soft:#C9BFC5;
+  --royal:#E8A99E;
+  --royal-dark:#F3D9D4;
+  --royal-tint:#4A3038;
+  --gold:#E0BB79;
+  --gold-tint:#463A20;
+  --line:#453A42;
+  --line-strong:#5A4D55;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;}
+body{
+  background:var(--cream);
+  color:var(--ink);
+  font-family:var(--font-body);
+  min-height:100vh;
+  overflow-x:hidden;
+}
+img,svg{max-width:100%;display:block;}
+button{font-family:inherit;cursor:pointer;}
+input,select,textarea{font-family:inherit;}
+a{color:inherit;}
+.app-shell{max-width:520px;margin:0 auto;min-height:100vh;background:var(--cream);position:relative;display:flex;flex-direction:column;}
+.topbar{position:sticky;top:0;z-index:40;background:var(--cream);display:flex;align-items:center;justify-content:space-between;padding:16px 18px 10px;}
+.brand-mark{display:flex;align-items:center;gap:9px;background:none;border:none;padding:0;}
+.brand-logo{width:34px;height:34px;border-radius:9px;background:var(--royal);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.brand-logo svg{width:19px;height:19px;}
+.brand-text{display:flex;flex-direction:column;align-items:flex-start;line-height:1.05;}
+.brand-text .b1{font-family:var(--font-display);font-weight:600;font-size:16.5px;color:var(--ink);}
+.brand-text .b2{font-size:10.5px;color:var(--ink-soft);letter-spacing:.02em;}
+.top-actions{display:flex;gap:8px;align-items:center;}
+.icon-btn{width:38px;height:38px;border-radius:50%;border:1px solid var(--line);background:var(--cream-card);display:flex;align-items:center;justify-content:center;color:var(--ink);flex-shrink:0;}
+.icon-btn svg{width:18px;height:18px;}
+main.view{flex:1;padding:0 18px 100px;}
+.bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:50;background:var(--cream-card);border-top:1px solid var(--line);display:flex;justify-content:center;padding-bottom:env(safe-area-inset-bottom);}
+.bottom-nav-inner{max-width:520px;width:100%;display:flex;}
+.nav-item{flex:1;background:none;border:none;display:flex;flex-direction:column;align-items:center;gap:3px;padding:10px 2px 8px;color:var(--ink-soft);}
+.nav-item svg{width:22px;height:22px;}
+.nav-item span{font-size:10.5px;font-weight:600;}
+.nav-item.active{color:var(--royal);}
+.nav-item.build .nav-dot{position:absolute;}
+h1,h2,h3{font-family:var(--font-display);margin:0;color:var(--ink);}
+p{margin:0;}
+.section{margin-top:30px;}
+.section:first-child{margin-top:18px;}
+.section-head{display:flex;align-items:baseline;justify-content:space-between;margin-bottom:14px;}
+.section-head h2{font-size:20px;font-weight:600;}
+.see-all{font-size:12.5px;font-weight:600;color:var(--royal);background:none;border:none;padding:0;}
+.hero{background:linear-gradient(135deg,var(--royal-tint),var(--gold-tint));border-radius:26px;padding:30px 22px 26px;color:var(--ink);position:relative;overflow:hidden;}
+.hero .hero-tag{font-family:var(--font-display);font-style:italic;font-size:13px;font-weight:500;color:var(--royal-dark);margin-bottom:10px;display:inline-block;}
+.hero h1{font-family:var(--font-display);font-size:34px;line-height:1.04;font-weight:500;color:var(--ink);margin-bottom:12px;}
+.hero p.sub{font-size:14.5px;line-height:1.5;color:var(--ink-soft);max-width:340px;margin-bottom:22px;}
+.hero-btns{display:flex;gap:10px;flex-wrap:wrap;}
+.btn{border-radius:var(--radius-pill);padding:13px 20px;font-weight:700;font-size:14.5px;border:none;display:inline-flex;align-items:center;gap:7px;}
+.btn svg{width:16px;height:16px;}
+.btn-primary{background:var(--ink);color:var(--cream);}
+.btn-secondary-hero{background:transparent;color:var(--ink);border:1.5px solid rgba(43,37,48,.3);}
+.btn-royal{background:var(--royal);color:#fff;}
+.btn-outline{background:var(--cream-card);color:var(--ink);border:1px solid var(--line-strong);}
+.btn-ghost{background:none;border:1px solid var(--line);color:var(--ink);}
+.btn-block{width:100%;justify-content:center;}
+.btn-sm{padding:9px 14px;font-size:13px;}
+.hscroll{display:flex;gap:13px;overflow-x:auto;margin:0 -18px;padding:0 18px 6px;scrollbar-width:none;}
+.hscroll::-webkit-scrollbar{display:none;}
+.store-card{background:var(--cream-card);border:1px solid var(--line);border-radius:var(--radius-card);overflow:hidden;flex-shrink:0;width:236px;}
+.store-card.wide{width:100%;flex-shrink:1;}
+.store-photo{position:relative;height:130px;}
+.store-photo svg{width:100%;height:100%;}
+.save-btn{position:absolute;top:10px;right:10px;width:34px;height:34px;border-radius:50%;background:rgba(20,21,42,.38);border:none;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px);}
+.save-btn svg{width:17px;height:17px;stroke:#fff;fill:none;}
+.save-btn.saved svg{fill:var(--gold);stroke:var(--gold);}
+.tag-chip{position:absolute;left:10px;bottom:10px;background:var(--cream);color:var(--ink);font-size:10.5px;font-weight:700;padding:5px 10px;border-radius:var(--radius-pill);border:1px solid var(--line-strong);}
+.store-body{padding:13px 14px 15px;}
+.store-name{font-family:var(--font-display);font-size:16.5px;font-weight:600;margin-bottom:3px;}
+.store-meta{font-size:12px;color:var(--ink-soft);display:flex;align-items:center;gap:5px;flex-wrap:wrap;}
+.dot-sep::before{content:"·";margin:0 1px;}
+.store-desc{font-size:12.5px;color:var(--ink-soft);margin-top:7px;line-height:1.45;}
+.pill-row{display:flex;gap:6px;flex-wrap:wrap;margin-top:9px;}
+.pill{font-size:10.5px;font-weight:600;background:var(--royal-tint);color:var(--royal-dark);padding:4px 9px;border-radius:var(--radius-pill);}
+.pill.gold{background:var(--gold-tint);color:#8A5A44;}
+:root[data-theme="dark"] .pill.gold, @media (prefers-color-scheme:dark){.pill.gold{color:var(--gold);}}
+.card-cta-row{display:flex;gap:8px;margin-top:12px;}
+.card-cta-row .btn{flex:1;}
+.search-wrap{position:relative;margin-bottom:14px;}
+.search-wrap input{width:100%;padding:13px 16px 13px 42px;border-radius:var(--radius-pill);border:1px solid var(--line-strong);background:var(--cream-card);font-size:14.5px;color:var(--ink);}
+.search-wrap input::placeholder{color:var(--ink-soft);}
+.search-wrap svg{position:absolute;left:15px;top:50%;transform:translateY(-50%);width:17px;height:17px;color:var(--ink-soft);}
+.filter-row{display:flex;gap:8px;overflow-x:auto;margin:0 -18px 6px;padding:0 18px 8px;scrollbar-width:none;}
+.filter-row::-webkit-scrollbar{display:none;}
+.chip{flex-shrink:0;padding:9px 15px;border-radius:var(--radius-pill);border:1px solid var(--line-strong);background:var(--cream-card);font-size:13px;font-weight:600;color:var(--ink);white-space:nowrap;}
+.chip.active{background:var(--royal);color:#fff;border-color:var(--royal);}
+.view-toggle{display:flex;background:var(--cream-card);border:1px solid var(--line-strong);border-radius:var(--radius-pill);padding:3px;margin-bottom:16px;}
+.view-toggle button{flex:1;border:none;background:none;padding:9px;border-radius:var(--radius-pill);font-size:13px;font-weight:700;color:var(--ink-soft);display:flex;align-items:center;justify-content:center;gap:6px;}
+.view-toggle button.active{background:var(--royal);color:#fff;}
+.view-toggle svg{width:15px;height:15px;}
+.list-stack{display:flex;flex-direction:column;gap:14px;}
+.map-canvas{position:relative;width:100%;height:340px;border-radius:var(--radius-card);overflow:hidden;background:var(--royal-tint);border:1px solid var(--line-strong);margin-bottom:16px;}
+.map-pin{position:absolute;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;}
+.map-pin button{width:30px;height:30px;border-radius:50% 50% 50% 4px;background:var(--royal);border:2px solid var(--cream-card);transform:rotate(45deg);display:flex;align-items:center;justify-content:center;}
+.map-pin button span{transform:rotate(-45deg);font-size:12px;font-weight:800;color:#fff;}
+.map-pin.gold button{background:var(--gold);}
+.map-pin.gold button span{color:#5C3A1E;}
+.map-label{position:absolute;font-size:10px;font-weight:700;color:var(--royal-dark);opacity:.55;letter-spacing:.02em;}
+.empty-state{text-align:center;padding:50px 20px;color:var(--ink-soft);}
+.empty-state h3{font-size:17px;margin-bottom:6px;color:var(--ink);}
+.empty-state p{font-size:13.5px;line-height:1.5;}
+.detail-photo{height:220px;border-radius:var(--radius-card);overflow:hidden;position:relative;margin-bottom:16px;}
+.detail-photo svg{width:100%;height:100%;}
+.back-fab{position:absolute;top:14px;left:14px;width:38px;height:38px;border-radius:50%;background:rgba(20,21,42,.4);border:none;display:flex;align-items:center;justify-content:center;}
+.back-fab svg{width:18px;height:18px;stroke:#fff;}
+.detail-title-row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-bottom:6px;}
+.detail-title-row h1{font-size:26px;font-weight:600;}
+.rating-badge{background:var(--gold-tint);color:#8A5A44;font-weight:800;font-size:13px;padding:6px 10px;border-radius:12px;display:flex;align-items:center;gap:4px;flex-shrink:0;}
+.rating-badge svg{width:13px;height:13px;fill:currentColor;}
+.detail-meta-line{font-size:13.5px;color:var(--ink-soft);margin-bottom:14px;}
+.detail-cta-row{display:flex;gap:8px;margin-bottom:22px;}
+.detail-cta-row .btn{flex:1;padding:12px 10px;font-size:13px;}
+.info-block{background:var(--cream-card);border:1px solid var(--line);border-radius:18px;padding:16px 17px;margin-bottom:14px;}
+.info-block h3{font-size:14px;margin-bottom:8px;}
+.info-block p{font-size:13.5px;line-height:1.6;color:var(--ink-soft);}
+.info-row{display:flex;gap:10px;font-size:13.5px;padding:7px 0;border-bottom:1px solid var(--line);color:var(--ink-soft);}
+.info-row:last-child{border-bottom:none;}
+.info-row svg{width:16px;height:16px;flex-shrink:0;margin-top:1px;color:var(--royal);}
+.info-row .lbl{color:var(--ink);font-weight:600;min-width:70px;}
+.wizard-card{background:var(--cream-card);border:1px solid var(--line-strong);border-radius:var(--radius-card);padding:22px 20px;}
+.wizard-step-label{font-size:12.5px;font-weight:700;color:var(--royal);margin-bottom:6px;}
+.wizard-q{font-family:var(--font-display);font-size:22px;font-weight:600;margin-bottom:18px;line-height:1.2;}
+.option-grid{display:flex;flex-direction:column;gap:10px;margin-bottom:22px;}
+.option-tile{display:flex;align-items:center;gap:12px;padding:14px 15px;border-radius:16px;border:1px solid var(--line-strong);background:var(--cream);text-align:left;}
+.option-tile.active{border-color:var(--royal);background:var(--royal-tint);}
+.option-tile .oi{width:36px;height:36px;border-radius:10px;background:var(--royal-tint);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.option-tile.active .oi{background:var(--royal);}
+.option-tile .oi svg{width:18px;height:18px;color:var(--royal);}
+.option-tile.active .oi svg{color:#fff;}
+.option-tile .ot-text{flex:1;}
+.option-tile .ot-title{font-weight:700;font-size:14.5px;}
+.option-tile .ot-sub{font-size:12px;color:var(--ink-soft);}
+.option-tile .check{width:22px;height:22px;border-radius:50%;border:2px solid var(--line-strong);flex-shrink:0;}
+.option-tile.active .check{background:var(--royal);border-color:var(--royal);position:relative;}
+.option-tile.active .check::after{content:"";position:absolute;left:6px;top:2px;width:5px;height:9px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg);}
+.chip-grid{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:22px;}
+.wizard-progress{display:flex;gap:5px;margin-bottom:20px;}
+.wizard-progress span{height:4px;flex:1;background:var(--line);border-radius:4px;}
+.wizard-progress span.done{background:var(--royal);}
+.wizard-nav{display:flex;gap:10px;}
+.route-summary-bar{display:flex;justify-content:space-between;background:var(--royal);color:#fff;border-radius:18px;padding:16px 18px;margin-bottom:16px;}
+.route-summary-bar .rsb-item{text-align:left;}
+.route-summary-bar .rsb-num{font-family:var(--font-display);font-size:20px;font-weight:600;}
+.route-summary-bar .rsb-lbl{font-size:10.5px;color:#D6DAFB;text-transform:none;}
+.stop-card{display:flex;gap:12px;background:var(--cream-card);border:1px solid var(--line);border-radius:18px;padding:13px;margin-bottom:10px;align-items:flex-start;}
+.stop-num{width:28px;height:28px;border-radius:50%;background:var(--ink);color:var(--cream-card);font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.stop-thumb{width:56px;height:56px;border-radius:50%;overflow:hidden;flex-shrink:0;}
+.stop-thumb svg{width:100%;height:100%;}
+.stop-info{flex:1;min-width:0;}
+.stop-info .sname{font-weight:700;font-size:14.5px;}
+.stop-info .smeta{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+.stop-actions{display:flex;flex-direction:column;gap:5px;}
+.stop-actions button{width:26px;height:26px;border-radius:8px;border:1px solid var(--line);background:var(--cream);display:flex;align-items:center;justify-content:center;}
+.stop-actions svg{width:13px;height:13px;}
+.travel-line{display:flex;align-items:center;gap:8px;padding:2px 0 2px 14px;font-size:11.5px;color:var(--ink-soft);margin-bottom:10px;}
+.travel-line svg{width:13px;height:13px;}
+.post-card{background:var(--cream-card);border:1px solid var(--line);border-radius:20px;overflow:hidden;margin-bottom:16px;}
+.post-head{display:flex;align-items:center;gap:10px;padding:13px 14px 10px;}
+.avatar{width:36px;height:36px;border-radius:50%;background:var(--royal);color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:13px;flex-shrink:0;}
+.post-head .pu{font-weight:700;font-size:13.5px;}
+.post-head .pu-meta{font-size:11.5px;color:var(--ink-soft);}
+.post-photo{height:230px;position:relative;}
+.post-photo svg{width:100%;height:100%;}
+.price-tag{position:absolute;top:12px;right:12px;background:var(--gold);color:#5C3A1E;font-weight:800;font-size:13px;padding:6px 11px;border-radius:12px;transform:rotate(3deg);}
+.post-body{padding:13px 14px 14px;}
+.post-item{font-weight:700;font-size:15px;margin-bottom:2px;}
+.post-store{font-size:12.5px;color:var(--royal-dark);font-weight:600;margin-bottom:6px;}
+.post-caption{font-size:13.5px;color:var(--ink-soft);line-height:1.5;margin-bottom:11px;}
+.post-actions{display:flex;gap:16px;border-top:1px solid var(--line);padding-top:11px;}
+.post-actions button{display:flex;align-items:center;gap:5px;background:none;border:none;color:var(--ink-soft);font-size:12.5px;font-weight:600;}
+.post-actions svg{width:18px;height:18px;fill:none;stroke:currentColor;}
+.post-actions button.liked svg{fill:var(--danger);stroke:var(--danger);color:var(--danger);}
+.post-actions button.saved-t svg{fill:var(--gold);stroke:var(--gold);color:var(--gold);}
+.comments-box{margin-top:12px;padding-top:12px;border-top:1px solid var(--line);}
+.comment-row{display:flex;gap:8px;margin-bottom:9px;font-size:12.5px;}
+.comment-row b{font-weight:700;}
+.comment-input-row{display:flex;gap:8px;margin-top:8px;}
+.comment-input-row input{flex:1;border:1px solid var(--line);background:var(--cream);border-radius:var(--radius-pill);padding:9px 14px;font-size:13px;color:var(--ink);}
+.comment-input-row button{background:var(--royal);color:#fff;border:none;border-radius:var(--radius-pill);padding:0 16px;font-weight:700;font-size:12.5px;}
+.tab-row{display:flex;gap:6px;background:var(--cream-card);border:1px solid var(--line-strong);border-radius:var(--radius-pill);padding:3px;margin-bottom:18px;}
+.tab-row button{flex:1;border:none;background:none;padding:10px 4px;border-radius:var(--radius-pill);font-size:12.5px;font-weight:700;color:var(--ink-soft);}
+.tab-row button.active{background:var(--royal);color:#fff;}
+.profile-head{display:flex;flex-direction:column;align-items:center;text-align:center;padding:14px 0 22px;}
+.profile-avatar{width:78px;height:78px;border-radius:50%;background:var(--royal);color:#fff;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;font-family:var(--font-display);margin-bottom:12px;}
+.profile-head h2{font-size:20px;margin-bottom:3px;}
+.profile-head .pmeta{font-size:12.5px;color:var(--ink-soft);margin-bottom:10px;}
+.profile-stats{display:flex;gap:26px;margin-top:6px;}
+.profile-stats div{text-align:center;}
+.profile-stats .pnum{font-family:var(--font-display);font-size:19px;font-weight:600;}
+.profile-stats .plbl{font-size:11px;color:var(--ink-soft);}
+.settings-row{display:flex;align-items:center;justify-content:space-between;padding:15px 4px;border-bottom:1px solid var(--line);font-size:14.5px;font-weight:600;}
+.settings-row svg{width:17px;height:17px;color:var(--ink-soft);}
+.settings-row .sr-left{display:flex;align-items:center;gap:11px;}
+.form-group{margin-bottom:16px;}
+.form-group label{display:block;font-size:12.5px;font-weight:700;color:var(--ink-soft);margin-bottom:6px;}
+.form-group input,.form-group select,.form-group textarea{width:100%;border:1px solid var(--line-strong);background:var(--cream-card);border-radius:14px;padding:12px 14px;font-size:14.5px;color:var(--ink);}
+.form-group textarea{resize:vertical;min-height:70px;}
+.modal-overlay{position:fixed;inset:0;background:rgba(20,21,42,.55);z-index:100;display:flex;align-items:flex-end;justify-content:center;}
+.modal-sheet{background:var(--cream);width:100%;max-width:520px;border-radius:26px 26px 0 0;padding:24px 20px calc(24px + env(safe-area-inset-bottom));max-height:88vh;overflow-y:auto;}
+.modal-sheet.center{border-radius:24px;margin:0 18px;max-height:80vh;}
+.modal-handle{width:38px;height:4px;border-radius:4px;background:var(--line-strong);margin:0 auto 18px;opacity:.4;}
+.modal-title{font-family:var(--font-display);font-size:21px;font-weight:600;margin-bottom:6px;}
+.modal-sub{font-size:13px;color:var(--ink-soft);margin-bottom:18px;line-height:1.5;}
+.photo-upload-box{border:2px dashed var(--line-strong);border-radius:18px;padding:26px;text-align:center;color:var(--ink-soft);margin-bottom:16px;position:relative;overflow:hidden;}
+.photo-upload-box svg{width:26px;height:26px;margin-bottom:6px;}
+.photo-upload-box input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;}
+.photo-preview{width:100%;height:160px;border-radius:14px;overflow:hidden;margin-bottom:14px;}
+.photo-preview img{width:100%;height:100%;object-fit:cover;}
+.toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--cream);padding:12px 20px;border-radius:var(--radius-pill);font-size:13px;font-weight:600;z-index:200;box-shadow:0 8px 24px rgba(0,0,0,.2);}
+.route-tag-strip{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
+.admin-list-row{display:flex;justify-content:space-between;align-items:center;background:var(--cream-card);border:1px solid var(--line);border-radius:16px;padding:12px 14px;margin-bottom:9px;}
+.admin-list-row .ar-name{font-weight:700;font-size:14px;}
+.admin-list-row .ar-sub{font-size:11.5px;color:var(--ink-soft);}
+.admin-list-row .ar-actions{display:flex;gap:6px;}
+.admin-list-row .ar-actions button{width:32px;height:32px;border-radius:9px;border:1px solid var(--line);background:var(--cream);display:flex;align-items:center;justify-content:center;}
+.admin-list-row .ar-actions svg{width:15px;height:15px;}
+.badge-featured{background:var(--gold);color:#5C3A1E;font-size:10px;font-weight:800;padding:3px 8px;border-radius:8px;margin-left:6px;}
+.hairline{height:1px;background:var(--line);margin:22px 0;border:none;}
+.vote-block{display:flex;align-items:center;gap:10px;margin-bottom:18px;}
+.follow-block{border:1px solid var(--line);border-radius:18px;padding:14px 16px;margin-bottom:18px;}
+.follow-head{display:flex;align-items:center;justify-content:space-between;}
+.follow-head .fh-text{font-size:13px;font-weight:600;}
+.follow-head .fh-sub{font-size:11.5px;color:var(--ink-soft);margin-top:2px;}
+.follow-btn{display:flex;align-items:center;gap:6px;padding:9px 15px;border-radius:var(--radius-pill);border:1px solid var(--line-strong);background:var(--cream);font-weight:700;font-size:12.5px;color:var(--ink);flex-shrink:0;}
+.follow-btn.active{background:var(--royal);border-color:var(--royal);color:#fff;}
+.follow-btn svg{width:14px;height:14px;}
+.freq-row{display:flex;gap:7px;margin-top:12px;flex-wrap:wrap;}
+.freq-chip{font-size:11.5px;font-weight:600;padding:7px 12px;border-radius:var(--radius-pill);border:1px solid var(--line);background:var(--cream);color:var(--ink-soft);}
+.freq-chip.active{background:var(--gold-tint);border-color:var(--gold);color:var(--royal-dark);}
+.vote-btn{display:flex;align-items:center;gap:7px;padding:10px 16px;border-radius:var(--radius-pill);border:1px solid var(--line-strong);background:var(--cream-card);font-weight:700;font-size:14px;color:var(--ink);}
+.vote-btn svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.6;}
+.vote-btn.up.active{background:var(--royal-tint);border-color:var(--royal);color:var(--royal-dark);}
+.vote-btn.up.active svg{fill:var(--royal-dark);stroke:var(--royal-dark);}
+.vote-btn.down.active{background:var(--gold-tint);border-color:var(--gold);color:#8A5A44;}
+.vote-btn.down.active svg{fill:#8A5A44;stroke:#8A5A44;}
+.sale-card{background:var(--ink);color:var(--cream);border-radius:20px;padding:16px 17px;flex-shrink:0;width:220px;}
+.sale-card .sale-date{font-size:10.5px;color:var(--gold);font-weight:700;margin-bottom:8px;}
+.sale-card h3{color:var(--cream);font-size:15.5px;margin-bottom:5px;line-height:1.25;}
+.sale-card p{font-size:11.5px;color:#C7C7D6;line-height:1.4;margin-bottom:6px;}
+.open-badge{font-size:10px;font-weight:700;padding:3px 8px;border-radius:8px;}
+.open-badge.open{background:#DCEEDC;color:#2E6B3E;}
+.open-badge.closed{background:#F1E4E1;color:var(--danger);}
+.sample-badge{display:inline-block;font-size:9.5px;font-weight:800;letter-spacing:.02em;background:rgba(221,165,59,.22);color:var(--gold);padding:3px 8px;border-radius:8px;margin-top:2px;}
+.neighborhood-card{background:var(--cream-card);border:1px solid var(--line);border-radius:18px;padding:16px;flex-shrink:0;width:160px;}
+.neighborhood-card .nn{font-family:var(--font-display);font-weight:600;font-size:16px;margin-bottom:3px;}
+.neighborhood-card .nc{font-size:11.5px;color:var(--ink-soft);}
+.curated-route-card{background:var(--ink);color:var(--cream);border-radius:20px;padding:17px 18px;flex-shrink:0;width:230px;}
+.curated-route-card .crc-tag{font-size:10.5px;color:var(--gold);font-weight:700;margin-bottom:8px;}
+.curated-route-card h3{color:var(--cream);font-size:17px;margin-bottom:6px;}
+.curated-route-card p{font-size:12px;color:#C7C7D6;line-height:1.4;margin-bottom:12px;}
+.link-btn{background:none;border:none;color:var(--royal);font-weight:700;font-size:13px;padding:0;}
+::selection{background:var(--gold-tint);}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);}
+</style>
+</head>
+<body>
+<div class="app-shell" id="app"></div>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.js"></script>
+<script>
+const NEIGHBORHOODS = {
+  "Downtown": {x:50,y:52,lat:33.7550,lng:-84.3900},
+  "Midtown": {x:49,y:44,lat:33.7838,lng:-84.3833},
+  "Buckhead": {x:47,y:30,lat:33.8360,lng:-84.3780},
+  "Brookhaven": {x:54,y:26,lat:33.8590,lng:-84.3390},
+  "Cheshire Bridge": {x:53,y:38,lat:33.8090,lng:-84.3520},
+  "Virginia-Highland": {x:57,y:40,lat:33.7830,lng:-84.3540},
+  "Poncey-Highland": {x:55,y:44,lat:33.7720,lng:-84.3610},
+  "Little Five Points": {x:61,y:47,lat:33.7630,lng:-84.3490},
+  "Inman Park": {x:59,y:45,lat:33.7570,lng:-84.3520},
+  "Reynoldstown": {x:62,y:50,lat:33.7460,lng:-84.3610},
+  "West End": {x:43,y:55,lat:33.7370,lng:-84.4160},
+  "Upper Westside": {x:39,y:45,lat:33.7930,lng:-84.4130},
+  "Decatur": {x:72,y:42,lat:33.7748,lng:-84.2963},
+  "Chamblee": {x:51,y:19,lat:33.8870,lng:-84.3000},
+  "Sandy Springs": {x:45,y:14,lat:33.9240,lng:-84.3780},
+  "Marietta": {x:24,y:26,lat:33.9526,lng:-84.5499},
+  "Roswell": {x:41,y:6,lat:34.0232,lng:-84.3616},
+  "Tucker": {x:68,y:24,lat:33.8556,lng:-84.2166},
+  "Peachtree Corners": {x:73,y:14,lat:33.9698,lng:-84.2213},
+  "Johns Creek": {x:59,y:3,lat:34.0289,lng:-84.1986},
+  "Lawrenceville": {x:85,y:13,lat:33.9562,lng:-83.9880},
+  "South Atlanta": {x:49,y:68,lat:33.6800,lng:-84.3900},
+  "Smyrna": {x:31,y:37,lat:33.8837,lng:-84.5144},
+  "Woodstock": {x:29,y:2,lat:34.1015,lng:-84.5194},
+  "Kennesaw": {x:12,y:16,lat:34.0234,lng:-84.6155},
+  "Vinings": {x:35,y:34,lat:33.8590,lng:-84.4630},
+  "College Park": {x:42,y:70,lat:33.6540,lng:-84.4490},
+  "Stone Mountain": {x:80,y:30,lat:33.8078,lng:-84.1702},
+  "Duluth": {x:70,y:6,lat:34.0029,lng:-84.1446}
+};
+
+const CATEGORIES = ["Clothing","Furniture","Home Decor","Vintage","Designer","Books","Accessories"];
+
+const STORES = [
+  {id:"s1",name:"Lost-n-Found Youth Thrift Store",neighborhood:"Cheshire Bridge",address:"2585 Chantilly Dr NE, Atlanta, GA 30324",type:"Nonprofit Thrift Store",priceLevel:1,categories:["Clothing","Furniture","Home Decor","Accessories","Books"],hours:"Mon–Sat 10–6, Sun 10–4",rating:4.6,tags:["Hidden Gem","Large Selection","Good for Beginners"],description:"A 13,000-square-foot thrift and consignment warehouse run by the LGBTQ+ youth homelessness nonprofit of the same name — every purchase funds street outreach, a drop-in center, and transitional housing.",phone:"(678) 856-7824",website:"lnfy.org/thrift-store",bestFor:["Supporting a great cause","Furniture and housewares"],tips:"Cash and card both accepted; ask staff about the story behind the space if you have a minute.",featured:true,color:"royal",chain:false},
+  {id:"s2",name:"Rag-O-Rama",neighborhood:"Little Five Points",address:"1111 Euclid Ave NE, Atlanta, GA 30307",type:"Vintage & Resale",priceLevel:2,categories:["Clothing","Accessories","Vintage"],hours:"Mon–Sat 11–8, Sun 12–7 (call ahead to confirm)",rating:4.3,tags:["Best for Cheap Finds","Large Selection","Good for Beginners"],description:"An L5P institution that buys, sells, and trades — deep, well-organized racks of current and vintage clothing that regulars return to weekly.",phone:"(404) 658-1988",website:"rag-o-rama.com",bestFor:["Everyday vintage","Selling your own clothes for cash or credit"],tips:"They buy on the spot, so bring a bag of your own castoffs to trade toward something new.",featured:true,color:"gold",chain:false},
+  {id:"s3",name:"Junkman's Daughter",neighborhood:"Little Five Points",address:"464 Moreland Ave NE, Atlanta, GA 30307",type:"Vintage & Novelty Warehouse",priceLevel:2,categories:["Clothing","Vintage","Accessories","Home Decor"],hours:"Mon–Sat 11–7, Sun 12–6 (call ahead to confirm)",rating:4.5,tags:["Hidden Gem","Best for Vintage","Large Selection"],description:"Atlanta's original purveyor of eclectic finds since 1982 — a mural-covered warehouse of vintage clothing, costumes, wigs, and pop-culture oddities you didn't know you needed.",phone:"",website:"",bestFor:["Costumes and statement pieces","A browse that doubles as entertainment"],tips:"Give yourself real time here — it's easy to lose an hour just wandering the aisles.",featured:false,color:"ink",chain:false},
+  {id:"s4",name:"Psycho Sisters",neighborhood:"Little Five Points",address:"428 Moreland Ave NE, Atlanta, GA 30307",type:"Vintage & Consignment",priceLevel:2,categories:["Clothing","Vintage","Accessories"],hours:"Mon–Sat 12–7, Sun 12–6 (call ahead to confirm)",rating:4.4,tags:["Best for Vintage","Hidden Gem"],description:"A colorful L5P consignment and costume shop known for decade-specific looks and festival-ready pieces.",phone:"(404) 523-0100",website:"psycho-sisters.com",bestFor:["Costume pieces","Bold, decade-specific vintage"],tips:"Great for building a themed outfit fast — staff know their eras.",featured:false,color:"royal",chain:false},
+  {id:"s5",name:"The Clothing Warehouse",neighborhood:"Little Five Points",address:"420 Moreland Ave NE, Atlanta, GA 30307",type:"Vintage Thrift",priceLevel:1,categories:["Clothing","Accessories","Vintage"],hours:"Mon–Sat 11–7, Sun 12–6 (call ahead to confirm)",rating:4.3,tags:["Best for Cheap Finds","Large Selection","Good for Beginners"],description:"Organized by item and by color, with a deep well of vintage tees, 70s dresses, and broken-in cowboy boots.",phone:"",website:"",bestFor:["Vintage tees","Boots and denim"],tips:"The color-coded racks make this one of the fastest stores to shop efficiently.",featured:false,color:"gold",chain:false},
+  {id:"s6",name:"The Lucky Exchange",neighborhood:"Poncey-Highland",address:"212 Ponce De Leon Ave NE, Atlanta, GA 30308",type:"Vintage Boutique",priceLevel:2,categories:["Clothing","Vintage","Accessories"],hours:"Call ahead to confirm current hours",rating:4.4,tags:["Best for Vintage","Hidden Gem"],description:"A tightly curated vintage boutique that blends old and new — a step up in polish from a typical thrift rack.",phone:"",website:"",bestFor:["Curated vintage with a boutique feel","Gifts"],tips:"Smaller than the L5P stores, so it's an easy add-on rather than a full trip on its own.",featured:false,color:"ink",chain:false},
+  {id:"s7",name:"Buffalo Exchange",neighborhood:"Poncey-Highland",address:"1057 Ponce de Leon Ave NE, Atlanta, GA 30306",type:"Buy-Sell-Trade Resale",priceLevel:2,categories:["Clothing","Accessories","Designer"],hours:"Mon–Sat 11–8, Sun 12–7 (call ahead to confirm)",rating:4.2,tags:["Best for Designer","Large Selection"],description:"The Atlanta outpost of the national buy-sell-trade chain — a reliable mix of current trends and the occasional designer sleeper.",phone:"",website:"buffaloexchange.com",bestFor:["Trading in your own closet","Trend-driven pieces"],tips:"Sell or trade your own clothes here for cash or store credit toward something new.",featured:false,color:"royal",chain:false},
+  {id:"s8",name:"Salvation Army Thrift Store & Donation Center",neighborhood:"Downtown",address:"746 Marietta St NW, Atlanta, GA 30318",type:"Nonprofit Thrift Store",priceLevel:1,categories:["Clothing","Furniture","Home Decor","Books"],hours:"Call ahead to confirm current hours",rating:4.0,tags:["Good for Beginners","Best for Cheap Finds"],description:"A dependable charity thrift stop for gently used clothing and housewares, with proceeds supporting Salvation Army community programs.",phone:"",website:"satruck.org",bestFor:["Everyday basics","Supporting a well-known charity"],tips:"Selection varies day to day since it's donation-based — go often rather than once.",featured:false,color:"gold",chain:true},
+  {id:"s9",name:"Last Chance Thrift Store",neighborhood:"Decatur",address:"2525 N Decatur Rd, Decatur, GA 30033",type:"Thrift Warehouse",priceLevel:1,categories:["Clothing","Furniture","Home Decor","Accessories"],hours:"Call ahead to confirm current hours",rating:4.1,tags:["Large Selection","Best for Cheap Finds","Hidden Gem"],description:"A massive north Decatur warehouse behind a Kroger shopping center — faux fur, jumpsuits, retro jewelry, fixer-upper furniture, and low prices that reward patient digging.",phone:"",website:"",bestFor:["Furniture on a budget","Long digging sessions"],tips:"Not glamorous, but the per-item prices are some of the lowest in the metro.",featured:false,color:"ink",chain:false},
+  {id:"s10",name:"Highland Row Antiques",neighborhood:"Virginia-Highland",address:"628 N Highland Ave NE, Atlanta, GA 30306",type:"Antique Mall",priceLevel:3,categories:["Furniture","Home Decor","Vintage"],hours:"Mon–Sun 11–6",rating:4.5,tags:["Best for Home Decor","Large Selection"],description:"Twenty-five dealers across a 10,000-square-foot space — vintage and modern furniture, lighting, rugs, and art under one roof.",phone:"(404) 815-8830",website:"",bestFor:["High-end furniture","Lighting and rugs"],tips:"Multiple dealers means prices and negotiability vary booth to booth — ask before assuming it's fixed.",featured:true,color:"royal",chain:false},
+  {id:"s11",name:"Kudzu Antique Market",neighborhood:"Decatur",address:"2928 E Ponce De Leon Ave, Decatur, GA 30030",type:"Antique Mall",priceLevel:2,categories:["Furniture","Home Decor","Vintage","Books"],hours:"Mon–Sun 11–7",rating:4.6,tags:["Best for Furniture","Large Selection","Hidden Gem"],description:"Over 25,000 square feet and more than three decades in business — a genuinely eclectic mix that's been featured on American Pickers and HGTV.",phone:"(404) 373-6498",website:"",bestFor:["Serious furniture hunting","Collectibles"],tips:"Big enough to need a real plan — decide which sections matter most before you dive in.",featured:true,color:"gold",chain:false},
+  {id:"s12",name:"Broad Street Antique Mall",neighborhood:"Chamblee",address:"3550 Broad St, Chamblee, GA 30341",type:"Antique Mall",priceLevel:2,categories:["Home Decor","Furniture","Books","Accessories"],hours:"Mon–Sat 10–5:30, Sun 1–5:30",rating:4.4,tags:["Large Selection","Best for Home Decor"],description:"Opened in 1979 and still going — 20,000 square feet and 200-plus dealers of china, glassware, sports collectibles, and vintage toys in the heart of Chamblee's Antique Row.",phone:"(770) 458-6316",website:"",bestFor:["A full afternoon of browsing","Collectibles and glassware"],tips:"Pair with the rest of Chamblee's walkable Antique Row for a full day out.",featured:false,color:"ink",chain:false},
+  {id:"s13",name:"Antiques & Beyond",neighborhood:"Cheshire Bridge",address:"1853 Cheshire Bridge Rd NE, Atlanta, GA 30324",type:"Antique Mall",priceLevel:3,categories:["Furniture","Home Decor","Vintage","Designer"],hours:"Mon–Sat 10–6, Sun 12–6",rating:4.5,tags:["Best for Home Decor","Best for Designer","Large Selection"],description:"Seventy-five-plus dealers of high-end vintage furniture and decor, including rare mid-century sofas and authentic Tiffany lamps.",phone:"",website:"",bestFor:["Mid-century modern furniture","Statement lighting"],tips:"Skews upscale — come here for the investment piece, not the bargain bin.",featured:false,color:"royal",chain:false},
+  {id:"s14",name:"Interiors Market",neighborhood:"Upper Westside",address:"55 Bennett St NW, Suite 20, Atlanta, GA 30309",type:"Antique & Design Mall",priceLevel:3,categories:["Furniture","Home Decor","Designer"],hours:"Call ahead to confirm current hours",rating:4.6,tags:["Best for Designer","Best for Home Decor"],description:"Set in the Bennett Street design district, this multi-dealer mall mixes antiques, lighting, and designer home pieces for a polished, showroom feel.",phone:"",website:"",bestFor:["Design-forward decor","Lighting"],tips:"Worth combining with the other galleries and shops along Bennett Street.",featured:false,color:"gold",chain:false},
+  {id:"s15",name:"The RealReal",neighborhood:"Buckhead",address:"3073 Peachtree Rd NE, Suite 100, Atlanta, GA 30326",type:"Luxury Consignment",priceLevel:3,categories:["Designer","Clothing","Accessories"],hours:"Mon–Sat 10–7, Sun 12–6",rating:4.3,tags:["Best for Designer","Large Selection"],description:"The luxury resale chain's Atlanta storefront in Buckhead Village — authenticated designer bags, shoes, and ready-to-wear refreshed daily, with in-store repair services.",phone:"",website:"therealreal.com",bestFor:["Authenticated designer resale","Special-occasion pieces"],tips:"Inventory turns over daily, so a repeat visit often beats a single long one.",featured:true,color:"ink",chain:false},
+  {id:"s16",name:"Alexis Suitcase",neighborhood:"Buckhead",address:"3140 E Shadowlawn Ave NE, Atlanta, GA 30305",type:"Upscale Consignment",priceLevel:3,categories:["Designer","Clothing","Accessories"],hours:"Call ahead to confirm current hours",rating:4.4,tags:["Best for Designer","Large Selection"],description:"A 3,000-square-foot showcase of designer handbags, shoes, and accessories at up to 75% off retail — Coach, Prada, and Manolo Blahnik among the regulars.",phone:"(404) 262-7783",website:"buckheadsupscaleresale.com",bestFor:["Designer shoes and bags","Splurge-worthy finds at a discount"],tips:"Shirts sort by color, everything else by category and size — easy to move fast.",featured:false,color:"gold",chain:false},
+  {id:"s17",name:"My My My",neighborhood:"Midtown",address:"900 Peachtree St, Suite 100-A, Atlanta, GA 30309",type:"Vintage Boutique",priceLevel:2,categories:["Clothing","Vintage","Accessories"],hours:"Call ahead to confirm current hours",rating:4.3,tags:["Best for Vintage","Hidden Gem"],description:"Midtown's overflowing-closet vintage shop — fur coats, polyester suits, flouncy dresses, and costume jewelry with real theatrical flair.",phone:"",website:"mymymyatl.com",bestFor:["Statement vintage","Costume jewelry"],tips:"A fun browse even if you're not buying — the inventory doubles as a fashion history lesson.",featured:false,color:"ink",chain:false},
+  {id:"s18",name:"Pieces",neighborhood:"Buckhead",address:"3234-A Roswell Rd, Atlanta, GA 30305",type:"Vintage Furniture & Decor",priceLevel:2,categories:["Furniture","Home Decor","Vintage"],hours:"Call ahead to confirm current hours",rating:4.3,tags:["Best for Home Decor","Hidden Gem"],description:"Reimagined vintage furniture and colorful accessories that keep the mix feeling fresh — a good source for retro glamour pieces.",phone:"(404) 869-2476",website:"piecesinc.com",bestFor:["Retro furniture accents","Colorful small decor"],tips:"Inventory turns fast — worth a repeat visit if you're furnishing a whole space.",featured:false,color:"royal",chain:false},
+  {id:"s19",name:"Beehive Co-op",neighborhood:"Little Five Points",address:"1250 Caroline St, Suite C-120, Atlanta, GA 30307",type:"Artisan & Vintage Co-op",priceLevel:2,categories:["Clothing","Accessories","Home Decor"],hours:"Call ahead to confirm current hours",rating:4.4,tags:["Hidden Gem","Curated Bins"],description:"A well-edited co-op collection of local, emerging artisans' fashion, jewelry, and home goods on the Inman Park / L5P line.",phone:"(404) 351-1166",website:"beehiveco-op.com",bestFor:["Handmade and small-batch finds","Gifts"],tips:"Less a thrift store than a curated indie marketplace — good for gifting.",featured:false,color:"gold",chain:false},
+  {id:"s20",name:"Westside Market Antiques & Interiors",neighborhood:"Upper Westside",address:"1530 Ellsworth Industrial Blvd, Atlanta, GA 30318",type:"Antique & Design Mall",priceLevel:3,categories:["Furniture","Home Decor","Designer"],hours:"Call ahead to confirm current hours",rating:4.4,tags:["Best for Home Decor","Best for Designer"],description:"A Westside destination for antiques and designer-grade interiors — furniture, lighting, and art aimed at full-room projects.",phone:"(404) 941-3466",website:"",bestFor:["Furnishing an entire room","Statement lighting"],tips:"Pair with Interiors Market a few blocks away for a full Westside design crawl.",featured:false,color:"ink",chain:false},
+  {id:"s21",name:"Eagle Eye Bookshop",neighborhood:"Decatur",address:"2076 N Decatur Rd, Decatur, GA 30033",type:"Used Bookstore",priceLevel:1,categories:["Books"],hours:"Call ahead to confirm current hours",rating:4.6,tags:["Hidden Gem","Good for Beginners"],description:"An independent used bookshop that buys and sells at fair prices and regularly hosts author readings and signings.",phone:"(404) 486-0307",website:"eagleeyebooks.com",bestFor:["Used books at fair prices","Author events"],tips:"They buy books too — bring a box to trade toward your next stack.",featured:false,color:"royal",chain:false},
+  {id:"s22",name:"Scott Antique Market",neighborhood:"South Atlanta",address:"3650 & 3850 Jonesboro Rd SE, Atlanta, GA 30354",type:"Monthly Antique Market",priceLevel:2,categories:["Furniture","Home Decor","Vintage","Accessories"],hours:"Second weekend of every month only — check dates before visiting",rating:4.6,tags:["Large Selection","Hidden Gem"],description:"One of the largest recurring antique shows in the Southeast — around 3,000 vendors across two Atlanta Expo Center buildings and outdoor lots, one long weekend a month.",phone:"(404) 361-2000",website:"scottantiquemarket.com",bestFor:["A full day of serious antiquing","Rare and unusual finds"],tips:"This is not a daily shop — it only runs the second weekend of each month, so plan ahead. Bring cash for parking.",featured:true,color:"gold",chain:false},
+  {id:"s23",name:"Goodwill – West End",neighborhood:"West End",address:"888 Ralph David Abernathy Blvd SW, Atlanta, GA 30310",type:"Nonprofit Thrift Store",priceLevel:1,categories:["Clothing","Furniture","Home Decor","Books"],hours:"Daily, hours vary by day — check location page",rating:4.0,tags:["Good for Beginners","Large Selection"],description:"Part of Goodwill of North Georgia's store network, with the sales floor refreshed every 21 days.",phone:"(404) 367-0077",website:"goodwillng.org",bestFor:["Everyday basics","Frequent restocks"],tips:"Also a donation center if you're clearing out your own closet on the way.",featured:false,color:"ink",chain:true},
+  {id:"s24",name:"Goodwill – Perimeter Center",neighborhood:"Sandy Springs",address:"1165 Perimeter Center West, Atlanta, GA 30338",type:"Nonprofit Thrift Store",priceLevel:1,categories:["Clothing","Furniture","Home Decor","Books"],hours:"Daily, hours vary by day — check location page",rating:4.0,tags:["Good for Beginners","Large Selection"],description:"A north-metro Goodwill location near Perimeter Mall, part of the Goodwill of North Georgia network.",phone:"(404) 531-0367",website:"goodwillng.org",bestFor:["Everyday basics","North-side convenience"],tips:"Convenient if you're already up near Perimeter for other errands.",featured:false,color:"royal",chain:true},
+  {id:"s25",name:"Goodwill – Piedmont",neighborhood:"Cheshire Bridge",address:"2135 Piedmont Rd NE, Atlanta, GA 30324",type:"Nonprofit Thrift Store",priceLevel:1,categories:["Clothing","Furniture","Home Decor","Books"],hours:"Daily, hours vary by day — check location page",rating:4.0,tags:["Good for Beginners","Large Selection"],description:"A Goodwill of North Georgia location on Piedmont Road, close to the Cheshire Bridge antique corridor.",phone:"",website:"goodwillng.org",bestFor:["Everyday basics","Pairing with the nearby antique malls"],tips:"Easy to combine with Antiques & Beyond and Lost-n-Found Youth on the same trip.",featured:false,color:"gold",chain:true},
+  {id:"s26",name:"Goodwill – Northeast Plaza",neighborhood:"Brookhaven",address:"3337 Buford Highway, Atlanta, GA 30329",type:"Nonprofit Thrift Store",priceLevel:1,categories:["Clothing","Furniture","Home Decor","Books"],hours:"Mon–Sat 9–8, Sun 10–8",rating:4.0,tags:["Good for Beginners","Large Selection"],description:"A Buford Highway Goodwill known among regulars for its weekly color-tag markdowns.",phone:"(678) 891-0100",website:"goodwillng.org",bestFor:["Everyday basics","Markdown hunting"],tips:"Ask about the current 'color of the week' discount at checkout.",featured:false,color:"ink",chain:true},
+  {id:"s27",name:"Goodwill – Buckhead",neighborhood:"Buckhead",address:"3906 Roswell Rd, Atlanta, GA 30342",type:"Nonprofit Thrift Store",priceLevel:1,categories:["Clothing","Furniture","Home Decor","Books"],hours:"Daily, hours vary by day — check location page",rating:4.0,tags:["Good for Beginners","Large Selection"],description:"A roughly 33,000-square-foot Goodwill in north Buckhead, occasionally good for donated designer castoffs.",phone:"(678) 791-1107",website:"goodwillng.org",bestFor:["Everyday basics","Occasional designer donations"],tips:"Worth a regular check given the neighborhood's donor base.",featured:false,color:"royal",chain:true},
+  {id:"s28",name:"Goodwill – Marietta",neighborhood:"Marietta",address:"1355 Roswell Rd, Suite 500, Marietta, GA 30062",type:"Nonprofit Thrift Store",priceLevel:1,categories:["Clothing","Furniture","Home Decor","Books"],hours:"Daily, hours vary by day — check location page",rating:4.0,tags:["Good for Beginners","Large Selection"],description:"A Goodwill of North Georgia location in Marietta's Town and Country Shopping Center.",phone:"(678) 766-1713",website:"goodwillng.org",bestFor:["Everyday basics","Pairing with a Marietta Square trip"],tips:"Combine with the antique shops on the Square for a full day out.",featured:false,color:"gold",chain:true},
+  {id:"s29",name:"Goodwill – Northside Drive",neighborhood:"Upper Westside",address:"1460 Northside Dr, Atlanta, GA 30318",type:"Nonprofit Thrift Store",priceLevel:1,categories:["Clothing","Furniture","Home Decor","Books"],hours:"Daily, hours vary by day — check location page",rating:4.0,tags:["Good for Beginners","Large Selection"],description:"A Westside Goodwill location, easy to fold into a Westside antique-mall route.",phone:"",website:"goodwillng.org",bestFor:["Everyday basics","Westside convenience"],tips:"Pairs naturally with Interiors Market and Westside Market Antiques.",featured:false,color:"ink",chain:true},
+  {id:"s30",name:"Goodwill – Metropolitan Parkway",neighborhood:"South Atlanta",address:"2160 Metropolitan Pkwy SW, Atlanta, GA 30315",type:"Nonprofit Thrift Store",priceLevel:1,categories:["Clothing","Furniture","Home Decor","Books"],hours:"Daily, hours vary by day — check location page",rating:4.0,tags:["Good for Beginners","Large Selection"],description:"A south Atlanta Goodwill location that also houses a career center.",phone:"",website:"goodwillng.org",bestFor:["Everyday basics","South Atlanta convenience"],tips:"Also a Goodwill career center if you're job-hunting while you're at it.",featured:false,color:"royal",chain:true},
+  {id:"s31",name:"Antiques on the Square",neighborhood:"Marietta",address:"146 S Park Sq NE, Marietta, GA 30060",type:"Antique Store",priceLevel:2,categories:["Home Decor","Vintage","Accessories"],hours:"Call ahead to confirm current hours",rating:4.4,tags:["Hidden Gem","Best for Home Decor"],description:"Marietta's premier destination for vintage cameras, typewriters, and small collectibles since 1986, right on the historic square.",phone:"",website:"",bestFor:["Vintage cameras and typewriters","Small collectibles"],tips:"Easy to combine with lunch and the farmers market on Marietta Square.",featured:false,color:"gold",chain:false},
+  {id:"s32",name:"Marietta Antique Mall",neighborhood:"Marietta",address:"1477 Roswell Rd, Marietta, GA 30062",type:"Antique Mall",priceLevel:2,categories:["Furniture","Home Decor","Accessories"],hours:"Call ahead to confirm current hours",rating:4.2,tags:["Large Selection","Best for Home Decor"],description:"A curated multi-dealer mall of vintage and antique furniture, collectibles, art, and jewelry.",phone:"(678) 779-4793",website:"",bestFor:["Furniture and collectibles","Jewelry"],tips:"Booth-based pricing, so it's worth a little negotiating.",featured:false,color:"ink",chain:false},
+  {id:"s33",name:"DuPre's Antique Market",neighborhood:"Marietta",address:"17 Whitlock Ave SW, Marietta, GA 30060",type:"Antique Market",priceLevel:2,categories:["Furniture","Home Decor","Vintage"],hours:"Call ahead to confirm current hours",rating:4.1,tags:["Hidden Gem","Large Selection"],description:"A multi-dealer antique market just off Marietta Square with a broad, browsable mix of furniture and decor.",phone:"",website:"",bestFor:["Casual antique browsing","Furniture"],tips:"A quick add-on if you're already exploring the Square.",featured:false,color:"royal",chain:false},
+  {id:"s34",name:"Aviary Antiques",neighborhood:"Marietta",address:"2745 Sandy Plains Rd NE, Marietta, GA 30066",type:"Antique Store",priceLevel:2,categories:["Home Decor","Vintage","Accessories"],hours:"Call ahead to confirm current hours",rating:4.2,tags:["Hidden Gem"],description:"A smaller, well-kept antique shop away from the Square, worth a stop if you're already in east Marietta.",phone:"(678) 453-0600",website:"",bestFor:["A quieter browse","Small decor pieces"],tips:"Less crowded than the Square shops — good for an unhurried visit.",featured:false,color:"gold",chain:false},
+  {id:"s35",name:"Historic Roswell Antiques and Interiors",neighborhood:"Roswell",address:"970 Canton St, Roswell, GA 30075",type:"Antique & Design Mall",priceLevel:2,categories:["Furniture","Home Decor","Accessories"],hours:"Mon–Thu 10–6, Fri–Sat 10–7, Sun 11–6",rating:4.3,tags:["Large Selection","Best for Home Decor"],description:"Statement furniture, chandeliers, rugs, and art curated alongside newer novelty pieces, right on Canton Street.",phone:"(678) 587-5774",website:"",bestFor:["Statement furniture pieces","Lighting"],tips:"Combine with the rest of Canton Street's boutiques for a full afternoon.",featured:false,color:"ink",chain:false},
+  {id:"s36",name:"425 Market Place Antiques",neighborhood:"Roswell",address:"425 Market Pl, Roswell, GA 30075",type:"Antique Mall",priceLevel:2,categories:["Furniture","Home Decor","Vintage"],hours:"Call ahead to confirm current hours",rating:4.2,tags:["Large Selection","Hidden Gem"],description:"A roomy, multi-dealer antique mall a short walk from Canton Street's main strip.",phone:"(770) 992-5400",website:"antiquetrail.com",bestFor:["Furniture and collectibles","A relaxed browse"],tips:"Good rainy-day stop when Canton Street's sidewalks are less appealing.",featured:false,color:"royal",chain:false},
+  {id:"s37",name:"Amber Brown's Antiques",neighborhood:"Roswell",address:"710 Holcomb Bridge Rd, Roswell, GA 30076",type:"Antique Store",priceLevel:2,categories:["Furniture","Home Decor"],hours:"Call ahead to confirm current hours",rating:4.1,tags:["Hidden Gem"],description:"A smaller Roswell antique shop worth a stop if you're driving Holcomb Bridge Road.",phone:"(770) 688-7246",website:"",bestFor:["A quick browse en route","Furniture"],tips:"Easy to combine with a Canton Street trip since it's just off the main strip.",featured:false,color:"gold",chain:false},
+  {id:"s38",name:"Furkids Thrift Store – Peachtree Corners",neighborhood:"Peachtree Corners",address:"4015 Holcomb Bridge Rd, Suite 400, Peachtree Corners, GA 30092",type:"Nonprofit Thrift Store",priceLevel:1,categories:["Clothing","Furniture","Home Decor","Books","Accessories"],hours:"Mon–Fri 11–6, Sat 11–4",rating:4.3,tags:["Hidden Gem","Large Selection","Good for Beginners"],description:"A 7,000-square-foot thrift store benefiting Furkids Animal Rescue, the Southeast's largest no-kill shelter — designer donations show up more often than you'd expect.",phone:"(770) 817-1405",website:"furkids.org/thrift-store",bestFor:["Supporting animal rescue","Occasional designer finds"],tips:"They'll schedule a pickup for large furniture donations if you're clearing your own place out.",featured:true,color:"royal",chain:false},
+  {id:"s39",name:"Furkids Thrift Store – Lawrenceville",neighborhood:"Lawrenceville",address:"255 Scenic Hwy, Lawrenceville, GA 30045",type:"Nonprofit Thrift Store",priceLevel:1,categories:["Clothing","Furniture","Home Decor","Books"],hours:"Mon–Fri 11–6, Sat 11–4",rating:4.2,tags:["Good for Beginners","Large Selection"],description:"Furkids' Gwinnett County thrift location — proceeds support the same no-kill animal shelter network.",phone:"",website:"furkids.org/thrift-store",bestFor:["Supporting animal rescue","Everyday basics"],tips:"Wednesdays and weekends tend to have the freshest restocks.",featured:false,color:"gold",chain:false},
+  {id:"s40",name:"Furkids Thrift Store – Marietta",neighborhood:"Marietta",address:"1487 Roswell Rd, Marietta, GA 30062",type:"Nonprofit Thrift Store",priceLevel:1,categories:["Clothing","Furniture","Home Decor","Books"],hours:"Mon–Fri 11–6, Sat 11–4",rating:4.2,tags:["Good for Beginners","Large Selection"],description:"Furkids' Marietta thrift location, right near the Marietta Antique Mall.",phone:"(770) 578-6031",website:"furkids.org/thrift-store",bestFor:["Supporting animal rescue","Pairing with nearby antique shops"],tips:"An easy add-on to a Marietta antiquing day.",featured:false,color:"ink",chain:false},
+  {id:"s41",name:"Furkids Thrift Store – Johns Creek",neighborhood:"Johns Creek",address:"9850 Nesbit Ferry Rd, Suite 10, Johns Creek, GA 30022",type:"Nonprofit Thrift Store",priceLevel:1,categories:["Clothing","Furniture","Home Decor"],hours:"Mon–Sat 10–6, Sun 12–5",rating:4.2,tags:["Good for Beginners"],description:"Furkids' northernmost metro location, supporting the same animal rescue mission.",phone:"(678) 288-5442",website:"furkids.org/thrift-store",bestFor:["Supporting animal rescue","North-metro convenience"],tips:"Furkids Closet next door is worth peeking into if you're bringing kids.",featured:false,color:"royal",chain:false},
+  {id:"s42",name:"Buckhead Thriftique",neighborhood:"Buckhead",address:"800 Miami Cir NE, Suite 160, Atlanta, GA 30324",type:"Nonprofit Thrift Store",priceLevel:1,categories:["Clothing","Home Decor","Accessories"],hours:"Call ahead to confirm current hours",rating:4.5,tags:["Best for Cheap Finds","Best for Home Decor","Hidden Gem"],description:"Run by Buckhead Christian Ministry in the affluent Shops of Miami Circle, this nonprofit thrift store sees a surprising amount of upscale-label donations at one flat price per category.",phone:"",website:"",bestFor:["Home decor and gallery-wall finds","Designer donations at thrift prices"],tips:"Everything within a category is one price — no digging through marked tags.",featured:true,color:"gold",chain:false},
+  {id:"s43",name:"Chattahoochee Antiques",neighborhood:"Tucker",address:"2201 Brockett Rd, Tucker, GA 30084",type:"Antique Store",priceLevel:2,categories:["Furniture","Home Decor","Vintage"],hours:"Call ahead to confirm current hours",rating:4.1,tags:["Hidden Gem"],description:"A Tucker-area antique shop with a steady rotation of furniture and decorative pieces.",phone:"(404) 259-5351",website:"",bestFor:["Furniture","A quieter, less-touristed browse"],tips:"Worth pairing with the other Tucker antique shops on Lavista Road.",featured:false,color:"ink",chain:false},
+  {id:"s44",name:"Old Tucker Mill",neighborhood:"Tucker",address:"4290 Railroad Ave, Tucker, GA 30084",type:"Antique Mall",priceLevel:2,categories:["Furniture","Home Decor","Books","Accessories"],hours:"Call ahead to confirm current hours",rating:4.2,tags:["Large Selection","Hidden Gem"],description:"A multi-dealer antique mall set in Tucker's old rail depot area.",phone:"(770) 864-1760",website:"",bestFor:["A relaxed multi-dealer browse","Collectibles"],tips:"Good rainy-day option away from the busier intown malls.",featured:false,color:"gold",chain:false},
+  {id:"s45",name:"The Purple Moose",neighborhood:"Tucker",address:"5072 Lavista Rd, Tucker, GA 30084",type:"Antique Store",priceLevel:2,categories:["Home Decor","Vintage","Accessories"],hours:"Call ahead to confirm current hours",rating:4.1,tags:["Hidden Gem"],description:"A small, well-loved Tucker antique shop worth a stop on a Lavista Road antiquing loop.",phone:"(770) 797-5164",website:"",bestFor:["Small decor pieces","A quick, focused stop"],tips:"Easy to pair with Chattahoochee Antiques a few minutes away.",featured:false,color:"royal",chain:false},
+  {id:"s46",name:"Bargainata",neighborhood:"Sandy Springs",address:"6600 Roswell Rd, Suite D, Sandy Springs, GA 30328",type:"Nonprofit Consignment Shop",priceLevel:1,categories:["Clothing","Home Decor","Accessories"],hours:"Fri–Sat 11–5 only",rating:4.4,tags:["Best for Cheap Finds","Hidden Gem"],description:"Run by the National Council of Jewish Women's Atlanta Section for more than 20 years — every purchase funds local community programs.",phone:"",website:"",bestFor:["Supporting community programs","Weekend-only treasure hunting"],tips:"Only open Fridays and Saturdays, so plan around it rather than a weekday trip.",featured:false,color:"gold",chain:false},
+  {id:"s47",name:"Rag-O-Rama – Sandy Springs",neighborhood:"Sandy Springs",address:"6500 Roswell Rd NE, Sandy Springs, GA 30328",type:"Vintage & Resale",priceLevel:2,categories:["Clothing","Accessories","Vintage"],hours:"Call ahead to confirm current hours",rating:4.2,tags:["Best for Cheap Finds","Large Selection"],description:"Rag-O-Rama's second metro location, bringing the same buy-sell-trade model north of the city.",phone:"",website:"rag-o-rama.com",bestFor:["Everyday vintage on the north side","Trading in your closet"],tips:"Same buy-sell-trade model as the L5P flagship, closer if you're already up in Sandy Springs.",featured:false,color:"ink",chain:false},
+  {id:"s48",name:"Labels Resale Boutique – Buckhead",neighborhood:"Buckhead",address:"3208 Paces Ferry Pl NE, Atlanta, GA 30305",type:"Designer Consignment",priceLevel:3,categories:["Designer","Clothing","Accessories"],hours:"Call ahead to confirm current hours",rating:4.4,tags:["Best for Designer","Large Selection"],description:"A designer-focused consignment boutique with one of three metro locations here in Buckhead.",phone:"",website:"",bestFor:["Designer handbags","Special-occasion dressing"],tips:"Call ahead if you're hunting a specific brand — inventory turns quickly.",featured:false,color:"royal",chain:false},
+  {id:"s49",name:"Labels Resale Boutique – Sandy Springs",neighborhood:"Sandy Springs",address:"227 Sandy Springs Pl NE, Suite 401, Atlanta, GA 30328",type:"Designer Consignment",priceLevel:3,categories:["Designer","Clothing","Accessories"],hours:"Call ahead to confirm current hours",rating:4.3,tags:["Best for Designer"],description:"The Sandy Springs location of this designer consignment boutique chain.",phone:"",website:"",bestFor:["Designer handbags","Special-occasion dressing"],tips:"Pair with Bargainata and the other Roswell Road resale shops nearby.",featured:false,color:"gold",chain:false},
+  {id:"s50",name:"Revive Consignment – Smyrna",neighborhood:"Smyrna",address:"2514 Cobb Pkwy, Smyrna, GA 30080",type:"Thrift & Consignment",priceLevel:2,categories:["Clothing","Furniture","Home Decor","Accessories"],hours:"Call ahead to confirm current hours",rating:4.1,tags:["Large Selection","Good for Beginners"],description:"A Smyrna thrift-and-consignment hybrid with a broad mix of clothing, furniture, and home goods.",phone:"",website:"",bestFor:["A one-stop mixed browse","Furniture"],tips:"Good first stop if you're exploring the Cobb Parkway corridor.",featured:false,color:"ink",chain:false},
+  {id:"s51",name:"Revive Consignment – Woodstock",neighborhood:"Woodstock",address:"9425 Hwy 92, Suite 136, Woodstock, GA 30188",type:"Thrift & Consignment",priceLevel:2,categories:["Clothing","Furniture","Home Decor"],hours:"Call ahead to confirm current hours",rating:4.1,tags:["Large Selection","Good for Beginners"],description:"Revive's second location, bringing the same thrift-and-consignment mix to Woodstock.",phone:"",website:"",bestFor:["A one-stop mixed browse","North-metro convenience"],tips:"Pair with the Woodstock antique market days on the first weekend of the month.",featured:false,color:"gold",chain:false},
+  {id:"s52",name:"Ecologie Vintage and Resale",neighborhood:"Kennesaw",address:"2615 George Busbee Pkwy, Kennesaw, GA 30144",type:"Vintage Boutique",priceLevel:2,categories:["Clothing","Vintage","Accessories"],hours:"Call ahead to confirm current hours",rating:4.2,tags:["Best for Vintage","Hidden Gem"],description:"A specially curated vintage clothing shop out in Kennesaw, worth the drive for a genuinely edited selection.",phone:"",website:"",bestFor:["Curated vintage clothing","A less-crowded browse"],tips:"Smaller than the intown vintage shops, so it's a focused trip rather than an all-day one.",featured:false,color:"royal",chain:false},
+  {id:"s53",name:"Urban Renewal Consignment",neighborhood:"Kennesaw",address:"3139 Cobb Pkwy NW, Suite 130, Kennesaw, GA 30152",type:"Consignment Shop",priceLevel:2,categories:["Clothing","Furniture","Home Decor"],hours:"Call ahead to confirm current hours",rating:4.1,tags:["Large Selection"],description:"A Kennesaw consignment shop mixing clothing with furniture and home goods.",phone:"",website:"",bestFor:["Furniture and clothing in one stop","North-metro convenience"],tips:"Pair with Ecologie Vintage a short drive away for a Kennesaw thrift day.",featured:false,color:"gold",chain:false},
+  {id:"s54",name:"Labels Resale Boutique – Vinings",neighborhood:"Vinings",address:"4199 Paces Ferry Rd SE, Atlanta, GA 30339",type:"Designer Consignment",priceLevel:3,categories:["Designer","Clothing","Accessories"],hours:"Call ahead to confirm current hours",rating:4.3,tags:["Best for Designer"],description:"The Vinings location of this designer consignment boutique chain, convenient for the Cumberland/Vinings corridor.",phone:"",website:"",bestFor:["Designer handbags","Special-occasion dressing"],tips:"Handy if you're already out near Cumberland Mall.",featured:false,color:"ink",chain:false},
+  {id:"s55",name:"Habitat for Humanity ReStore – Reynoldstown",neighborhood:"Reynoldstown",address:"271 Chester Ave SE, Atlanta, GA 30316",type:"Nonprofit Home Improvement Store",priceLevel:1,categories:["Furniture","Home Decor"],hours:"Tue–Sat 11–5 (some listings show 10:30–5:30 — call ahead)",rating:4.4,tags:["Best for Furniture","Hidden Gem"],description:"A nonprofit home-improvement resale store benefiting Atlanta Habitat for Humanity — furniture, appliances, building materials, cabinetry, and more.",phone:"(404) 525-2114",website:"atlantahabitat.org",bestFor:["Furniture and building materials","Supporting affordable housing"],tips:"Not a typical thrift store — think home improvement more than clothing, and prices are firm rather than negotiable.",featured:false,color:"royal",chain:false},
+  {id:"s56",name:"Habitat for Humanity ReStore – South Fulton",neighborhood:"College Park",address:"5626 Old National Hwy, College Park, GA 30349",type:"Nonprofit Home Improvement Store",priceLevel:1,categories:["Furniture","Home Decor"],hours:"Wed–Sat 11–5",rating:4.3,tags:["Best for Furniture","Large Selection"],description:"A 30,000-square-foot Habitat ReStore and service center in South Fulton, with free parking and EV charging.",phone:"(404) 382-7615",website:"atlantahabitat.org",bestFor:["Furniture and appliances","South Fulton convenience"],tips:"One of the larger ReStore locations in the metro — worth the drive if you're furnishing on a budget.",featured:false,color:"gold",chain:false},
+  {id:"s57",name:"Habitat for Humanity ReStore – Smyrna",neighborhood:"Smyrna",address:"3315 S Cobb Dr, Suite 150, Smyrna, GA 30080",type:"Nonprofit Home Improvement Store",priceLevel:1,categories:["Furniture","Home Decor"],hours:"Call ahead to confirm current hours",rating:4.3,tags:["Best for Furniture"],description:"Habitat for Humanity of Northwest Metro Atlanta's ReStore, selling donated furniture, appliances, and building materials.",phone:"(770) 415-1625",website:"habitat.org",bestFor:["Furniture and home improvement finds","Supporting local Habitat builds"],tips:"Pair with Revive Consignment a short drive away for a Smyrna/Cobb County loop.",featured:false,color:"ink",chain:false},
+  {id:"s58",name:"Goodwill – Stone Mountain",neighborhood:"Stone Mountain",address:"1450 East Park Place Blvd, Stone Mountain, GA 30087",type:"Nonprofit Thrift Store",priceLevel:1,categories:["Clothing","Furniture","Home Decor","Books"],hours:"Mon–Sat 9–8, Sun 10–8",rating:4.0,tags:["Good for Beginners","Large Selection"],description:"A Stone Mountain Goodwill of North Georgia location with regular color-tag markdowns.",phone:"(678) 205-4658",website:"goodwillng.org",bestFor:["Everyday basics","East-metro convenience"],tips:"Ask about '99 Cent Mondays' on the current color tag.",featured:false,color:"royal",chain:true},
+  {id:"s59",name:"Elizabeth Anne Star Interiors",neighborhood:"Duluth",address:"750 Vista Bluff Dr, Duluth, GA 30097",type:"Antique Store",priceLevel:2,categories:["Furniture","Home Decor"],hours:"Call ahead to confirm current hours",rating:4.2,tags:["Hidden Gem","Best for Home Decor"],description:"A Duluth antique and interiors shop with curated furniture, lighting, and collectible pieces, with staff who can help with appraisals and restoration questions.",phone:"(770) 903-9997",website:"eastarinteriors.net",bestFor:["Furniture with a story","Design advice"],tips:"Worth calling ahead — staff can help track down specific pieces.",featured:false,color:"gold",chain:false}
+];
+
+const CURATED_ROUTES = [
+  {id:"cr1",title:"Little Five Points Vintage Crawl",desc:"Four legendary L5P vintage and resale shops, all within a few blocks of each other.",storeIds:["s2","s3","s4","s5"],time:"Half day"},
+  {id:"cr2",title:"Chamblee & Decatur Antique Day",desc:"Two of the metro's biggest antique malls, built for serious furniture hunting.",storeIds:["s12","s11"],time:"Full day"},
+  {id:"cr3",title:"Cheshire Bridge Double Header",desc:"A nonprofit thrift warehouse paired with a high-end antique mall, minutes apart.",storeIds:["s1","s13"],time:"2 hours"},
+  {id:"cr4",title:"Marietta Square Antiquing Day",desc:"A walkable loop of the Square's best antique shops, all real Marietta staples.",storeIds:["s31","s32","s33"],time:"Half day"},
+  {id:"cr5",title:"Buckhead to Bennett Street Design Route",desc:"Upscale consignment and designer antique malls for furnishing a whole room.",storeIds:["s15","s14","s10"],time:"Full day"},
+  {id:"cr6",title:"Sandy Springs Resale Loop",desc:"Three resale and consignment shops clustered along Roswell Road.",storeIds:["s46","s47","s49"],time:"2 hours"},
+  {id:"cr7",title:"No-Chain Niche Route",desc:"Independent vintage, antique, and nonprofit shops only — zero big-box chains.",storeIds:["s3","s10","s42"],time:"Half day"}
+];
+
+const SAMPLE_USERS = ["mara.thrifts","eastatl.vintage","deej_finds","kudzu.kid","thrifty.reese","o4w.forager","lowcountry.linens","atl.rehome"];
+
+const SAMPLE_EVENTS = [
+  {id:"ev1",title:"Example: Fall Warehouse Clearance",linkedStoreId:"s9",dateLabel:"Sat Sep 12 – Sun Sep 13",description:"Sample listing — swap this out for a real upcoming sale, or delete it from the admin panel.",isSample:true},
+  {id:"ev2",title:"Example: Half-Off Color Tag Weekend",linkedStoreId:"s23",dateLabel:"This weekend",description:"Sample listing — donation-based thrift stores often run rotating color-tag discounts like this.",isSample:true}
+];
+
+const SAMPLE_POSTS = [
+  {id:"p1",user:"mara.thrifts",item:"Amber glass table lamp",store:"s13",price:38,category:"Home Decor",caption:"This has lived on three different side tables while I figure out where it actually belongs.",date:"2026-08-29",color:"gold"},
+  {id:"p2",user:"eastatl.vintage",item:"90s corduroy trucker jacket",store:"s2",price:18,category:"Clothing",caption:"Traded in an old coat for store credit and walked out with this instead.",date:"2026-09-01",color:"royal"},
+  {id:"p3",user:"deej_finds",item:"Coach leather satchel",store:"s15",price:65,category:"Designer",caption:"Authenticated and still less than half of retail.",date:"2026-09-02",color:"ink"},
+  {id:"p4",user:"kudzu.kid",item:"Silk slip dress, deadstock",store:"s3",price:24,category:"Vintage",caption:"Tags still on. Somebody's loss.",date:"2026-08-25",color:"royal"},
+  {id:"p5",user:"thrifty.reese",item:"Set of 6 rattan dining chairs",store:"s1",price:80,category:"Furniture",caption:"Needed a truck and a favor from my neighbor, worth every bit of both.",date:"2026-08-30",color:"gold"},
+  {id:"p6",user:"o4w.forager",item:"Stack of vintage National Geographic",store:"s12",price:6,category:"Books",caption:"Building a little coffee table stack from Chamblee's Antique Row.",date:"2026-08-27",color:"ink"},
+  {id:"p7",user:"lowcountry.linens",item:"Hand-embroidered pillowcases",store:"s11",price:14,category:"Home Decor",caption:"The kind of thing you don't know you need until you see it.",date:"2026-09-03",color:"gold"},
+  {id:"p8",user:"atl.rehome",item:"Brass floor mirror",store:"s9",price:45,category:"Furniture",caption:"Slight foxing on the glass, which is exactly why I wanted it.",date:"2026-08-22",color:"royal"},
+  {id:"p9",user:"mara.thrifts",item:"Beaded evening clutch",store:"s7",price:22,category:"Accessories",caption:"Traded in last season's bag and came out ahead.",date:"2026-08-31",color:"ink"},
+  {id:"p10",user:"deej_finds",item:"Levi's 501s, perfect fade",store:"s5",price:16,category:"Clothing",caption:"Dug for forty minutes at The Clothing Warehouse. This is why.",date:"2026-08-24",color:"royal"}
+];
+
+const ICONS = {
+  home:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M3 11.5 12 4l9 7.5"/><path d="M5.5 10v9a1 1 0 0 0 1 1H10v-6h4v6h3.5a1 1 0 0 0 1-1v-9"/></svg>',
+  compass:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M15 9l-2 6-6 2 2-6z"/></svg>',
+  route:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="6" cy="6" r="2.3"/><circle cx="18" cy="18" r="2.3"/><path d="M6 8.3V13a4 4 0 0 0 4 4h4"/></svg>',
+  users:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="9" cy="8" r="3"/><path d="M3 20c0-3.3 2.7-5.5 6-5.5s6 2.2 6 5.5"/><circle cx="17" cy="8" r="2.4"/><path d="M15.5 14.8c2.5.4 4.5 2.3 4.5 5.2"/></svg>',
+  bookmark:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M6 4h12v16l-6-4-6 4z"/></svg>',
+  user:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="8" r="3.6"/><path d="M4.5 20c0-4.1 3.4-6.5 7.5-6.5s7.5 2.4 7.5 6.5"/></svg>',
+  search:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>',
+  heart:'<svg viewBox="0 0 24 24"><path d="M12 20.5s-7.6-4.6-10-9.3C.4 7.7 2.3 4 5.9 4c2.2 0 3.7 1.2 4.6 2.6C11.4 5.2 12.9 4 15.1 4c3.6 0 5.5 3.7 3.9 7.2-2.4 4.7-10 9.3-10 9.3z"/></svg>',
+  comment:'<svg viewBox="0 0 24 24"><path d="M4 4h16v12H8l-4 4z"/></svg>',
+  share:'<svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="2.4"/><circle cx="6" cy="12" r="2.4"/><circle cx="18" cy="19" r="2.4"/><path d="M8.2 10.8 15.8 6.2M8.2 13.2l7.6 4.6"/></svg>',
+  map:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M9 4 3 6.5v14L9 18l6 2.5L21 18V4l-6 2.5L9 4z"/><path d="M9 4v14M15 6.5v14"/></svg>',
+  list:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M8 6h13M8 12h13M8 18h13"/><circle cx="3.5" cy="6" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.5" cy="12" r="1.2" fill="currentColor" stroke="none"/><circle cx="3.5" cy="18" r="1.2" fill="currentColor" stroke="none"/></svg>',
+  star:'<svg viewBox="0 0 24 24"><path d="M12 2.5l2.9 6.2 6.7.7-5 4.6 1.4 6.7L12 17.4 6 20.7l1.4-6.7-5-4.6 6.7-.7z"/></svg>',
+  pin:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 21s7-6.5 7-11.5A7 7 0 0 0 5 9.5C5 14.5 12 21 12 21z"/><circle cx="12" cy="9.5" r="2.3"/></svg>',
+  clock:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3.5 2"/></svg>',
+  phone:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 4h3.5l1.5 4-2 1.5a11 11 0 0 0 6.5 6.5l1.5-2 4 1.5V19a2 2 0 0 1-2 2C11 21 3 13 3 6a2 2 0 0 1 2-2z"/></svg>',
+  globe:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3c2.5 2.7 2.5 15.3 0 18M12 3c-2.5 2.7-2.5 15.3 0 18"/></svg>',
+  tag:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M11 3 3 11v0l9 9 9-9-9-8z"/><circle cx="8.5" cy="8.5" r="1.3" fill="currentColor" stroke="none"/></svg>',
+  x:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M5 5l14 14M19 5 5 19"/></svg>',
+  back:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M15 5 8 12l7 7"/></svg>',
+  plus:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 5v14M5 12h14"/></svg>',
+  trash:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 7h16M9 7V5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2m-8 0 1 13a1 1 0 0 0 1 1h6a1 1 0 0 0 1-1l1-13"/></svg>',
+  edit:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="m14 4 6 6-9.5 9.5L4 21l1.5-6.5z"/></svg>',
+  up:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 15l7-7 7 7"/></svg>',
+  down:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 9l7 7 7-7"/></svg>',
+  camera:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 8h3l1.5-2h7L17 8h3v11H4z"/><circle cx="12" cy="13.5" r="3.3"/></svg>',
+  shield:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3 5 6v6c0 4.5 3 7.5 7 9 4-1.5 7-4.5 7-9V6z"/></svg>',
+  chevronR:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 5l7 7-7 7"/></svg>',
+  thumbsUp:'<svg viewBox="0 0 24 24"><path d="M7 10v11H4a1 1 0 0 1-1-1v-9a1 1 0 0 1 1-1zM7 10l4.5-7a2 2 0 0 1 3.6 1.4L14 8h5a2 2 0 0 1 2 2.3l-1.5 8A2 2 0 0 1 17.5 20H10a3 3 0 0 1-3-3"/></svg>',
+  thumbsDown:'<svg viewBox="0 0 24 24"><path d="M17 14V3h3a1 1 0 0 1 1 1v9a1 1 0 0 1-1 1zM17 14l-4.5 7a2 2 0 0 1-3.6-1.4L10 16H5a2 2 0 0 1-2-2.3l1.5-8A2 2 0 0 1 6.5 4H14a3 3 0 0 1 3 3"/></svg>',
+  check:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 13l4 4L19 7"/></svg>',
+  clothing:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 4 6 6 4 9l2.5 1.5V20h11v-9.5L20 9l-2-3-3-2-1.5 2h-3z"/></svg>',
+  furniture:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 13V7a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v6M4 13h16v4H4zM6 17v3M18 17v3"/></svg>',
+  decor:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M9 3h6l1 6a4 4 0 0 1-8 0z"/><path d="M12 13v6M9 19h6"/></svg>',
+  bag:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 8h12l-1 12H7z"/><path d="M9 8V6a3 3 0 0 1 6 0v2"/></svg>',
+  book:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M5 5h9a3 3 0 0 1 3 3v11H8a3 3 0 0 1-3-3z"/><path d="M5 5v13"/></svg>',
+  gem:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M6 9 9 4h6l3 5-8 11z"/><path d="M6 9h12M10.5 9 12 20M13.5 9 12 20"/></svg>',
+  dollar:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M12 3v18M16 7.5c0-1.7-1.8-3-4-3s-4 1.2-4 3c0 4 8 2 8 6.5 0 1.8-1.8 3-4 3s-4-1.3-4-3"/></svg>',
+  all:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="3"/><circle cx="16" cy="8" r="3"/><circle cx="8" cy="16" r="3"/><circle cx="16" cy="16" r="3"/></svg>'
+};
+
+const CATEGORY_ICON = {"Clothing":"clothing","Furniture":"furniture","Home Decor":"decor","Vintage":"gem","Designer":"bag","Books":"book","Accessories":"bag"};
+
+function storeArt(store, opts){
+  opts = opts || {};
+  const palettes = {
+    royal:{bg:"#B8695E",fg:"#F4EFE2",accent:"#E3B0A6"},
+    gold:{bg:"#C99A4A",fg:"#5C3A1E",accent:"#E0BB79"},
+    ink:{bg:"#2B2530",fg:"#F4EFE2",accent:"#6B5A63"}
+  };
+  const p = palettes[store.color] || palettes.royal;
+  const icon = CATEGORY_ICON[store.categories[0]] || "gem";
+  const iconSvg = ICONS[icon].replace('<svg viewBox="0 0 24 24"','<svg viewBox="0 0 24 24" x="0" y="0"');
+  const seed = store.id.charCodeAt(1) * 13 % 100;
+  return `<svg viewBox="0 0 300 200" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+    <rect width="300" height="200" fill="${p.bg}"/>
+    <circle cx="${40+seed*2}" cy="30" r="70" fill="${p.accent}" opacity="0.18"/>
+    <circle cx="${260-seed}" cy="180" r="90" fill="${p.accent}" opacity="0.14"/>
+    <g transform="translate(115,65)" stroke="${p.fg}" fill="none" color="${p.fg}">
+      <g transform="scale(2.9)">${ICONS[icon]}</g>
+    </g>
+    <text x="24" y="178" font-family="Fraunces, serif" font-size="15" fill="${p.fg}" opacity="0.85">${store.neighborhood}</text>
+  </svg>`;
+}
+function postArt(post){
+  const palettes = {
+    royal:{bg:"#B8695E",fg:"#F4EFE2",accent:"#E3B0A6"},
+    gold:{bg:"#C99A4A",fg:"#5C3A1E",accent:"#E0BB79"},
+    ink:{bg:"#2B2530",fg:"#F4EFE2",accent:"#6B5A63"}
+  };
+  const p = palettes[post.color] || palettes.royal;
+  const icon = CATEGORY_ICON[post.category] || "gem";
+  const seed = post.id.charCodeAt(1) * 17 % 100;
+  return `<svg viewBox="0 0 300 230" xmlns="http://www.w3.org/2000/svg" preserveAspectRatio="xMidYMid slice">
+    <rect width="300" height="230" fill="${p.bg}"/>
+    <circle cx="${30+seed*2.2}" cy="40" r="90" fill="${p.accent}" opacity="0.2"/>
+    <g transform="translate(120,80)" stroke="${p.fg}" fill="none" color="${p.fg}">
+      <g transform="scale(3.6)">${ICONS[icon]}</g>
+    </g>
+  </svg>`;
+}
+
+function uid(prefix){ return prefix + Math.random().toString(36).slice(2,9); }
+const SUPABASE_URL = "https://rwrmnrpsbatubjgimstr.supabase.co";
+const SUPABASE_KEY = "sb_publishable_1pyhvlnQ79-DnjjXv-hzfA_l7qi07wU";
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+function mapDbStore(row){
+  return {
+    id: row.id, name: row.name, neighborhood: row.neighborhood, address: row.address,
+    type: row.type, priceLevel: row.price_level, categories: row.categories||[],
+    hours: row.hours, rating: row.google_rating ?? row.rating, reviewCount: row.google_review_count,
+    tags: row.tags||[], description: row.description, phone: row.phone, website: row.website,
+    bestFor: row.best_for||[], tips: row.tips, featured: row.featured, color: row.color,
+    chain: row.chain, googlePlaceId: row.google_place_id
+  };
+}
+function initials(name){ return name.split(/[\s._]/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join(""); }
+function validatePassword(pw){
+  if(!pw || pw.length < 8) return "Password must be at least 8 characters.";
+  if(!/[0-9]/.test(pw)) return "Password must include at least one number.";
+  if(!/[^A-Za-z0-9]/.test(pw)) return "Password must include at least one special character.";
+  return null;
+}
+// Renders a real uploaded photo for the signed-in user's own avatar wherever
+// it appears; everyone else (sample community users, or before you've
+// uploaded one) still gets the plain initials circle.
+function avatarHtml(username, sizeClass){
+  if(state.user && username===state.user.username && state.user.avatarUrl){
+    return `<div class="${sizeClass||'avatar'}" style="overflow:hidden;padding:0"><img src="${state.user.avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%"></div>`;
+  }
+  return `<div class="${sizeClass||'avatar'}">${initials(username)}</div>`;
+}
+function timeAgo(dateStr){
+  const d = new Date(dateStr+"T12:00:00");
+  const now = new Date("2026-09-05T12:00:00");
+  const days = Math.round((now-d)/86400000);
+  if(days<=0) return "today";
+  if(days===1) return "1 day ago";
+  if(days<14) return days+" days ago";
+  return Math.round(days/7)+" weeks ago";
+}
+function priceStr(n){ return n===1?"$":n===2?"$$":"$$$"; }
+const DAY_MAP = {Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6};
+const UNKNOWN_HOURS_MARKERS = ["call ahead","vary","month","check dates","check location"];
+function parseStoreHours(hoursStr){
+  let s = hoursStr.replace(/\([^)]*\)/g, '').trim();
+  const lower = s.toLowerCase();
+  if(UNKNOWN_HOURS_MARKERS.some(k=>lower.includes(k))) return null;
+  const segments = s.split(',').map(x=>x.trim()).filter(Boolean);
+  const rules = [];
+  for(const seg of segments){
+    const m = seg.match(/^([A-Za-z]{3})(?:[–-]([A-Za-z]{3}))?\s+(\d{1,2})(?::(\d{2}))?[–-](\d{1,2})(?::(\d{2}))?(?:\s+only)?$/);
+    if(!m) return null;
+    const [, d1, d2, oh, om, ch, cm] = m;
+    if(!(d1 in DAY_MAP)) return null;
+    let days;
+    if(d2){
+      if(!(d2 in DAY_MAP)) return null;
+      let start = DAY_MAP[d1], end = DAY_MAP[d2];
+      days = []; let i = start, guard=0;
+      while(true){ days.push(i); if(i===end || guard>7) break; i=(i+1)%7; guard++; }
+    } else {
+      days = [DAY_MAP[d1]];
+    }
+    let openHour = parseInt(oh,10), openMin = om?parseInt(om,10):0;
+    let closeHour = parseInt(ch,10), closeMin = cm?parseInt(cm,10):0;
+    if(openHour>=1 && openHour<=6) openHour += 12;
+    if(closeHour<=openHour || closeHour<=8) closeHour += 12;
+    rules.push({days, openMin: openHour*60+openMin, closeMin: closeHour*60+closeMin});
+  }
+  return rules;
+}
+// Returns true (open), false (closed), or null (hours aren't reliably parseable —
+// e.g. "call ahead", monthly markets — so we don't claim to know either way).
+function isOpenNow(store){
+  const rules = parseStoreHours(store.hours);
+  if(!rules) return null;
+  const now = new Date();
+  const day = now.getDay();
+  const mins = now.getHours()*60+now.getMinutes();
+  for(const r of rules){
+    if(r.days.includes(day) && mins>=r.openMin && mins<r.closeMin) return true;
+  }
+  return false;
+}
+function dist(aKey,bKey){
+  const a = NEIGHBORHOODS[aKey], b = NEIGHBORHOODS[bKey];
+  if(!a||!b) return 5;
+  const dx = a.x-b.x, dy=a.y-b.y;
+  return Math.sqrt(dx*dx+dy*dy)*0.55;
+}
+function nearestNeighborhood(lat,lng){
+  let best=null, bestD=Infinity;
+  for(const name in NEIGHBORHOODS){
+    const p = NEIGHBORHOODS[name];
+    if(p.lat==null) continue;
+    const dlat=(lat-p.lat)*69;
+    const dlng=(lng-p.lng)*57.3;
+    const d=dlat*dlat+dlng*dlng;
+    if(d<bestD){ bestD=d; best=name; }
+  }
+  return best;
+}
+function tryDetectLocation(manual){
+  if(state.geoAttempted && !manual) return;
+  state.geoAttempted = true;
+  if(!("geolocation" in navigator)){
+    if(manual) toast("Location isn't available in this browser.");
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    pos=>{
+      const nb = nearestNeighborhood(pos.coords.latitude, pos.coords.longitude);
+      if(nb){
+        state.builderChoice.start = nb;
+        state.locationDetected = true;
+        if(manual) toast("Starting point set to "+nb+".");
+        renderList();
+      }
+    },
+    err=>{
+      state.locationDetected = false;
+      if(manual) toast("Couldn't get your location — pick a starting point below.");
+    },
+    {timeout:8000, maximumAge:600000}
+  );
+}
+
+const DEFAULT_STATE = {
+  user:null,
+  isAdmin:false,
+  savedStoreIds:[],
+  savedRouteIds:[],
+  savedPostIds:[],
+  visitedStoreIds:[],
+  userRoutes:[],
+  posts: [],
+  likes:{},
+  comments:{},
+  stores: [],
+  events: [],
+  storeVotes:{},
+  storeFollows:{},
+  authMode:"signup",
+  view:"home",
+  params:{},
+  discoverMode:"list",
+  discoverFilters:[],
+  hideChains:false,
+  builderStep:0,
+  builderChoice:{start:"Midtown",time:"Half day",categories:[],distance:"20 miles",manualStores:[],destination:null},
+  showDestinationPicker:false,
+  geoAttempted:false,
+  locationDetected:false,
+  currentRoute:null,
+  savedTab:"stores",
+  communityFilter:"All",
+  pendingAction:null
+};
+
+// Supabase is now the real source of truth. localStorage only remembers a
+// couple of harmless per-device UI preferences (list vs map, hide chains) —
+// everything about your account, saves, posts, and votes lives in the
+// database and follows you to any device you sign into.
+let state = JSON.parse(JSON.stringify(DEFAULT_STATE));
+function loadUIPrefs(){
+  try{
+    const raw = localStorage.getItem("atlThrift_ui_prefs_v1");
+    if(raw){ Object.assign(state, JSON.parse(raw)); }
+  }catch(e){}
+}
+function saveUIPrefs(){
+  try{
+    localStorage.setItem("atlThrift_ui_prefs_v1", JSON.stringify({
+      discoverMode: state.discoverMode, hideChains: state.hideChains
+    }));
+  }catch(e){}
+}
+// Kept as a no-op alias so every existing call site (there are many) keeps
+// working without needing to be found and rewritten one by one.
+function saveState(){ saveUIPrefs(); }
+
+async function refreshSessionAndProfile(){
+  const { data:{ user } } = await sb.auth.getUser();
+  if(!user){ state.user = null; return; }
+  const { data: profile } = await sb.from("profiles").select("*").eq("id", user.id).single();
+  state.user = {
+    id: user.id, email: user.email,
+    username: profile?.username || user.email.split("@")[0],
+    bio: profile?.bio || "", favCategory: profile?.fav_category || CATEGORIES[0],
+    neighborhood: profile?.neighborhood || Object.keys(NEIGHBORHOODS)[0],
+    avatarUrl: profile?.avatar_url || "",
+    followers:[], following:[] // not shown per your call to drop follower counts — kept as empty for any leftover UI references
+  };
+}
+async function loadStores(){
+  const { data, error } = await sb.from("stores").select("*");
+  if(error){ console.error("loadStores failed:", error.message); state.stores = []; return; }
+  state.stores = data.map(mapDbStore);
+}
+async function loadEvents(){
+  const { data, error } = await sb.from("events").select("*").order("created_at",{ascending:false});
+  if(error){ console.error("loadEvents failed:", error.message); state.events = []; return; }
+  state.events = data.map(e=>({id:e.id, title:e.title, linkedStoreId:e.linked_store_id, dateLabel:e.date_label, description:e.description, isSample:e.is_sample}));
+}
+async function loadPosts(){
+  const { data, error } = await sb.from("posts").select("*, profiles(username)").order("created_at",{ascending:false});
+  if(error){ console.error("loadPosts failed:", error.message); state.posts = []; return; }
+  state.posts = data.map(p=>({
+    id:p.id, user:p.profiles?.username||"unknown", userId:p.user_id, item:p.item, store:p.store_id,
+    price:p.price, category:p.category, caption:p.caption, photoDataUrl:p.photo_url,
+    date:(p.created_at||"").slice(0,10)
+  }));
+  const { data: likeRows } = await sb.from("post_likes").select("post_id,user_id");
+  state.likes = {};
+  (likeRows||[]).forEach(r=>{ (state.likes[r.post_id] = state.likes[r.post_id]||[]).push(r.user_id); });
+  const { data: commentRows } = await sb.from("comments").select("*, profiles(username)").order("created_at",{ascending:true});
+  state.comments = {};
+  (commentRows||[]).forEach(c=>{ (state.comments[c.post_id] = state.comments[c.post_id]||[]).push({user:c.profiles?.username||"unknown", text:c.text}); });
+}
+async function loadMyData(){
+  // Vote and follow counts are public — everyone browsing should see them,
+  // signed in or not. Only the personal lists below actually require an account.
+  const [votes, follows] = await Promise.all([
+    sb.from("store_votes").select("*"),
+    sb.from("store_follows").select("*")
+  ]);
+  state.storeVotes = {};
+  (votes.data||[]).forEach(v=>{
+    if(!state.storeVotes[v.store_id]) state.storeVotes[v.store_id] = {up:[],down:[]};
+    state.storeVotes[v.store_id][v.direction].push(v.user_id);
+  });
+  state.storeFollows = {};
+  (follows.data||[]).forEach(f=>{
+    if(!state.storeFollows[f.store_id]) state.storeFollows[f.store_id] = {};
+    state.storeFollows[f.store_id][f.user_id] = f.frequency;
+  });
+
+  if(!state.user){
+    state.savedStoreIds=[]; state.visitedStoreIds=[]; state.savedPostIds=[]; state.savedRouteIds=[]; state.userRoutes=[];
+    return;
+  }
+  const uid_ = state.user.id;
+  const [saved, visited, savedPosts, myRoutes] = await Promise.all([
+    sb.from("saved_stores").select("store_id").eq("user_id",uid_),
+    sb.from("visited_stores").select("store_id").eq("user_id",uid_),
+    sb.from("saved_posts").select("post_id").eq("user_id",uid_),
+    sb.from("routes").select("*").eq("user_id",uid_)
+  ]);
+  state.savedStoreIds = (saved.data||[]).map(r=>r.store_id);
+  state.visitedStoreIds = (visited.data||[]).map(r=>r.store_id);
+  state.savedPostIds = (savedPosts.data||[]).map(r=>r.post_id);
+  state.userRoutes = (myRoutes.data||[]).map(r=>({
+    id:r.id, title:r.title, start:r.start_neighborhood, destination:r.destination_neighborhood,
+    stops:r.stops||[], legs:r.legs||[], totalTravel:r.total_travel, totalBrowse:r.total_browse,
+    totalTime:(r.total_travel||0)+(r.total_browse||0)
+  }));
+  state.savedRouteIds = state.userRoutes.map(r=>r.id);
+}
+async function boot(){
+  document.getElementById("app").innerHTML = '<div style="display:flex;align-items:center;justify-content:center;min-height:100vh;font-family:var(--font-body);color:var(--ink-soft)">Loading ATL Thrift Guide…</div>';
+  loadUIPrefs();
+  await refreshSessionAndProfile();
+  await Promise.all([loadStores(), loadEvents(), loadPosts()]);
+  await loadMyData();
+  render();
+  if(!("geolocation" in navigator)) state.geoAttempted = true;
+}
+
+function go(view, params){
+  state.view = view;
+  state.params = params || {};
+  window.scrollTo(0,0);
+  render();
+  if(view==="route" && !state.geoAttempted){ tryDetectLocation(false); }
+}
+function toast(msg){
+  const t = document.createElement("div");
+  t.className="toast";
+  t.textContent = msg;
+  document.body.appendChild(t);
+  setTimeout(()=>t.remove(), 2200);
+}
+function requireAuth(actionFn){
+  if(state.user){ actionFn(); return; }
+  state.pendingAction = actionFn;
+  openModal("login");
+}
+async function toggleSaveStore(id){
+  requireAuth(async ()=>{
+    const already = state.savedStoreIds.includes(id);
+    if(already){
+      await sb.from("saved_stores").delete().eq("user_id",state.user.id).eq("store_id",id);
+      state.savedStoreIds = state.savedStoreIds.filter(x=>x!==id);
+    } else {
+      const { error } = await sb.from("saved_stores").insert({user_id:state.user.id, store_id:id});
+      if(error){ toast("Couldn't save that — try again."); return; }
+      state.savedStoreIds.push(id);
+    }
+    render();
+  });
+}
+async function toggleVisited(id){
+  requireAuth(async ()=>{
+    const already = state.visitedStoreIds.includes(id);
+    if(already){
+      await sb.from("visited_stores").delete().eq("user_id",state.user.id).eq("store_id",id);
+      state.visitedStoreIds = state.visitedStoreIds.filter(x=>x!==id);
+    } else {
+      const { error } = await sb.from("visited_stores").insert({user_id:state.user.id, store_id:id});
+      if(error){ toast("Couldn't mark that visited — try again."); return; }
+      state.visitedStoreIds.push(id);
+    }
+    render();
+  });
+}
+async function toggleSavePost(id){
+  requireAuth(async ()=>{
+    const already = state.savedPostIds.includes(id);
+    if(already){
+      await sb.from("saved_posts").delete().eq("user_id",state.user.id).eq("post_id",id);
+      state.savedPostIds = state.savedPostIds.filter(x=>x!==id);
+    } else {
+      const { error } = await sb.from("saved_posts").insert({user_id:state.user.id, post_id:id});
+      if(error){ toast("Couldn't save that — try again."); return; }
+      state.savedPostIds.push(id);
+    }
+    render();
+  });
+}
+async function toggleLike(id){
+  requireAuth(async ()=>{
+    if(!state.likes[id]) state.likes[id]=[];
+    const already = state.likes[id].includes(state.user.id);
+    if(already){
+      await sb.from("post_likes").delete().eq("user_id",state.user.id).eq("post_id",id);
+      state.likes[id] = state.likes[id].filter(x=>x!==state.user.id);
+    } else {
+      const { error } = await sb.from("post_likes").insert({user_id:state.user.id, post_id:id});
+      if(error){ toast("Couldn't like that — try again."); return; }
+      state.likes[id].push(state.user.id);
+    }
+    render();
+  });
+}
+function getStoreVotes(id){
+  if(!state.storeVotes[id]) state.storeVotes[id] = {up:[],down:[]};
+  return state.storeVotes[id];
+}
+function getFollowPref(storeId){
+  const f = state.storeFollows[storeId];
+  if(!f || !state.user) return null;
+  return f[state.user.id] || null;
+}
+function followerCount(storeId){
+  const f = state.storeFollows[storeId];
+  return f ? Object.keys(f).length : 0;
+}
+async function setFollowPref(storeId, freq){
+  requireAuth(async ()=>{
+    if(!state.storeFollows[storeId]) state.storeFollows[storeId] = {};
+    if(freq===null){
+      await sb.from("store_follows").delete().eq("user_id",state.user.id).eq("store_id",storeId);
+      delete state.storeFollows[storeId][state.user.id];
+    } else {
+      const { error } = await sb.from("store_follows").upsert({user_id:state.user.id, store_id:storeId, frequency:freq});
+      if(error){ toast("Couldn't update that — try again."); return; }
+      state.storeFollows[storeId][state.user.id] = freq;
+    }
+    renderList();
+  });
+}
+async function toggleStoreVote(id, dir){
+  requireAuth(async ()=>{
+    const v = getStoreVotes(id);
+    const u = state.user.id;
+    const other = dir==="up" ? v.down : v.up;
+    const mine = dir==="up" ? v.up : v.down;
+    const wasMine = mine.includes(u);
+    const oi = other.indexOf(u);
+    if(oi>-1) other.splice(oi,1);
+    if(wasMine){
+      await sb.from("store_votes").delete().eq("user_id",u).eq("store_id",id);
+      const mi = mine.indexOf(u); if(mi>-1) mine.splice(mi,1);
+    } else {
+      const { error } = await sb.from("store_votes").upsert({user_id:u, store_id:id, direction:dir});
+      if(error){ toast("Couldn't record that vote — try again."); return; }
+      mine.push(u);
+    }
+    renderList();
+  });
+}
+function getStoreById(id){ return state.stores.find(s=>s.id===id); }
+
+let activeModal = null;
+let pendingAvatarData = null;
+let pendingFindPhotoData = null;
+function postPhotoHtml(post){
+  if(post.photoDataUrl) return `<img src="${post.photoDataUrl}" style="width:100%;height:100%;object-fit:cover;display:block">`;
+  return postArt(post);
+}
+function openModal(name, params){
+  if(name==="login") state.authMode = "signup";
+  activeModal = {name, params: params||{}};
+  renderModal();
+}
+function closeModal(){
+  activeModal = null;
+  const el = document.getElementById("modal-root");
+  if(el) el.innerHTML = "";
+  if(state.pendingAction && !(activeModal)){}
+}
+
+function iconEl(name, cls){ return `<span class="${cls||''}" style="display:inline-flex">${ICONS[name]||''}</span>`; }
+
+function render(){
+  const app = document.getElementById("app");
+  app.innerHTML = `
+    <div class="topbar">
+      <button class="brand-mark" data-action="go-home" aria-label="ATL Thrift Guide home">
+        <span class="brand-logo">${ICONS.compass.replace('currentColor','#F4EFE2')}</span>
+        <span class="brand-text"><span class="b1">ATL Thrift Guide</span><span class="b2">by 2nd Studio</span></span>
+      </button>
+      <div class="top-actions">
+        ${state.user ? `<button class="icon-btn" data-action="go-profile" aria-label="Profile" style="overflow:hidden;padding:0">${state.user.avatarUrl ? `<img src="${state.user.avatarUrl}" style="width:100%;height:100%;object-fit:cover">` : ICONS.user}</button>` : `<button class="btn btn-outline btn-sm" data-action="open-login">Sign in</button>`}
+      </div>
+    </div>
+    <main class="view" id="view-root"></main>
+    <nav class="bottom-nav"><div class="bottom-nav-inner">
+      ${navItem("home","home","Home")}
+      ${navItem("discover","compass","Discover")}
+      ${navItem("route","route","Route")}
+      ${navItem("community","users","Finds")}
+    </div></nav>
+    <div id="modal-root"></div>
+  `;
+  document.getElementById("view-root").innerHTML = renderView();
+  attachGlobalHandlers();
+  renderModal();
+}
+function navItem(view, icon, label){
+  const active = state.view===view || (view==="route" && (state.view==="routeResults"));
+  return `<button class="nav-item ${active?'active':''}" data-action="nav" data-view="${view}">${ICONS[icon]}<span>${label}</span></button>`;
+}
+
+function renderView(){
+  switch(state.view){
+    case "home": return viewHome();
+    case "discover": return viewDiscover();
+    case "storeDetail": return viewStoreDetail(state.params.id);
+    case "route": return viewRouteBuilder();
+    case "routeResults": return viewRouteResults();
+    case "community": return viewCommunity();
+    case "saved": return viewSaved();
+    case "profile": return viewProfile();
+    case "admin": return viewAdmin();
+    default: return viewHome();
+  }
+}
+
+function viewHome(){
+  const featuredStores = state.stores.filter(s=>s.featured).slice(0,6);
+  const recentPosts = [...state.posts].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,4);
+  const neighborhoods = Object.keys(NEIGHBORHOODS).slice(0,6);
+  return `
+    <div class="hero">
+      <span class="hero-tag">Atlanta, one thrift trip at a time</span>
+      <h1>Thrift Atlanta<br>better.</h1>
+      <p class="sub">Discover Atlanta thrift stores, build your perfect thrift route, and see what the community is finding.</p>
+      <div class="hero-btns">
+        <button class="btn btn-primary" data-action="nav" data-view="route">${ICONS.route}Build my route</button>
+        <button class="btn btn-secondary-hero" data-action="nav" data-view="discover">Explore stores</button>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-head"><h2>Popular stores this week</h2><button class="see-all" data-action="nav" data-view="discover">See all</button></div>
+      <div class="hscroll">${featuredStores.map(s=>storeCard(s)).join("")}</div>
+    </div>
+
+    <div class="section">
+      <div class="section-head"><h2>Recent ATL Finds</h2><button class="see-all" data-action="nav" data-view="community">See all</button></div>
+      <div class="hscroll">${recentPosts.map(p=>miniPostCard(p)).join("")}</div>
+    </div>
+
+    <div class="section">
+      <div class="section-head"><h2>Routes curated by 2nd Studio</h2></div>
+      <div class="hscroll">${CURATED_ROUTES.map(r=>curatedRouteCard(r)).join("")}</div>
+    </div>
+
+    <div class="section">
+      <div class="section-head"><h2>Neighborhood collections</h2></div>
+      <div class="hscroll">${neighborhoods.map(n=>`
+        <button class="neighborhood-card" data-action="filter-neighborhood" data-n="${n}" style="text-align:left;border:1px solid var(--line)">
+          <div class="nn">${n}</div>
+          <div class="nc">${state.stores.filter(s=>s.neighborhood===n).length} stores to explore</div>
+        </button>
+      `).join("")}</div>
+    </div>
+  `;
+}
+
+function storeCard(s, wide){
+  const saved = state.savedStoreIds.includes(s.id);
+  const votes = getStoreVotes(s.id);
+  const visited = state.visitedStoreIds.includes(s.id);
+  const openState = isOpenNow(s);
+  return `
+  <div class="store-card ${wide?'wide':''}" data-action="open-store" data-id="${s.id}">
+    <div class="store-photo">
+      ${storeArt(s)}
+      <button class="save-btn ${saved?'saved':''}" data-action="save-store" data-id="${s.id}" aria-label="Save store">${ICONS.bookmark}</button>
+      ${s.tags[0] ? `<span class="tag-chip">${s.tags[0]}</span>`:''}
+    </div>
+    <div class="store-body">
+      <div class="store-name">${s.name}</div>
+      <div class="store-meta"><span>${s.neighborhood}</span><span class="dot-sep">${priceStr(s.priceLevel)}</span><span class="dot-sep">${ICONS.star.replace('<svg','<svg style="width:11px;height:11px;fill:var(--gold);vertical-align:-1px"')}${s.rating}</span>${s.chain?`<span class="dot-sep">Chain</span>`:''}${(votes.up.length||votes.down.length)?`<span class="dot-sep">${ICONS.thumbsUp.replace('<svg','<svg style="width:11px;height:11px;fill:var(--ink-soft);vertical-align:-1px"')}${votes.up.length} ${ICONS.thumbsDown.replace('<svg','<svg style="width:11px;height:11px;fill:var(--ink-soft);vertical-align:-1px;margin-left:3px"')}${votes.down.length}</span>`:''}${visited?`<span class="dot-sep">✓ Visited</span>`:''}</div>
+      ${openState!==null ? `<div style="margin-top:6px"><span class="open-badge ${openState?'open':'closed'}">${openState?'Open now':'Closed now'}</span></div>` : ''}
+      <div class="store-desc">${s.description}</div>
+      <div class="pill-row">${s.categories.slice(0,3).map(c=>`<span class="pill">${c}</span>`).join("")}</div>
+      <div class="card-cta-row">
+        <button class="btn btn-royal btn-sm" data-action="add-to-route" data-id="${s.id}">Add to route</button>
+      </div>
+    </div>
+  </div>`;
+}
+
+function miniPostCard(p){
+  const store = getStoreById(p.store);
+  const likeCount = (state.likes[p.id]||[]).length;
+  return `
+  <div class="store-card" data-action="scroll-community">
+    <div class="post-photo" style="height:150px">${postPhotoHtml(p)}<span class="price-tag">$${p.price}</span></div>
+    <div class="store-body">
+      <div class="store-name" style="font-size:14.5px">${p.item}</div>
+      <div class="store-meta">@${p.user}${store?` <span class="dot-sep">${store.name}</span>`:''}${likeCount?` <span class="dot-sep">${ICONS.heart.replace('<svg','<svg style="width:11px;height:11px;fill:var(--ink-soft);stroke:none;vertical-align:-1px"')}${likeCount}</span>`:''}</div>
+    </div>
+  </div>`;
+}
+
+function curatedRouteCard(r){
+  return `
+  <div class="curated-route-card" data-action="view-curated-route" data-id="${r.id}">
+    <div class="crc-tag">${r.time} · ${r.storeIds.length} stops</div>
+    <h3>${r.title}</h3>
+    <p>${r.desc}</p>
+    <button class="link-btn" style="color:var(--gold)" data-action="view-curated-route" data-id="${r.id}">View route ${ICONS.chevronR.replace('<svg','<svg style="width:12px;height:12px;vertical-align:-1px"')}</button>
+  </div>`;
+}
+
+function saleCard(ev){
+  const store = ev.linkedStoreId ? getStoreById(ev.linkedStoreId) : null;
+  return `
+  <div class="sale-card" data-action="${store?'open-store':''}" data-id="${store?store.id:''}">
+    <div class="sale-date">${ev.dateLabel}</div>
+    <h3>${ev.title}</h3>
+    ${store ? `<p style="color:var(--gold);font-weight:600">${store.name} · ${store.neighborhood}</p>` : ''}
+    <p>${ev.description}</p>
+    ${ev.isSample ? `<span class="sample-badge">Sample listing</span>` : ''}
+  </div>`;
+}
+
+function viewDiscover(){
+  const filters = state.discoverFilters;
+  let list = state.stores.filter(s=>{
+    if(state.hideChains && s.chain) return false;
+    if(state.searchQuery){
+      const q = state.searchQuery.toLowerCase();
+      if(!s.name.toLowerCase().includes(q) && !s.neighborhood.toLowerCase().includes(q) && !s.categories.join(" ").toLowerCase().includes(q)) return false;
+    }
+    if(filters.length===0) return true;
+    return filters.every(f=>{
+      if(CATEGORIES.includes(f)) return s.categories.includes(f);
+      if(f==="Open now") return isOpenNow(s)===true;
+      if(NEIGHBORHOODS[f]) return s.neighborhood===f;
+      return true;
+    });
+  });
+  const allFilters = ["Open now", ...CATEGORIES];
+  const topPosts = [...state.posts].sort((a,b)=>(state.likes[b.id]||[]).length-(state.likes[a.id]||[]).length).slice(0,5);
+  return `
+    <div class="section" style="margin-top:16px">
+      <h2 style="font-size:22px;margin-bottom:14px">Discover</h2>
+
+      ${state.events.length ? `
+      <div class="section-head" style="margin-bottom:12px"><h2 style="font-size:17px">Happening this week</h2><button class="see-all" data-action="nav" data-view="admin">Add a sale</button></div>
+      <div class="hscroll" style="margin-bottom:26px">${state.events.map(ev=>saleCard(ev)).join("")}</div>
+      ` : ''}
+
+      <div class="section-head" style="margin-bottom:12px"><h2 style="font-size:17px">Most-loved finds</h2><button class="see-all" data-action="nav" data-view="community">See all</button></div>
+      <div class="hscroll" style="margin-bottom:28px">${topPosts.map(p=>miniPostCard(p)).join("")}</div>
+
+      <div class="hairline" style="margin:6px 0 22px"></div>
+      <h2 style="font-size:17px;margin-bottom:14px">All stores</h2>
+      <div class="search-wrap">
+        ${ICONS.search}
+        <input type="text" placeholder="Search stores, neighborhoods, categories" value="${state.searchQuery||''}" data-action="search-input">
+      </div>
+      <button class="chip ${state.hideChains?'active':''}" style="margin-bottom:12px;display:inline-flex;align-items:center;gap:6px" data-action="toggle-hide-chains">${ICONS.shield}Hide Goodwill & big chains</button>
+      <div class="filter-row">
+        ${allFilters.map(f=>`<button class="chip ${filters.includes(f)?'active':''}" data-action="toggle-filter" data-f="${f}">${f}</button>`).join("")}
+      </div>
+      <div class="view-toggle">
+        <button class="${state.discoverMode==='list'?'active':''}" data-action="set-discover-mode" data-mode="list">${ICONS.list}List</button>
+        <button class="${state.discoverMode==='map'?'active':''}" data-action="set-discover-mode" data-mode="map">${ICONS.map}Map</button>
+      </div>
+      ${state.discoverMode==='map' ? discoverMap(list) : ''}
+      <p style="font-size:12px;color:var(--ink-soft);margin-bottom:12px">${list.length} store${list.length===1?'':'s'}${state.hideChains?' · Goodwill & big chains hidden':''}</p>
+      ${list.length===0 ? `<div class="empty-state"><h3>No stores match yet</h3><p>Try clearing a filter, turning off "Hide Goodwill & big chains," or searching a different neighborhood.</p></div>` : `<div class="list-stack">${list.map(s=>storeCard(s,true)).join("")}</div>`}
+    </div>
+  `;
+}
+
+function discoverMap(list){
+  const shown = list.length ? list : state.stores;
+  return `<div class="map-canvas">
+    ${Object.entries(NEIGHBORHOODS).map(([n,pos])=>`<span class="map-label" style="left:${pos.x}%;top:${pos.y-4}%">${n}</span>`).join("")}
+    ${shown.map(s=>{
+      const pos = NEIGHBORHOODS[s.neighborhood] || {x:50,y:50};
+      const gold = s.featured ? 'gold':'';
+      return `<div class="map-pin ${gold}" style="left:${pos.x}%;top:${pos.y}%">
+        <button data-action="open-store" data-id="${s.id}" aria-label="${s.name}"><span>${initials(s.name)[0]}</span></button>
+      </div>`;
+    }).join("")}
+  </div>`;
+}
+
+function viewStoreDetail(id){
+  const s = getStoreById(id);
+  if(!s) return `<div class="empty-state"><h3>Store not found</h3></div>`;
+  const saved = state.savedStoreIds.includes(s.id);
+  const visited = state.visitedStoreIds.includes(s.id);
+  const openState = isOpenNow(s);
+  const storePosts = state.posts.filter(p=>p.store===s.id);
+  return `
+    <div class="detail-photo">
+      ${storeArt(s)}
+      <button class="back-fab" data-action="go-back" aria-label="Back">${ICONS.back}</button>
+    </div>
+    <div class="detail-title-row">
+      <h1>${s.name}</h1>
+      <div class="rating-badge">${ICONS.star}${s.rating}</div>
+    </div>
+    <div class="detail-meta-line">${s.type} · ${s.neighborhood} · ${priceStr(s.priceLevel)}${openState!==null ? ` · <span class="open-badge ${openState?'open':'closed'}" style="margin-left:2px">${openState?'Open now':'Closed now'}</span>` : ''}</div>
+    <div class="pill-row" style="margin-bottom:18px">${s.tags.map(t=>`<span class="pill gold">${t}</span>`).join("")}</div>
+    <div class="vote-block">
+      ${(()=>{ const v = getStoreVotes(s.id); const myUp = state.user && v.up.includes(state.user.id); const myDown = state.user && v.down.includes(state.user.id);
+      return `
+      <button class="vote-btn up ${myUp?'active':''}" data-action="vote-store" data-id="${s.id}" data-dir="up">${ICONS.thumbsUp}${v.up.length}</button>
+      <button class="vote-btn down ${myDown?'active':''}" data-action="vote-store" data-id="${s.id}" data-dir="down">${ICONS.thumbsDown}${v.down.length}</button>
+      <span style="font-size:12px;color:var(--ink-soft)">Would the community recommend this stop?</span>
+      `; })()}
+    </div>
+    <div class="follow-block">
+      ${(()=>{
+        const pref = getFollowPref(s.id);
+        const count = followerCount(s.id);
+        const freqOptions = [["instant","Every post"],["daily","Daily digest"],["weekly","Weekly digest"]];
+        return `
+        <div class="follow-head">
+          <div>
+            <div class="fh-text">Follow this store's updates</div>
+            <div class="fh-sub">${count} following${count===1?'':''} · new arrivals, sales, and posts</div>
+          </div>
+          <button class="follow-btn ${pref?'active':''}" data-action="toggle-follow-store" data-id="${s.id}">${ICONS.plus}${pref?'Following':'Follow'}</button>
+        </div>
+        ${pref ? `
+        <div class="freq-row">
+          ${freqOptions.map(([key,label])=>`<button class="freq-chip ${pref===key?'active':''}" data-action="set-follow-freq" data-id="${s.id}" data-freq="${key}">${label}</button>`).join("")}
+        </div>` : ''}
+        `;
+      })()}
+    </div>
+    <div class="detail-cta-row">
+      <button class="btn btn-outline ${saved?'':''}" data-action="save-store" data-id="${s.id}">${ICONS.bookmark}${saved?'Saved':'Save'}</button>
+      <button class="btn btn-royal" data-action="add-to-route" data-id="${s.id}">${ICONS.route}Add to route</button>
+      <button class="btn btn-ghost" data-action="get-directions" data-id="${s.id}">${ICONS.pin}Directions</button>
+    </div>
+    <button class="btn ${visited?'btn-royal':'btn-outline'} btn-block" style="margin-bottom:22px" data-action="toggle-visited" data-id="${s.id}">${ICONS.check}${visited?"You've been here":'Mark as visited'}</button>
+    <div class="info-block">
+      <h3>2nd Studio review</h3>
+      <p>${s.description}</p>
+    </div>
+    <div class="info-block">
+      <h3>What this store is best for</h3>
+      <p>${s.bestFor.join(" · ")}</p>
+    </div>
+    <div class="info-block">
+      <h3>Tips before you go</h3>
+      <p>${s.tips}</p>
+    </div>
+    <div class="info-block">
+      <div class="info-row"><span class="lbl" style="min-width:0">${ICONS.pin}</span><span>${s.address}</span></div>
+      <div class="info-row"><span class="lbl" style="min-width:0">${ICONS.clock}</span><span>${s.hours}</span></div>
+      ${s.phone ? `<div class="info-row"><span class="lbl" style="min-width:0">${ICONS.phone}</span><span>${s.phone}</span></div>` : ''}
+      ${s.website ? `<div class="info-row"><span class="lbl" style="min-width:0">${ICONS.globe}</span><span>${s.website}</span></div>` : `<div class="info-row"><span class="lbl" style="min-width:0">${ICONS.globe}</span><span>No website on file — search the store name to confirm current details.</span></div>`}
+    </div>
+    <div class="section">
+      <div class="section-head"><h2 style="font-size:17px">Community finds from here</h2><button class="see-all" data-action="open-share-find" data-store="${s.id}">Share a find</button></div>
+      ${storePosts.length ? storePosts.map(p=>postCard(p)).join("") : `<div class="empty-state" style="padding:24px 10px"><p>No finds shared from here yet — be the first.</p></div>`}
+    </div>
+    <button class="btn btn-ghost btn-block" data-action="share-store" data-id="${s.id}">${ICONS.share}Share this store</button>
+  `;
+}
+
+const TIME_OPTS = [
+  {key:"2 hours",label:"2 hours",sub:"A quick, focused trip",icon:"clock"},
+  {key:"Half day",label:"Half day",sub:"3–4 stops, a relaxed pace",icon:"compass"},
+  {key:"Full day",label:"Full day",sub:"5–6 stops, the whole crawl",icon:"route"}
+];
+const DIST_OPTS = ["5 miles","10 miles","20 miles","Anywhere in Atlanta"];
+
+function viewRouteBuilder(){
+  const step = state.builderStep;
+  const c = state.builderChoice;
+  let body = "";
+  if(step===0){
+    body = `
+      <div class="wizard-step-label">Step 1 of 4</div>
+      <div class="wizard-q">Where are you starting?</div>
+      ${state.locationDetected
+        ? `<p style="font-size:12.5px;color:var(--royal);font-weight:600;margin-bottom:14px;display:flex;align-items:center;gap:5px">${ICONS.pin} Set from your current location — tap a different spot below to change it.</p>`
+        : `<button class="btn btn-outline btn-block" style="margin-bottom:16px" data-action="use-my-location">${ICONS.pin}Use my current location</button>`
+      }
+      <div class="chip-grid" style="margin-bottom:10px">
+        ${Object.keys(NEIGHBORHOODS).map(n=>`<button class="chip ${c.start===n?'active':''}" data-action="set-start" data-n="${n}">${n}</button>`).join("")}
+      </div>
+      <div class="hairline" style="margin:18px 0"></div>
+      <button class="chip ${c.destination?'active':''}" style="margin-bottom:14px;display:inline-flex;align-items:center;gap:6px" data-action="toggle-destination-picker">${ICONS.route}${c.destination ? 'Ending near '+c.destination : 'Have an end point in mind? (optional)'}</button>
+      ${state.showDestinationPicker ? `
+        <div class="chip-grid" style="margin-bottom:22px">
+          <button class="chip ${!c.destination?'active':''}" data-action="set-destination" data-n="">No preference</button>
+          ${Object.keys(NEIGHBORHOODS).filter(n=>n!==c.start).map(n=>`<button class="chip ${c.destination===n?'active':''}" data-action="set-destination" data-n="${n}">${n}</button>`).join("")}
+        </div>
+      ` : `<div style="margin-bottom:22px"></div>`}
+    `;
+  } else if(step===1){
+    body = `
+      <div class="wizard-step-label">Step 2 of 4</div>
+      <div class="wizard-q">How much time do you have?</div>
+      <div class="option-grid">
+        ${TIME_OPTS.map(t=>`
+        <button class="option-tile ${c.time===t.key?'active':''}" data-action="set-time" data-t="${t.key}">
+          <span class="oi">${ICONS[t.icon]}</span>
+          <span class="ot-text"><span class="ot-title">${t.label}</span><span class="ot-sub">${t.sub}</span></span>
+          <span class="check"></span>
+        </button>`).join("")}
+      </div>`;
+  } else if(step===2){
+    const opts = ["Anything", ...CATEGORIES];
+    body = `
+      <div class="wizard-step-label">Step 3 of 4</div>
+      <div class="wizard-q">What are you looking for?</div>
+      <div class="chip-grid">
+        ${opts.map(o=>{
+          const active = o==="Anything" ? c.categories.length===0 : c.categories.includes(o);
+          return `<button class="chip ${active?'active':''}" data-action="toggle-category" data-c="${o}">${o}</button>`;
+        }).join("")}
+      </div>
+      <button class="chip ${state.hideChains?'active':''}" style="display:inline-flex;align-items:center;gap:6px;margin-bottom:22px" data-action="toggle-hide-chains">${ICONS.shield}Hide Goodwill & big chains</button>
+    `;
+  } else if(step===3){
+    body = `
+      <div class="wizard-step-label">Step 4 of 4</div>
+      <div class="wizard-q">How far will you travel?</div>
+      <div class="option-grid">
+        ${DIST_OPTS.map(d=>`
+        <button class="option-tile ${c.distance===d?'active':''}" data-action="set-distance" data-d="${d}">
+          <span class="oi">${ICONS.map}</span>
+          <span class="ot-text"><span class="ot-title">${d}</span></span>
+          <span class="check"></span>
+        </button>`).join("")}
+      </div>`;
+  }
+  return `
+    <div style="margin-top:16px">
+      <h2 style="font-size:22px;margin-bottom:4px">Build my thrift route</h2>
+      <p style="font-size:13px;color:var(--ink-soft);margin-bottom:18px">Tell us how you want to thrift and we'll map the route.</p>
+      <div class="wizard-progress">${[0,1,2,3].map(i=>`<span class="${i<=step?'done':''}"></span>`).join("")}</div>
+      <div class="wizard-card">
+        ${body}
+        <div class="wizard-nav">
+          ${step>0 ? `<button class="btn btn-ghost" data-action="wizard-back">Back</button>` : ''}
+          ${step<3 ? `<button class="btn btn-royal btn-block" data-action="wizard-next">Continue</button>` : `<button class="btn btn-primary btn-block" data-action="build-route">${ICONS.route}Build my thrift route</button>`}
+        </div>
+      </div>
+    </div>
+  `;
+}
+
+function generateRoute(){
+  const c = state.builderChoice;
+  let candidates = state.stores.filter(s=>{
+    if(state.hideChains && s.chain) return false;
+    if(c.categories.length && !c.categories.some(cat=>s.categories.includes(cat))) return false;
+    return true;
+  });
+  candidates = candidates.map(s=>Object.assign({}, s, {distance: dist(c.start, s.neighborhood)}));
+  const maxMi = c.distance==="5 miles"?5 : c.distance==="10 miles"?10 : c.distance==="20 miles"?20 : 999;
+  candidates = candidates.filter(s=>s.distance<=maxMi);
+  candidates.sort((a,b)=>a.distance-b.distance);
+  const count = c.time==="2 hours"?2 : c.time==="Half day"?4 : 6;
+  let picked = candidates.slice(0, count);
+  if(picked.length===0) picked = state.stores.slice(0,2);
+  let ordered;
+  const destPos = c.destination && NEIGHBORHOODS[c.destination];
+  if(destPos){
+    const startPos = NEIGHBORHOODS[c.start];
+    const vx = destPos.x-startPos.x, vy = destPos.y-startPos.y;
+    const len2 = (vx*vx+vy*vy) || 1;
+    ordered = [...picked].sort((a,b)=>{
+      const pa = NEIGHBORHOODS[a.neighborhood], pb = NEIGHBORHOODS[b.neighborhood];
+      const ta = ((pa.x-startPos.x)*vx + (pa.y-startPos.y)*vy)/len2;
+      const tb = ((pb.x-startPos.x)*vx + (pb.y-startPos.y)*vy)/len2;
+      return ta-tb;
+    });
+  } else {
+    ordered = [];
+    let currentPos = c.start;
+    let pool = [...picked];
+    while(pool.length){
+      pool.sort((a,b)=>dist(currentPos,a.neighborhood)-dist(currentPos,b.neighborhood));
+      const next = pool.shift();
+      ordered.push(next);
+      currentPos = next.neighborhood;
+    }
+  }
+  const browseMin = c.time==="2 hours"?40 : c.time==="Half day"?35 : 30;
+  let totalTravel = 0;
+  const legs = [];
+  let prev = c.start;
+  ordered.forEach(s=>{
+    const d = dist(prev, s.neighborhood);
+    const mins = Math.max(4, Math.round(d*2.6));
+    legs.push(mins);
+    totalTravel += mins;
+    prev = s.neighborhood;
+  });
+  if(destPos){
+    const finalLeg = Math.max(4, Math.round(dist(prev, c.destination)*2.6));
+    totalTravel += finalLeg;
+  }
+  const totalBrowse = browseMin * ordered.length;
+  state.currentRoute = {
+    id: uid("route_"),
+    title: `Your ${c.time} thrift route`,
+    start: c.start,
+    destination: c.destination || null,
+    stops: ordered.map(s=>s.id),
+    legs,
+    totalTravel,
+    totalBrowse,
+    totalTime: totalTravel + totalBrowse,
+    createdFrom: Object.assign({}, c)
+  };
+  go("routeResults");
+}
+
+function viewRouteResults(){
+  const r = state.currentRoute;
+  if(!r) return `<div class="empty-state"><h3>No route yet</h3><p>Build one from the Route tab.</p><button class="btn btn-royal" style="margin-top:14px" data-action="nav" data-view="route">Start building</button></div>`;
+  const stores = r.stops.map(id=>getStoreById(id)).filter(Boolean);
+  const hrs = Math.floor(r.totalTime/60), mins = r.totalTime%60;
+  const saved = state.savedRouteIds.includes(r.id);
+  return `
+    <div style="margin-top:16px">
+      <button class="btn btn-ghost btn-sm" data-action="nav" data-view="route" style="margin-bottom:14px">${ICONS.back}Rebuild</button>
+      <h2 style="font-size:22px;margin-bottom:4px">${r.title}</h2>
+      <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px">${r.destination ? `From ${r.start} to ${r.destination}` : `Starting from ${r.start}`}</p>
+      <div class="route-summary-bar">
+        <div class="rsb-item"><div class="rsb-num">${stores.length}</div><div class="rsb-lbl">stops</div></div>
+        <div class="rsb-item"><div class="rsb-num">${hrs}h ${mins}m</div><div class="rsb-lbl">total time</div></div>
+        <div class="rsb-item"><div class="rsb-num">${r.totalTravel}m</div><div class="rsb-lbl">travel time</div></div>
+      </div>
+      ${discoverMap(stores)}
+      <div style="margin-bottom:16px">
+        ${stores.map((s,i)=>`
+          ${i>0 ? `<div class="travel-line">${ICONS.route}${r.legs[i]} min drive</div>` : ''}
+          <div class="stop-card">
+            <div class="stop-num">${i+1}</div>
+            <div class="stop-thumb">${storeArt(s)}</div>
+            <div class="stop-info">
+              <div class="sname">${s.name}</div>
+              <div class="smeta">${s.neighborhood} · ${s.hours}</div>
+              <div class="smeta">Best for ${s.bestFor[0]}</div>
+            </div>
+            <div class="stop-actions">
+              <button data-action="move-stop" data-dir="up" data-i="${i}" aria-label="Move up">${ICONS.up}</button>
+              <button data-action="move-stop" data-dir="down" data-i="${i}" aria-label="Move down">${ICONS.down}</button>
+              <button data-action="remove-stop" data-i="${i}" aria-label="Remove stop">${ICONS.x}</button>
+            </div>
+          </div>
+        `).join("")}
+      </div>
+      <button class="btn btn-outline btn-block" style="margin-bottom:20px" data-action="open-add-stop">${ICONS.plus}Add another stop</button>
+      <div style="display:flex;gap:10px">
+        <button class="btn btn-royal" style="flex:1" data-action="save-route">${ICONS.bookmark}${saved?'Saved':'Save route'}</button>
+        <button class="btn btn-outline" style="flex:1" data-action="share-route">${ICONS.share}Share route</button>
+      </div>
+    </div>
+  `;
+}
+
+function viewCommunity(){
+  const filterOpts = ["All","Clothing","Furniture","Home Decor","Vintage","Designer","Under $10","Under $25"];
+  let posts = [...state.posts].sort((a,b)=>new Date(b.date)-new Date(a.date));
+  const f = state.communityFilter;
+  if(f && f!=="All"){
+    if(f==="Under $10") posts = posts.filter(p=>p.price<10);
+    else if(f==="Under $25") posts = posts.filter(p=>p.price<25);
+    else posts = posts.filter(p=>p.category===f);
+  }
+  return `
+    <div style="margin-top:16px" id="community-top">
+      <div class="section-head"><h2 style="font-size:22px">ATL Finds</h2>
+        <button class="btn btn-primary btn-sm" data-action="open-share-find">${ICONS.camera}Share a find</button>
+      </div>
+      <div class="filter-row">
+        ${filterOpts.map(o=>`<button class="chip ${f===o?'active':''}" data-action="set-community-filter" data-f="${o}">${o}</button>`).join("")}
+      </div>
+      ${posts.map(p=>postCard(p)).join("")}
+    </div>
+  `;
+}
+
+function postCard(p){
+  const store = getStoreById(p.store);
+  const likes = state.likes[p.id] || [];
+  const liked = state.user && likes.includes(state.user.id);
+  const savedT = state.savedPostIds.includes(p.id);
+  const comments = state.comments[p.id] || [];
+  return `
+  <div class="post-card">
+    <div class="post-head">
+      ${avatarHtml(p.user)}
+      <div style="flex:1">
+        <div class="pu">@${p.user}</div>
+        <div class="pu-meta">${timeAgo(p.date)}</div>
+      </div>
+      <button class="icon-btn" style="width:32px;height:32px" data-action="follow-user" data-u="${p.user}" aria-label="Follow">${ICONS.plus}</button>
+    </div>
+    <div class="post-photo">${postPhotoHtml(p)}<span class="price-tag">$${p.price}</span></div>
+    <div class="post-body">
+      <div class="post-item">${p.item}</div>
+      ${store ? `<button class="post-store" data-action="open-store" data-id="${store.id}" style="background:none;border:none;padding:0;cursor:pointer">Found at ${store.name}</button>` : ''}
+      ${p.caption ? `<div class="post-caption">${p.caption}</div>` : ''}
+      <div class="post-actions">
+        <button class="${liked?'liked':''}" data-action="like-post" data-id="${p.id}">${ICONS.heart}${likes.length}</button>
+        <button data-action="toggle-comments" data-id="${p.id}">${ICONS.comment}${comments.length}</button>
+        <button class="${savedT?'saved-t':''}" data-action="save-post" data-id="${p.id}">${ICONS.bookmark}</button>
+        <button data-action="share-post" data-id="${p.id}">${ICONS.share}</button>
+      </div>
+      <div class="comments-box" id="comments-${p.id}" style="display:${state.openComments===p.id?'block':'none'}">
+        ${comments.map(c=>`<div class="comment-row"><b>@${c.user}</b><span>${c.text}</span></div>`).join("") || `<div class="comment-row" style="color:var(--ink-soft)">No comments yet.</div>`}
+        <div class="comment-input-row">
+          <input type="text" placeholder="Add a comment" data-comment-input="${p.id}">
+          <button data-action="add-comment" data-id="${p.id}">Post</button>
+        </div>
+      </div>
+    </div>
+  </div>`;
+}
+
+function viewSaved(){
+  const tab = state.savedTab;
+  if(!state.user){
+    return `<div class="empty-state" style="margin-top:60px"><h3>Sign in to save things</h3><p>Save stores, routes, and finds so you can find them later.</p><button class="btn btn-royal" style="margin-top:16px" data-action="open-login">Sign in</button></div>`;
+  }
+  let content = "";
+  if(tab==="stores"){
+    const items = state.savedStoreIds.map(id=>getStoreById(id)).filter(Boolean);
+    content = items.length ? `<div class="list-stack">${items.map(s=>storeCard(s,true)).join("")}</div>` : emptySaved("stores");
+  } else if(tab==="routes"){
+    const items = state.userRoutes.filter(r=>state.savedRouteIds.includes(r.id));
+    content = items.length ? items.map(r=>savedRouteCard(r)).join("") : emptySaved("routes");
+  } else {
+    const items = state.posts.filter(p=>state.savedPostIds.includes(p.id));
+    content = items.length ? items.map(p=>postCard(p)).join("") : emptySaved("finds");
+  }
+  return `
+    <div style="margin-top:16px">
+      <h2 style="font-size:22px;margin-bottom:16px">Saved</h2>
+      <div class="tab-row">
+        <button class="${tab==='stores'?'active':''}" data-action="set-saved-tab" data-t="stores">Stores</button>
+        <button class="${tab==='routes'?'active':''}" data-action="set-saved-tab" data-t="routes">Routes</button>
+        <button class="${tab==='finds'?'active':''}" data-action="set-saved-tab" data-t="finds">Finds</button>
+      </div>
+      ${content}
+    </div>
+  `;
+}
+function emptySaved(kind){
+  return `<div class="empty-state"><h3>No saved ${kind} yet</h3><p>Tap the bookmark icon on any ${kind==='routes'?'route':kind.slice(0,-1)} to save it here.</p></div>`;
+}
+function savedRouteCard(r){
+  const stores = r.stops.map(id=>getStoreById(id)).filter(Boolean);
+  return `<div class="stop-card" style="align-items:center" data-action="load-saved-route" data-id="${r.id}">
+    <div class="stop-thumb">${stores[0]?storeArt(stores[0]):''}</div>
+    <div class="stop-info"><div class="sname">${r.title}</div><div class="smeta">${stores.length} stops · from ${r.start}</div></div>
+    ${ICONS.chevronR}
+  </div>`;
+}
+
+function viewProfile(){
+  if(!state.user){
+    return `<div class="empty-state" style="margin-top:60px">
+      <h3>Sign in to set up your profile</h3>
+      <p>Track your saved routes, post finds, and follow other thrifters.</p>
+      <button class="btn btn-royal" style="margin-top:16px" data-action="open-login">Sign in</button>
+    </div>`;
+  }
+  const u = state.user;
+  const myPosts = state.posts.filter(p=>p.user===u.username);
+  return `
+    <div class="profile-head">
+      <div class="profile-avatar">${state.user.avatarUrl ? `<img src="${state.user.avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : initials(u.username)}</div>
+      <h2>@${u.username}</h2>
+      <div class="pmeta">${u.neighborhood||'Atlanta'} · Loves ${u.favCategory||'thrifting'}</div>
+      ${u.bio ? `<p style="font-size:13px;color:var(--ink-soft);max-width:280px">${u.bio}</p>` : ''}
+      <div class="profile-stats">
+        <div><div class="pnum">${myPosts.length}</div><div class="plbl">finds</div></div>
+        <div><div class="pnum">${state.visitedStoreIds.length}</div><div class="plbl">visited</div></div>
+        <div><div class="pnum">${state.savedRouteIds.length}</div><div class="plbl">saved routes</div></div>
+      </div>
+      <div style="width:100%;max-width:260px;margin:16px auto 0">
+        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink-soft);margin-bottom:5px">
+          <span>Stores explored</span><span>${state.visitedStoreIds.length}/${state.stores.length}</span>
+        </div>
+        <div style="height:6px;border-radius:4px;background:var(--line);overflow:hidden">
+          <div style="height:100%;width:${Math.round((state.visitedStoreIds.length/state.stores.length)*100)}%;background:var(--royal);border-radius:4px"></div>
+        </div>
+      </div>
+      <button class="btn btn-outline btn-sm" style="margin-top:16px" data-action="open-edit-profile">Edit profile</button>
+    </div>
+    <div class="hairline"></div>
+    <button class="settings-row" style="width:100%;background:none;border:none;text-align:left" data-action="nav" data-view="saved">
+      <span class="sr-left">${ICONS.bookmark}Saved</span>${ICONS.chevronR}
+    </button>
+    <div class="hairline"></div>
+    <div class="section-head"><h2 style="font-size:17px">Your finds</h2></div>
+    ${myPosts.length ? myPosts.map(p=>postCard(p)).join("") : `<div class="empty-state"><p>You haven't shared a find yet.</p></div>`}
+    <div class="hairline"></div>
+    <button class="settings-row" style="width:100%;background:none;border:none;text-align:left" data-action="nav" data-view="admin">
+      <span class="sr-left">${ICONS.shield}2nd Studio admin</span>${ICONS.chevronR}
+    </button>
+    <button class="settings-row" style="width:100%;background:none;border:none;text-align:left;color:var(--danger)" data-action="sign-out">
+      <span class="sr-left" style="color:var(--danger)">Sign out</span>
+    </button>
+  `;
+}
+
+function viewAdmin(){
+  if(!state.isAdmin){
+    return `
+      <div style="margin-top:40px">
+        <button class="btn btn-ghost btn-sm" data-action="go-back" style="margin-bottom:16px">${ICONS.back}Back</button>
+        <div class="wizard-card">
+          <h2 style="font-size:19px;margin-bottom:8px">2nd Studio admin</h2>
+          <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px">Enter the admin passcode to manage stores, routes, and community moderation.</p>
+          <div class="form-group"><input type="password" id="admin-pass" placeholder="Passcode"></div>
+          <button class="btn btn-royal btn-block" data-action="admin-login">Enter</button>
+          <p style="font-size:11.5px;color:var(--ink-soft);margin-top:10px">Prototype passcode: 2ndstudio</p>
+        </div>
+      </div>
+    `;
+  }
+  const tab = state.adminTab || "stores";
+  let body = "";
+  if(tab==="stores"){
+    body = `
+      <button class="btn btn-royal btn-block" style="margin-bottom:14px" data-action="admin-add-store">${ICONS.plus}Add a store</button>
+      ${state.stores.map(s=>`
+        <div class="admin-list-row">
+          <div><div class="ar-name">${s.name}${s.featured?'<span class="badge-featured">Featured</span>':''}</div><div class="ar-sub">${s.neighborhood} · ${s.categories.join(", ")}</div></div>
+          <div class="ar-actions">
+            <button data-action="admin-toggle-featured" data-id="${s.id}" aria-label="Toggle featured">${ICONS.star}</button>
+            <button data-action="admin-edit-store" data-id="${s.id}" aria-label="Edit">${ICONS.edit}</button>
+            <button data-action="admin-delete-store" data-id="${s.id}" aria-label="Delete">${ICONS.trash}</button>
+          </div>
+        </div>`).join("")}
+    `;
+  } else if(tab==="routes"){
+    body = `<p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">Curated routes shown on the home screen (edit store data to reflect in real time).</p>
+      ${CURATED_ROUTES.map(r=>`
+        <div class="admin-list-row">
+          <div><div class="ar-name">${r.title}</div><div class="ar-sub">${r.storeIds.length} stops · ${r.time}</div></div>
+          <div class="ar-actions"><button aria-label="View" data-action="view-curated-route" data-id="${r.id}">${ICONS.chevronR}</button></div>
+        </div>`).join("")}`;
+  } else if(tab==="sales"){
+    body = `
+      <button class="btn btn-royal btn-block" style="margin-bottom:14px" data-action="admin-add-event">${ICONS.plus}Add a sale</button>
+      ${state.events.length===0 ? `<div class="empty-state"><p>No sales listed yet.</p></div>` : state.events.map(ev=>{
+        const store = ev.linkedStoreId ? getStoreById(ev.linkedStoreId) : null;
+        return `
+        <div class="admin-list-row">
+          <div><div class="ar-name">${ev.title}${ev.isSample?'<span class="badge-featured" style="background:var(--line-strong);color:var(--cream)">Sample</span>':''}</div><div class="ar-sub">${ev.dateLabel}${store?' · '+store.name:''}</div></div>
+          <div class="ar-actions">
+            <button data-action="admin-edit-event" data-id="${ev.id}" aria-label="Edit">${ICONS.edit}</button>
+            <button data-action="admin-delete-event" data-id="${ev.id}" aria-label="Delete">${ICONS.trash}</button>
+          </div>
+        </div>`;
+      }).join("")}
+    `;
+  } else {
+    body = `<p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">Remove posts that violate community guidelines.</p>
+      ${state.posts.map(p=>`
+        <div class="admin-list-row">
+          <div><div class="ar-name">${p.item}</div><div class="ar-sub">@${p.user} · ${timeAgo(p.date)}</div></div>
+          <div class="ar-actions"><button data-action="admin-delete-post" data-id="${p.id}" aria-label="Remove">${ICONS.trash}</button></div>
+        </div>`).join("")}`;
+  }
+  return `
+    <div style="margin-top:16px">
+      <button class="btn btn-ghost btn-sm" data-action="go-back" style="margin-bottom:14px">${ICONS.back}Back</button>
+      <h2 style="font-size:22px;margin-bottom:14px">2nd Studio admin</h2>
+      <div class="tab-row">
+        <button class="${tab==='stores'?'active':''}" data-action="set-admin-tab" data-t="stores">Stores</button>
+        <button class="${tab==='routes'?'active':''}" data-action="set-admin-tab" data-t="routes">Routes</button>
+        <button class="${tab==='sales'?'active':''}" data-action="set-admin-tab" data-t="sales">Sales</button>
+        <button class="${tab==='posts'?'active':''}" data-action="set-admin-tab" data-t="posts">Moderation</button>
+      </div>
+      ${body}
+    </div>
+  `;
+}
+
+function renderModal(){
+  const root = document.getElementById("modal-root");
+  if(!root) return;
+  if(!activeModal){ root.innerHTML=""; return; }
+  const {name, params} = activeModal;
+  let html = "";
+  if(name==="login") html = loginModal();
+  else if(name==="editProfile") html = editProfileModal();
+  else if(name==="shareFind") html = shareFindModal(params);
+  else if(name==="addStop") html = addStopModal();
+  else if(name==="adminStoreForm") html = adminStoreFormModal(params);
+  else if(name==="adminEventForm") html = adminEventFormModal(params);
+  root.innerHTML = html;
+  attachModalHandlers();
+}
+
+function loginModal(){
+  const mode = state.authMode || "signup";
+  return `<div class="modal-overlay">
+    <div class="modal-sheet center">
+      <div class="modal-handle"></div>
+      <div class="modal-title">${mode==='signup' ? 'Create your account' : 'Sign in'}</div>
+      <div class="modal-sub">${mode==='signup' ? "Password needs 8+ characters, at least one number, and one special character. Usernames and emails must be unique." : "Welcome back."}</div>
+      ${mode==='signup' ? `<div class="form-group"><label>Username</label><input type="text" id="login-username" placeholder="yourusername"></div>` : ''}
+      <div class="form-group"><label>Email</label><input type="email" id="login-email" placeholder="you@email.com"></div>
+      <div class="form-group"><label>Password</label><input type="password" id="login-password" placeholder="••••••••"></div>
+      <button class="btn btn-royal btn-block" data-action="submit-login">${mode==='signup' ? 'Create account' : 'Sign in'}</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="toggle-auth-mode">${mode==='signup' ? 'Already have an account? Sign in' : "New here? Create an account"}</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
+    </div>
+  </div>`;
+}
+
+function editProfileModal(){
+  const u = state.user;
+  return `<div class="modal-overlay">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Edit profile</div>
+      <div id="ep-avatar-preview" style="text-align:center;margin-bottom:14px">${u.avatarUrl ? `<div style="width:84px;height:84px;border-radius:50%;overflow:hidden;margin:0 auto"><img src="${u.avatarUrl}" style="width:100%;height:100%;object-fit:cover"></div>` : ''}</div>
+      <div class="photo-upload-box" style="margin-bottom:16px">
+        ${ICONS.camera}<div>${u.avatarUrl ? 'Tap to change your profile photo' : 'Tap to add a profile photo'}</div>
+        <input type="file" accept="image/*" id="ep-avatar">
+      </div>
+      <div class="form-group"><label>Bio</label><textarea id="ep-bio" placeholder="A line about your thrifting style">${u.bio||''}</textarea></div>
+      <div class="form-group"><label>Favorite category</label>
+        <select id="ep-cat">${CATEGORIES.map(c=>`<option ${u.favCategory===c?'selected':''}>${c}</option>`).join("")}</select>
+      </div>
+      <div class="form-group"><label>Atlanta neighborhood</label>
+        <select id="ep-n">${Object.keys(NEIGHBORHOODS).map(n=>`<option ${u.neighborhood===n?'selected':''}>${n}</option>`).join("")}</select>
+      </div>
+      <button class="btn btn-royal btn-block" data-action="submit-edit-profile">Save changes</button>
+    </div>
+  </div>`;
+}
+
+function shareFindModal(params){
+  const storeOpts = state.stores.map(s=>`<option value="${s.id}" ${params.store===s.id?'selected':''}>${s.name}</option>`).join("");
+  return `<div class="modal-overlay">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Share a find</div>
+      <div class="photo-upload-box" id="sf-photo-box">
+        ${ICONS.camera}<div>Tap to add a photo</div>
+        <input type="file" accept="image/*" id="sf-photo">
+      </div>
+      <div id="sf-preview"></div>
+      <div class="form-group"><label>Item description</label><input type="text" id="sf-item" placeholder="Vintage lamp"></div>
+      <div class="form-group"><label>Store where found</label><select id="sf-store">${storeOpts}</select></div>
+      <div class="form-group"><label>Price paid</label><input type="number" id="sf-price" placeholder="12" min="0"></div>
+      <div class="form-group"><label>Category</label><select id="sf-cat">${CATEGORIES.map(c=>`<option>${c}</option>`).join("")}</select></div>
+      <div class="form-group"><label>Caption (optional)</label><textarea id="sf-caption" placeholder="Say something about it"></textarea></div>
+      <button class="btn btn-primary btn-block" data-action="submit-find">Post find</button>
+    </div>
+  </div>`;
+}
+
+function addStopModal(){
+  const r = state.currentRoute;
+  const remaining = state.stores.filter(s=>!r.stops.includes(s.id));
+  return `<div class="modal-overlay">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Add a stop</div>
+      <div class="list-stack">
+        ${remaining.map(s=>`<div class="stop-card" data-action="confirm-add-stop" data-id="${s.id}">
+          <div class="stop-thumb">${storeArt(s)}</div>
+          <div class="stop-info"><div class="sname">${s.name}</div><div class="smeta">${s.neighborhood} · ${s.categories.join(", ")}</div></div>
+          ${ICONS.plus}
+        </div>`).join("") || '<p style="color:var(--ink-soft);font-size:13px">All stores are already in this route.</p>'}
+      </div>
+    </div>
+  </div>`;
+}
+
+function adminStoreFormModal(params){
+  const editing = params.id ? getStoreById(params.id) : null;
+  const s = editing || {name:"",neighborhood:Object.keys(NEIGHBORHOODS)[0],address:"",type:"Thrift Store",priceLevel:1,categories:[],hours:"",rating:4.5,tags:[],description:"",phone:"",website:"",bestFor:[],tips:"",color:"royal"};
+  return `<div class="modal-overlay">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">${editing?'Edit store':'Add a store'}</div>
+      <div class="form-group"><label>Store name</label><input type="text" id="as-name" value="${s.name}"></div>
+      <div class="form-group"><label>Neighborhood</label><select id="as-n">${Object.keys(NEIGHBORHOODS).map(n=>`<option ${s.neighborhood===n?'selected':''}>${n}</option>`).join("")}</select></div>
+      <div class="form-group"><label>Address</label><input type="text" id="as-addr" value="${s.address}"></div>
+      <div class="form-group"><label>Store type</label><input type="text" id="as-type" value="${s.type}"></div>
+      <div class="form-group"><label>Price level</label><select id="as-price"><option value="1" ${s.priceLevel==1?'selected':''}>$</option><option value="2" ${s.priceLevel==2?'selected':''}>$$</option><option value="3" ${s.priceLevel==3?'selected':''}>$$$</option></select></div>
+      <div class="form-group"><label>Categories (comma separated)</label><input type="text" id="as-cats" value="${s.categories.join(", ")}"></div>
+      <div class="form-group"><label>Hours</label><input type="text" id="as-hours" value="${s.hours}"></div>
+      <div class="form-group"><label>2nd Studio description</label><textarea id="as-desc">${s.description}</textarea></div>
+      <button class="btn btn-royal btn-block" data-action="submit-admin-store" data-id="${editing?editing.id:''}">${editing?'Save changes':'Add store'}</button>
+    </div>
+  </div>`;
+}
+
+function adminEventFormModal(params){
+  const editing = params.id ? state.events.find(e=>e.id===params.id) : null;
+  const ev = editing || {title:"",linkedStoreId:"",dateLabel:"",description:""};
+  const storeOpts = `<option value="">No specific store</option>` + state.stores.map(s=>`<option value="${s.id}" ${ev.linkedStoreId===s.id?'selected':''}>${s.name}</option>`).join("");
+  return `<div class="modal-overlay">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">${editing?'Edit sale':'Add a sale'}</div>
+      <div class="modal-sub">This shows up in the "Happening this week" row on Discover. There's no automatic feed — add and remove these by hand as sales come and go.</div>
+      <div class="form-group"><label>Sale title</label><input type="text" id="ae-title" value="${ev.title}" placeholder="Fall Warehouse Clearance"></div>
+      <div class="form-group"><label>Linked store (optional)</label><select id="ae-store">${storeOpts}</select></div>
+      <div class="form-group"><label>Date or date range</label><input type="text" id="ae-date" value="${ev.dateLabel}" placeholder="Sat Sep 12 – Sun Sep 13"></div>
+      <div class="form-group"><label>Details</label><textarea id="ae-desc">${ev.description}</textarea></div>
+      <button class="btn btn-royal btn-block" data-action="submit-admin-event" data-id="${editing?editing.id:''}">${editing?'Save changes':'Add sale'}</button>
+    </div>
+  </div>`;
+}
+
+function attachGlobalHandlers(){
+  const search = document.querySelector('[data-action="search-input"]');
+  if(search){
+    search.addEventListener("input", e=>{
+      state.searchQuery = e.target.value;
+      const cursorPos = search.selectionStart;
+      renderList();
+      const s2 = document.querySelector('[data-action="search-input"]');
+      if(s2){ s2.focus(); s2.setSelectionRange(cursorPos, cursorPos); }
+    });
+  }
+}
+function renderList(){
+  document.getElementById("view-root").innerHTML = renderView();
+}
+
+function handleClick(e){
+  const t = e.target.closest("[data-action]");
+  if(!t){
+    if(e.target.closest(".modal-overlay") && e.target.classList.contains("modal-overlay")){ closeModal(); }
+    return;
+  }
+  const action = t.dataset.action;
+  switch(action){
+    case "nav": go(t.dataset.view); break;
+    case "go-home": go("home"); break;
+    case "go-profile": go("profile"); break;
+    case "go-back": go("discover"); break;
+    case "open-store": go("storeDetail", {id:t.dataset.id}); break;
+    case "save-store": toggleSaveStore(t.dataset.id); break;
+    case "toggle-visited": toggleVisited(t.dataset.id); break;
+    case "vote-store": toggleStoreVote(t.dataset.id, t.dataset.dir); break;
+    case "toggle-follow-store": setFollowPref(t.dataset.id, getFollowPref(t.dataset.id) ? null : "weekly"); break;
+    case "set-follow-freq": setFollowPref(t.dataset.id, t.dataset.freq); break;
+    case "save-post": toggleSavePost(t.dataset.id); break;
+    case "like-post": toggleLike(t.dataset.id); break;
+    case "toggle-comments": state.openComments = state.openComments===t.dataset.id?null:t.dataset.id; renderList(); break;
+    case "add-comment": submitComment(t.dataset.id); break;
+    case "follow-user": requireAuth(()=>{ toast("You're now following @"+t.dataset.u); }); break;
+    case "share-post": doShare("Check out this find on ATL Thrift Guide."); break;
+    case "share-store": doShare("Check out this store on ATL Thrift Guide."); break;
+    case "share-route": doShare("Check out my thrift route from ATL Thrift Guide."); break;
+    case "add-to-route": addStoreToBuilder(t.dataset.id); break;
+    case "get-directions": toast("Opening directions isn't available in this prototype yet."); break;
+    case "filter-neighborhood":
+      state.discoverFilters = [t.dataset.n];
+      state.searchQuery = "";
+      go("discover");
+      break;
+    case "scroll-community": go("community"); break;
+    case "view-curated-route": loadCuratedRoute(t.dataset.id); break;
+    case "toggle-filter": toggleDiscoverFilter(t.dataset.f); break;
+    case "set-discover-mode": state.discoverMode = t.dataset.mode; saveState(); renderList(); break;
+    case "toggle-hide-chains": state.hideChains = !state.hideChains; saveState(); renderList(); break;
+    case "set-start": state.builderChoice.start = t.dataset.n; if(state.builderChoice.destination===t.dataset.n) state.builderChoice.destination=null; state.locationDetected=false; renderList(); break;
+    case "use-my-location": tryDetectLocation(true); break;
+    case "toggle-destination-picker": state.showDestinationPicker = !state.showDestinationPicker; renderList(); break;
+    case "set-destination": state.builderChoice.destination = t.dataset.n || null; state.showDestinationPicker=false; renderList(); break;
+    case "set-time": state.builderChoice.time = t.dataset.t; renderList(); break;
+    case "set-distance": state.builderChoice.distance = t.dataset.d; renderList(); break;
+    case "toggle-category": toggleBuilderCategory(t.dataset.c); break;
+    case "wizard-next": state.builderStep = Math.min(3, state.builderStep+1); renderList(); break;
+    case "wizard-back": state.builderStep = Math.max(0, state.builderStep-1); renderList(); break;
+    case "build-route": generateRoute(); break;
+    case "move-stop": moveStop(parseInt(t.dataset.i), t.dataset.dir); break;
+    case "remove-stop": removeStop(parseInt(t.dataset.i)); break;
+    case "open-add-stop": openModal("addStop"); break;
+    case "confirm-add-stop": confirmAddStop(t.dataset.id); break;
+    case "save-route": saveCurrentRoute(); break;
+    case "set-community-filter": state.communityFilter = t.dataset.f; renderList(); break;
+    case "open-share-find": openModal("shareFind", {store: t.dataset.store}); break;
+    case "set-saved-tab": state.savedTab = t.dataset.t; renderList(); break;
+    case "load-saved-route": state.currentRoute = state.userRoutes.find(r=>r.id===t.dataset.id); go("routeResults"); break;
+    case "open-login": openModal("login"); break;
+    case "toggle-auth-mode": state.authMode = (state.authMode==="signup"?"signin":"signup"); renderModal(); break;
+    case "close-modal": case "close-modal-bg": closeModal(); break;
+    case "submit-login": submitLogin(); break;
+    case "open-edit-profile": openModal("editProfile"); break;
+    case "submit-edit-profile": submitEditProfile(); break;
+    case "submit-find": submitFind(); break;
+    case "sign-out": sb.auth.signOut().then(()=>{ state.user=null; loadMyData().then(()=>go("home")); }); break;
+    case "admin-login": adminLogin(); break;
+    case "set-admin-tab": state.adminTab = t.dataset.t; renderList(); break;
+    case "admin-add-store": openModal("adminStoreForm", {}); break;
+    case "admin-edit-store": openModal("adminStoreForm", {id:t.dataset.id}); break;
+    case "admin-delete-store": adminDeleteStore(t.dataset.id); break;
+    case "admin-toggle-featured": adminToggleFeatured(t.dataset.id); break;
+    case "admin-delete-post": adminDeletePost(t.dataset.id); break;
+    case "admin-add-event": openModal("adminEventForm", {}); break;
+    case "admin-edit-event": openModal("adminEventForm", {id:t.dataset.id}); break;
+    case "admin-delete-event": toast("Sales/events editing isn't wired to Supabase yet — delete rows in the Table Editor for now."); break;
+    case "submit-admin-event": submitAdminEvent(t.dataset.id); break;
+    case "submit-admin-store": submitAdminStore(t.dataset.id); break;
+  }
+}
+
+function toggleDiscoverFilter(f){
+  const i = state.discoverFilters.indexOf(f);
+  if(i>-1) state.discoverFilters.splice(i,1); else state.discoverFilters.push(f);
+  renderList();
+}
+function toggleBuilderCategory(c){
+  if(c==="Anything"){ state.builderChoice.categories = []; }
+  else{
+    const arr = state.builderChoice.categories;
+    const i = arr.indexOf(c);
+    if(i>-1) arr.splice(i,1); else arr.push(c);
+  }
+  renderList();
+}
+function addStoreToBuilder(id){
+  toast("Added to your route builder — finish building to see it placed in order.");
+  if(!state.builderChoice.manualStores.includes(id)) state.builderChoice.manualStores.push(id);
+}
+function loadCuratedRoute(id){
+  const r = CURATED_ROUTES.find(x=>x.id===id);
+  if(!r) return;
+  const legs = [];
+  let prev = r.storeIds[0] ? getStoreById(r.storeIds[0]).neighborhood : "Old Fourth Ward";
+  r.storeIds.forEach((sid,i)=>{
+    if(i===0){ legs.push(0); return; }
+    const s = getStoreById(sid);
+    legs.push(Math.max(4, Math.round(dist(prev, s.neighborhood)*2.6)));
+    prev = s.neighborhood;
+  });
+  const totalTravel = legs.reduce((a,b)=>a+b,0);
+  const totalBrowse = 35*r.storeIds.length;
+  state.currentRoute = {
+    id: uid("route_"), title:r.title, start: getStoreById(r.storeIds[0]).neighborhood,
+    stops:[...r.storeIds], legs, totalTravel, totalBrowse, totalTime: totalTravel+totalBrowse, curated:true
+  };
+  go("routeResults");
+}
+function moveStop(i,dir){
+  const r = state.currentRoute;
+  const j = dir==="up" ? i-1 : i+1;
+  if(j<0 || j>=r.stops.length) return;
+  [r.stops[i], r.stops[j]] = [r.stops[j], r.stops[i]];
+  renderList();
+}
+function removeStop(i){
+  state.currentRoute.stops.splice(i,1);
+  renderList();
+}
+function confirmAddStop(id){
+  state.currentRoute.stops.push(id);
+  state.currentRoute.legs.push(8);
+  closeModal();
+  renderList();
+}
+function saveCurrentRoute(){
+  requireAuth(async ()=>{
+    const r = state.currentRoute;
+    const { data, error } = await sb.from("routes").insert({
+      user_id: state.user.id, title: r.title, start_neighborhood: r.start,
+      destination_neighborhood: r.destination || null, stops: r.stops, legs: r.legs,
+      total_travel: r.totalTravel, total_browse: r.totalBrowse
+    }).select().single();
+    if(error){ toast("Couldn't save that route — try again."); return; }
+    r.id = data.id; // swap the client-generated id for the real database one
+    state.userRoutes.push(r);
+    state.savedRouteIds.push(r.id);
+    toast("Route saved.");
+    renderList();
+  });
+}
+function doShare(text){
+  try{
+    navigator.clipboard.writeText(text + " " + window.location.href).then(()=>toast("Copied to clipboard."), ()=>toast("Couldn't copy — try again."));
+  }catch(e){ toast("Sharing isn't available here."); }
+}
+function submitComment(id){
+  const input = document.querySelector(`[data-comment-input="${id}"]`);
+  if(!input || !input.value.trim()) return;
+  const text = input.value.trim();
+  requireAuth(async ()=>{
+    const { error } = await sb.from("comments").insert({post_id:id, user_id:state.user.id, text});
+    if(error){ toast("Couldn't post that comment — try again."); return; }
+    if(!state.comments[id]) state.comments[id]=[];
+    state.comments[id].push({user: state.user.username, text});
+    state.openComments = id;
+    renderList();
+  });
+}
+async function submitLogin(){
+  const mode = state.authMode || "signup";
+  const email = document.getElementById("login-email").value.trim().toLowerCase();
+  const password = document.getElementById("login-password").value;
+
+  if(mode === "signup"){
+    const unameRaw = document.getElementById("login-username").value.trim();
+    const username = unameRaw.replace(/\s+/g,'').toLowerCase();
+    if(!username || !email || !password){ toast("Fill in username, email, and password."); return; }
+    const pwError = validatePassword(password);
+    if(pwError){ toast(pwError); return; }
+    const { data: existing } = await sb.from("profiles").select("id").eq("username", username).maybeSingle();
+    if(existing){ toast("That username is already taken."); return; }
+    const { data, error } = await sb.auth.signUp({ email, password, options:{ data:{ username } } });
+    if(error){
+      // Supabase's own message ("User already registered", etc.) is
+      // clearer than anything we'd write ourselves here.
+      toast(error.message);
+      return;
+    }
+    await refreshSessionAndProfile();
+    await loadMyData();
+    closeModal();
+    const pending = state.pendingAction;
+    state.pendingAction = null;
+    toast("Account created — welcome, @"+(state.user?.username||username)+"!");
+    render();
+    if(pending) pending();
+  } else {
+    if(!email || !password){ toast("Enter your email and password."); return; }
+    const { error } = await sb.auth.signInWithPassword({ email, password });
+    if(error){ toast("Incorrect email or password."); return; }
+    await refreshSessionAndProfile();
+    await loadMyData();
+    closeModal();
+    const pending = state.pendingAction;
+    state.pendingAction = null;
+    toast("Signed in as @"+state.user.username);
+    render();
+    if(pending) pending();
+  }
+}
+async function submitEditProfile(){
+  const bio = document.getElementById("ep-bio").value;
+  const favCategory = document.getElementById("ep-cat").value;
+  const neighborhood = document.getElementById("ep-n").value;
+  const avatarUrl = pendingAvatarData || state.user.avatarUrl;
+  const { error } = await sb.from("profiles").update({
+    bio, fav_category: favCategory, neighborhood, avatar_url: avatarUrl
+  }).eq("id", state.user.id);
+  if(error){ toast("Couldn't save your profile — try again."); return; }
+  state.user.bio = bio; state.user.favCategory = favCategory; state.user.neighborhood = neighborhood;
+  if(pendingAvatarData){ state.user.avatarUrl = pendingAvatarData; pendingAvatarData = null; }
+  closeModal();
+  render();
+}
+function submitFind(){
+  const item = document.getElementById("sf-item").value.trim();
+  const store = document.getElementById("sf-store").value;
+  const price = parseFloat(document.getElementById("sf-price").value) || 0;
+  const cat = document.getElementById("sf-cat").value;
+  const caption = document.getElementById("sf-caption").value.trim();
+  if(!item){ toast("Add a short item description first."); return; }
+  requireAuth(async ()=>{
+    const { data, error } = await sb.from("posts").insert({
+      user_id: state.user.id, item, store_id: store||null, price, category: cat, caption,
+      photo_url: pendingFindPhotoData || null
+    }).select().single();
+    if(error){ toast("Couldn't post that find — try again."); return; }
+    pendingFindPhotoData = null;
+    state.posts.unshift({ id:data.id, user:state.user.username, userId:state.user.id, item, store, price, category:cat, caption, photoDataUrl:data.photo_url, date:(data.created_at||"").slice(0,10) });
+    closeModal();
+    toast("Find posted.");
+    go("community");
+  });
+}
+function adminLogin(){
+  const val = document.getElementById("admin-pass").value;
+  if(val==="2ndstudio"){ state.isAdmin = true; renderList(); }
+  else toast("That passcode isn't right.");
+}
+function adminDeleteStore(id){
+  toast("Store editing isn't wired to Supabase yet — delete it in the Table Editor for now.");
+}
+function adminToggleFeatured(id){
+  toast("Store editing isn't wired to Supabase yet — toggle 'featured' in the Table Editor for now.");
+}
+function adminDeletePost(id){
+  toast("Moderation isn't wired to Supabase yet — delete the post row in the Table Editor for now.");
+}
+function submitAdminEvent(id){
+  toast("Sales/events editing isn't wired to Supabase yet — add rows to the 'events' table directly for now.");
+  closeModal();
+}
+function submitAdminStore(id){
+  toast("Store editing isn't wired to Supabase yet — add or edit rows in the Table Editor for now.");
+  closeModal();
+}
+
+document.body.addEventListener("click", handleClick);
+
+function attachModalHandlers(){
+  const photoInput = document.getElementById("sf-photo");
+  if(photoInput){
+    photoInput.addEventListener("change", e=>{
+      const file = e.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = ev=>{
+        pendingFindPhotoData = ev.target.result;
+        document.getElementById("sf-preview").innerHTML = `<div class="photo-preview"><img src="${ev.target.result}"></div>`;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+  const avatarInput = document.getElementById("ep-avatar");
+  if(avatarInput){
+    avatarInput.addEventListener("change", e=>{
+      const file = e.target.files[0];
+      if(!file) return;
+      const reader = new FileReader();
+      reader.onload = ev=>{
+        pendingAvatarData = ev.target.result;
+        document.getElementById("ep-avatar-preview").innerHTML = `<div style="width:84px;height:84px;border-radius:50%;overflow:hidden;margin:0 auto"><img src="${pendingAvatarData}" style="width:100%;height:100%;object-fit:cover"></div>`;
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+  document.querySelectorAll('[data-comment-input]').forEach(inp=>{
+    inp.addEventListener("keydown", e=>{ if(e.key==="Enter") submitComment(inp.dataset.commentInput); });
+  });
+}
+
+boot();
+</script>
+</body>
+</html>
