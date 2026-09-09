@@ -503,6 +503,18 @@ function storeArt(store, opts){
     <text x="24" y="178" font-family="Fraunces, serif" font-size="15" fill="${p.fg}" opacity="0.85">${store.neighborhood}</text>
   </svg>`;
 }
+// Tries a real Google photo via the /api/photo serverless function. If it
+// 404s or errors (no photo on file, function not deployed yet, etc.),
+// onerror swaps it out for the illustrated art so nothing ever breaks.
+window.__photoFallback = function(storeId){
+  const s = getStoreById(storeId);
+  return s ? storeArt(s) : '';
+};
+function photoOrArt(store){
+  if(!store.photoName) return storeArt(store);
+  const escaped = store.name.replace(/"/g,'&quot;');
+  return `<img src="/api/photo?name=${encodeURIComponent(store.photoName)}" alt="${escaped}" loading="lazy" style="width:100%;height:100%;object-fit:cover;display:block" onerror="this.onerror=null;this.outerHTML=window.__photoFallback('${store.id}')">`;
+}
 function postArt(post){
   const palettes = {
     royal:{bg:"#B8695E",fg:"#F4EFE2",accent:"#E3B0A6"},
@@ -538,7 +550,8 @@ function mapDbStore(row){
     hours: row.hours, rating: row.google_rating ?? row.rating, reviewCount: row.google_review_count,
     tags: row.tags||[], description: row.description, phone: row.phone, website: row.website,
     bestFor: row.best_for||[], tips: row.tips, featured: row.featured, color: row.color,
-    chain: row.chain, googlePlaceId: row.google_place_id, lat: row.store_lat, lng: row.store_lng
+    chain: row.chain, googlePlaceId: row.google_place_id, lat: row.store_lat, lng: row.store_lng,
+    photoName: row.google_photo_name
   };
 }
 function initials(name){ return name.split(/[\s._]/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join(""); }
@@ -640,6 +653,10 @@ function tryDetectLocation(manual){
       const nb = nearestNeighborhood(pos.coords.latitude, pos.coords.longitude);
       if(nb){
         state.builderChoice.start = nb;
+        // Keep your exact coordinates too — the neighborhood name is just
+        // for display and filtering; the real Maps link uses this instead
+        // of the neighborhood's center point, which could be a mile+ off.
+        state.builderChoice.startCoords = {lat: pos.coords.latitude, lng: pos.coords.longitude};
         state.locationDetected = true;
         if(manual) toast("Starting point set to "+nb+".");
         renderList();
@@ -1035,7 +1052,7 @@ function storeCard(s, wide){
   return `
   <div class="store-card ${wide?'wide':''}" data-action="open-store" data-id="${s.id}">
     <div class="store-photo">
-      ${storeArt(s)}
+      ${photoOrArt(s)}
       <button class="save-btn ${saved?'saved':''}" data-action="save-store" data-id="${s.id}" aria-label="Save store">${ICONS.bookmark}</button>
       ${s.tags[0] ? `<span class="tag-chip">${s.tags[0]}</span>`:''}
     </div>
@@ -1161,7 +1178,7 @@ function viewStoreDetail(id){
   const storePosts = state.posts.filter(p=>p.store===s.id);
   return `
     <div class="detail-photo">
-      ${storeArt(s)}
+      ${photoOrArt(s)}
       <button class="back-fab" data-action="go-back" aria-label="Back">${ICONS.back}</button>
     </div>
     <div class="detail-title-row">
@@ -1372,6 +1389,7 @@ function generateRoute(){
     id: uid("route_"),
     title: `Your ${c.time} thrift route`,
     start: c.start,
+    startCoords: c.startCoords || null,
     destination: c.destination || null,
     stops: ordered.map(s=>s.id),
     legs,
@@ -1405,7 +1423,7 @@ function viewRouteResults(){
           ${i>0 ? `<div class="travel-line">${ICONS.route}${r.legs[i]} min drive</div>` : ''}
           <div class="stop-card">
             <div class="stop-num">${i+1}</div>
-            <div class="stop-thumb">${storeArt(s)}</div>
+            <div class="stop-thumb">${photoOrArt(s)}</div>
             <div class="stop-info">
               <div class="sname">${s.name}</div>
               <div class="smeta">${s.neighborhood} · ${s.hours}</div>
@@ -1764,7 +1782,7 @@ function addStopModal(){
       <div class="modal-title">Add a stop</div>
       <div class="list-stack">
         ${remaining.map(s=>`<div class="stop-card" data-action="confirm-add-stop" data-id="${s.id}">
-          <div class="stop-thumb">${storeArt(s)}</div>
+          <div class="stop-thumb">${photoOrArt(s)}</div>
           <div class="stop-info"><div class="sname">${s.name}</div><div class="smeta">${s.neighborhood} · ${s.categories.join(", ")}</div></div>
           ${ICONS.plus}
         </div>`).join("") || '<p style="color:var(--ink-soft);font-size:13px">All stores are already in this route.</p>'}
@@ -1874,7 +1892,7 @@ function handleClick(e){
     case "toggle-filter": toggleDiscoverFilter(t.dataset.f); break;
     case "set-discover-mode": state.discoverMode = t.dataset.mode; saveState(); renderList(); break;
     case "toggle-hide-chains": state.hideChains = !state.hideChains; saveState(); renderList(); break;
-    case "set-start": state.builderChoice.start = t.dataset.n; if(state.builderChoice.destination===t.dataset.n) state.builderChoice.destination=null; state.locationDetected=false; renderList(); break;
+    case "set-start": state.builderChoice.start = t.dataset.n; if(state.builderChoice.destination===t.dataset.n) state.builderChoice.destination=null; state.locationDetected=false; state.builderChoice.startCoords=null; renderList(); break;
     case "use-my-location": tryDetectLocation(true); break;
     case "toggle-destination-picker": state.showDestinationPicker = !state.showDestinationPicker; renderList(); break;
     case "set-destination": state.builderChoice.destination = t.dataset.n || null; state.showDestinationPicker=false; renderList(); break;
@@ -2017,7 +2035,12 @@ function buildGoogleMapsUrl(r){
   // or Google had no match for that specific place).
   const point = s => (s.lat!=null && s.lng!=null) ? `${s.lat},${s.lng}` : encodeURIComponent(s.address);
   const startPos = NEIGHBORHOODS[r.start];
-  const origin = startPos ? `${startPos.lat},${startPos.lng}` : encodeURIComponent(r.start + ", Atlanta, GA");
+  // Your exact GPS position, when we have it, beats the neighborhood's
+  // center point every time — that center can be a mile or more off from
+  // where you're actually standing.
+  const origin = r.startCoords ? `${r.startCoords.lat},${r.startCoords.lng}`
+    : startPos ? `${startPos.lat},${startPos.lng}`
+    : encodeURIComponent(r.start + ", Atlanta, GA");
   let destination, waypoints;
   if(r.destination){
     const destPos = NEIGHBORHOODS[r.destination];
