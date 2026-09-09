@@ -2011,10 +2011,15 @@ function doShareRaw(text){
 function buildGoogleMapsUrl(r){
   const stores = r.stops.map(id=>getStoreById(id)).filter(Boolean);
   if(!stores.length) return null;
-  const origin = encodeURIComponent(r.start + ", Atlanta, GA");
+  // Coordinates instead of a text place name for the neighborhood-based
+  // start/end points — no spaces or commas to encode, nothing for a
+  // Google→Apple Maps hand-off to botch decoding.
+  const startPos = NEIGHBORHOODS[r.start];
+  const origin = startPos ? `${startPos.lat},${startPos.lng}` : encodeURIComponent(r.start + ", Atlanta, GA");
   let destination, waypoints;
   if(r.destination){
-    destination = encodeURIComponent(r.destination + ", Atlanta, GA");
+    const destPos = NEIGHBORHOODS[r.destination];
+    destination = destPos ? `${destPos.lat},${destPos.lng}` : encodeURIComponent(r.destination + ", Atlanta, GA");
     waypoints = stores.map(s=>encodeURIComponent(s.address)).join("|");
   } else {
     const last = stores[stores.length-1];
