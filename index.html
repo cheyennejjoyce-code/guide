@@ -1861,7 +1861,7 @@ function handleClick(e){
       doShare(s ? `${s.name} — ${s.neighborhood}. ${s.description} Found on ATL Thrift Guide.` : "Check out this store on ATL Thrift Guide.");
       break;
     }
-    case "share-route": doShare(buildRouteShareText(state.currentRoute)); break;
+    case "share-route": doShareRaw(buildRouteShareText(state.currentRoute)); break;
     case "add-to-route": addStoreToBuilder(t.dataset.id); break;
     case "get-directions": toast("Opening directions isn't available in this prototype yet."); break;
     case "filter-neighborhood":
@@ -1997,6 +1997,15 @@ function saveCurrentRoute(){
 function doShare(text){
   try{
     navigator.clipboard.writeText(text + " " + window.location.href).then(()=>toast("Copied to clipboard."), ()=>toast("Couldn't copy — try again."));
+  }catch(e){ toast("Sharing isn't available here."); }
+}
+// Same as doShare, but doesn't tack the app's own link on the end — for
+// route shares, which already have a real Google Maps link embedded in
+// them. Two links in one message confuses the preview card some apps
+// (iMessage included) generate, and grabs the wrong one.
+function doShareRaw(text){
+  try{
+    navigator.clipboard.writeText(text).then(()=>toast("Copied to clipboard."), ()=>toast("Couldn't copy — try again."));
   }catch(e){ toast("Sharing isn't available here."); }
 }
 function buildGoogleMapsUrl(r){
