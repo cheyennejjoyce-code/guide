@@ -536,6 +536,9 @@ function postArt(post){
 function uid(prefix){ return prefix + Math.random().toString(36).slice(2,9); }
 const SUPABASE_URL = "https://rwrmnrpsbatubjgimstr.supabase.co";
 const SUPABASE_KEY = "sb_publishable_1pyhvlnQ79-DnjjXv-hzfA_l7qi07wU";
+// Safe to be visible here — this key type is protected by restricting which
+// website it's allowed to run on (set in Google Cloud), not by secrecy.
+const GOOGLE_MAPS_JS_KEY = "AIzaSyDAHxBjW1ulfxbxiBhVAr4nFl5gXz2diHA";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // Supabase sends people back here after they click a password-reset email
 // link, with a special temporary session. This is how we notice that and
@@ -981,6 +984,7 @@ function render(){
   document.getElementById("view-root").innerHTML = renderView();
   attachGlobalHandlers();
   renderModal();
+  renderGoogleMapIfNeeded();
 }
 function navItem(view, icon, label){
   const active = state.view===view || (view==="route" && (state.view==="routeResults"));
@@ -1155,8 +1159,40 @@ function viewDiscover(){
   `;
 }
 
+let __pendingMapStores = null;
+let __pendingMapUserCoords = null;
+let __gmapsLoadAttempted = false;
 function discoverMap(list){
   const shown = list.length ? list : state.stores;
+  // Stash what to draw — the actual Google Map gets built right after this
+  // HTML lands in the DOM (see renderGoogleMapIfNeeded), since a live map
+  // object can't be created from an HTML string.
+  __pendingMapStores = shown;
+  __pendingMapUserCoords = (state.currentRoute && state.currentRoute.startCoords)
+    || state.builderChoice.startCoords || null;
+  return `<div id="gmap-canvas" class="map-canvas" style="display:flex;align-items:center;justify-content:center;color:var(--ink-soft);font-size:13px">Loading map…</div>`;
+}
+function loadGoogleMapsScript(){
+  if(__gmapsLoadAttempted || (window.google && window.google.maps)) return;
+  __gmapsLoadAttempted = true;
+  if(!GOOGLE_MAPS_JS_KEY || GOOGLE_MAPS_JS_KEY.indexOf("YOUR_") === 0){
+    // No key configured yet — quietly fall back to the illustrated map
+    // instead of leaving "Loading map…" up forever.
+    const el = document.getElementById("gmap-canvas");
+    if(el) el.outerHTML = fallbackStylizedMap(__pendingMapStores || []);
+    return;
+  }
+  window.__onGoogleMapsReady = function(){ renderGoogleMapIfNeeded(); };
+  const script = document.createElement("script");
+  script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_JS_KEY}&callback=__onGoogleMapsReady`;
+  script.async = true;
+  script.onerror = function(){
+    const el = document.getElementById("gmap-canvas");
+    if(el) el.outerHTML = fallbackStylizedMap(__pendingMapStores || []);
+  };
+  document.head.appendChild(script);
+}
+function fallbackStylizedMap(shown){
   return `<div class="map-canvas">
     ${Object.entries(NEIGHBORHOODS).map(([n,pos])=>`<span class="map-label" style="left:${pos.x}%;top:${pos.y-4}%">${n}</span>`).join("")}
     ${shown.map(s=>{
@@ -1167,6 +1203,35 @@ function discoverMap(list){
       </div>`;
     }).join("")}
   </div>`;
+}
+// Called after every render — cheap no-op unless a #gmap-canvas element is
+// actually on screen right now (Discover's map view, or route results).
+function renderGoogleMapIfNeeded(){
+  const el = document.getElementById("gmap-canvas");
+  if(!el) return;
+  if(!(window.google && window.google.maps)){ loadGoogleMapsScript(); return; }
+  const stores = (__pendingMapStores || []).filter(s=>s.lat!=null && s.lng!=null);
+  const userCoords = __pendingMapUserCoords;
+  const center = userCoords ? {lat:userCoords.lat, lng:userCoords.lng}
+    : stores.length ? {lat:stores[0].lat, lng:stores[0].lng}
+    : {lat:33.7550, lng:-84.3900}; // downtown Atlanta, if nothing else to go on
+  const map = new google.maps.Map(el, {
+    center, zoom: userCoords ? 13 : 11,
+    disableDefaultUI: true, zoomControl: true, streetViewControl: false, mapTypeControl: false
+  });
+  stores.forEach(s=>{
+    const marker = new google.maps.Marker({
+      position: {lat:s.lat, lng:s.lng}, map, title: s.name,
+      icon: s.featured ? { url: "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="28" height="28"><circle cx="14" cy="14" r="10" fill="%23DDA53B" stroke="white" stroke-width="2"/></svg>') } : undefined
+    });
+    marker.addListener("click", ()=>{ go("storeDetail", {id: s.id}); });
+  });
+  if(userCoords){
+    new google.maps.Marker({
+      position: {lat:userCoords.lat, lng:userCoords.lng}, map, title: "You are here",
+      icon: { url: "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"><circle cx="11" cy="11" r="8" fill="%232A3CE0" stroke="white" stroke-width="3"/></svg>') }
+    });
+  }
 }
 
 function viewStoreDetail(id){
@@ -1843,6 +1908,7 @@ function attachGlobalHandlers(){
 }
 function renderList(){
   document.getElementById("view-root").innerHTML = renderView();
+  renderGoogleMapIfNeeded();
 }
 
 function handleClick(e){
