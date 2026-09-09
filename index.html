@@ -525,6 +525,12 @@ function uid(prefix){ return prefix + Math.random().toString(36).slice(2,9); }
 const SUPABASE_URL = "https://rwrmnrpsbatubjgimstr.supabase.co";
 const SUPABASE_KEY = "sb_publishable_1pyhvlnQ79-DnjjXv-hzfA_l7qi07wU";
 const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+// Supabase sends people back here after they click a password-reset email
+// link, with a special temporary session. This is how we notice that and
+// prompt them to actually set a new password.
+sb.auth.onAuthStateChange((event, session)=>{
+  if(event === "PASSWORD_RECOVERY") openModal("setNewPassword");
+});
 function mapDbStore(row){
   return {
     id: row.id, name: row.name, neighborhood: row.neighborhood, address: row.address,
@@ -1657,6 +1663,8 @@ function renderModal(){
   else if(name==="addStop") html = addStopModal();
   else if(name==="adminStoreForm") html = adminStoreFormModal(params);
   else if(name==="adminEventForm") html = adminEventFormModal(params);
+  else if(name==="forgotPassword") html = forgotPasswordModal();
+  else if(name==="setNewPassword") html = setNewPasswordModal();
   root.innerHTML = html;
   attachModalHandlers();
 }
@@ -1672,12 +1680,36 @@ function loginModal(){
       <div class="form-group"><label>Email</label><input type="email" id="login-email" placeholder="you@email.com"></div>
       <div class="form-group"><label>Password</label><input type="password" id="login-password" placeholder="••••••••"></div>
       <button class="btn btn-royal btn-block" data-action="submit-login">${mode==='signup' ? 'Create account' : 'Sign in'}</button>
+      ${mode==='signin' ? `<button class="link-btn" style="display:block;margin:10px auto 0" data-action="open-forgot-password">Forgot password?</button>` : ''}
       <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="toggle-auth-mode">${mode==='signup' ? 'Already have an account? Sign in' : "New here? Create an account"}</button>
       <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
     </div>
   </div>`;
 }
 
+function forgotPasswordModal(){
+  return `<div class="modal-overlay">
+    <div class="modal-sheet center">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Reset your password</div>
+      <div class="modal-sub">Enter the email on your account — we'll send a link to reset your password.</div>
+      <div class="form-group"><label>Email</label><input type="email" id="forgot-email" placeholder="you@email.com"></div>
+      <button class="btn btn-royal btn-block" data-action="submit-forgot-password">Send reset link</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
+    </div>
+  </div>`;
+}
+function setNewPasswordModal(){
+  return `<div class="modal-overlay">
+    <div class="modal-sheet center">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Set a new password</div>
+      <div class="modal-sub">Password needs 8+ characters, at least one number, and one special character.</div>
+      <div class="form-group"><label>New password</label><input type="password" id="new-password" placeholder="••••••••"></div>
+      <button class="btn btn-royal btn-block" data-action="submit-new-password">Save new password</button>
+    </div>
+  </div>`;
+}
 function editProfileModal(){
   const u = state.user;
   return `<div class="modal-overlay">
@@ -1817,9 +1849,18 @@ function handleClick(e){
     case "toggle-comments": state.openComments = state.openComments===t.dataset.id?null:t.dataset.id; renderList(); break;
     case "add-comment": submitComment(t.dataset.id); break;
     case "follow-user": requireAuth(()=>{ toast("You're now following @"+t.dataset.u); }); break;
-    case "share-post": doShare("Check out this find on ATL Thrift Guide."); break;
-    case "share-store": doShare("Check out this store on ATL Thrift Guide."); break;
-    case "share-route": doShare("Check out my thrift route from ATL Thrift Guide."); break;
+    case "share-post": {
+      const p = state.posts.find(x=>x.id===t.dataset.id);
+      const st = p ? getStoreById(p.store) : null;
+      doShare(p ? `${p.item} — $${p.price}${st?', found at '+st.name:''}. Posted on ATL Thrift Guide.` : "Check out this find on ATL Thrift Guide.");
+      break;
+    }
+    case "share-store": {
+      const s = getStoreById(t.dataset.id);
+      doShare(s ? `${s.name} — ${s.neighborhood}. ${s.description} Found on ATL Thrift Guide.` : "Check out this store on ATL Thrift Guide.");
+      break;
+    }
+    case "share-route": doShare(buildRouteShareText(state.currentRoute)); break;
     case "add-to-route": addStoreToBuilder(t.dataset.id); break;
     case "get-directions": toast("Opening directions isn't available in this prototype yet."); break;
     case "filter-neighborhood":
@@ -1852,6 +1893,9 @@ function handleClick(e){
     case "set-saved-tab": state.savedTab = t.dataset.t; renderList(); break;
     case "load-saved-route": state.currentRoute = state.userRoutes.find(r=>r.id===t.dataset.id); go("routeResults"); break;
     case "open-login": openModal("login"); break;
+    case "open-forgot-password": openModal("forgotPassword"); break;
+    case "submit-forgot-password": submitForgotPassword(); break;
+    case "submit-new-password": submitNewPassword(); break;
     case "toggle-auth-mode": state.authMode = (state.authMode==="signup"?"signin":"signup"); renderModal(); break;
     case "close-modal": case "close-modal-bg": closeModal(); break;
     case "submit-login": submitLogin(); break;
@@ -1949,6 +1993,13 @@ function doShare(text){
     navigator.clipboard.writeText(text + " " + window.location.href).then(()=>toast("Copied to clipboard."), ()=>toast("Couldn't copy — try again."));
   }catch(e){ toast("Sharing isn't available here."); }
 }
+function buildRouteShareText(r){
+  if(!r) return "Check out my thrift route from ATL Thrift Guide.";
+  const stores = r.stops.map(id=>getStoreById(id)).filter(Boolean);
+  const lines = stores.map((s,i)=>`${i+1}. ${s.name} — ${s.neighborhood}`);
+  const hrs = Math.floor(r.totalTime/60), mins = r.totalTime%60;
+  return `My ATL thrift route${r.title?': '+r.title:''}:\n${lines.join('\n')}\nEstimated time: ${hrs}h ${mins}m. Built with ATL Thrift Guide.`;
+}
 function submitComment(id){
   const input = document.querySelector(`[data-comment-input="${id}"]`);
   if(!input || !input.value.trim()) return;
@@ -1961,6 +2012,26 @@ function submitComment(id){
     state.openComments = id;
     renderList();
   });
+}
+async function submitForgotPassword(){
+  const email = document.getElementById("forgot-email").value.trim().toLowerCase();
+  if(!email){ toast("Enter your email first."); return; }
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+  if(error){ toast("Couldn't send that — try again."); return; }
+  closeModal();
+  toast("Check your email for a reset link.");
+}
+async function submitNewPassword(){
+  const pw = document.getElementById("new-password").value;
+  const err = validatePassword(pw);
+  if(err){ toast(err); return; }
+  const { error } = await sb.auth.updateUser({ password: pw });
+  if(error){ toast("Couldn't update your password — try the reset link again."); return; }
+  await refreshSessionAndProfile();
+  await loadMyData();
+  closeModal();
+  toast("Password updated — you're signed in.");
+  render();
 }
 async function submitLogin(){
   const mode = state.authMode || "signup";
