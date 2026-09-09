@@ -1419,6 +1419,7 @@ function viewRouteResults(){
           </div>
         `).join("")}
       </div>
+      <button class="btn btn-outline btn-block" style="margin-bottom:12px" data-action="open-in-maps">${ICONS.pin}Open in Google Maps</button>
       <button class="btn btn-outline btn-block" style="margin-bottom:20px" data-action="open-add-stop">${ICONS.plus}Add another stop</button>
       <div style="display:flex;gap:10px">
         <button class="btn btn-royal" style="flex:1" data-action="save-route">${ICONS.bookmark}${saved?'Saved':'Save route'}</button>
@@ -1885,6 +1886,11 @@ function handleClick(e){
     case "build-route": generateRoute(); break;
     case "move-stop": moveStop(parseInt(t.dataset.i), t.dataset.dir); break;
     case "remove-stop": removeStop(parseInt(t.dataset.i)); break;
+    case "open-in-maps": {
+      const url = buildGoogleMapsUrl(state.currentRoute);
+      if(url) window.open(url, "_blank"); else toast("No route to open yet.");
+      break;
+    }
     case "open-add-stop": openModal("addStop"); break;
     case "confirm-add-stop": confirmAddStop(t.dataset.id); break;
     case "save-route": saveCurrentRoute(); break;
@@ -1993,12 +1999,30 @@ function doShare(text){
     navigator.clipboard.writeText(text + " " + window.location.href).then(()=>toast("Copied to clipboard."), ()=>toast("Couldn't copy — try again."));
   }catch(e){ toast("Sharing isn't available here."); }
 }
+function buildGoogleMapsUrl(r){
+  const stores = r.stops.map(id=>getStoreById(id)).filter(Boolean);
+  if(!stores.length) return null;
+  const origin = encodeURIComponent(r.start + ", Atlanta, GA");
+  let destination, waypoints;
+  if(r.destination){
+    destination = encodeURIComponent(r.destination + ", Atlanta, GA");
+    waypoints = stores.map(s=>encodeURIComponent(s.address)).join("|");
+  } else {
+    const last = stores[stores.length-1];
+    destination = encodeURIComponent(last.address);
+    waypoints = stores.slice(0,-1).map(s=>encodeURIComponent(s.address)).join("|");
+  }
+  let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
+  if(waypoints) url += `&waypoints=${waypoints}`;
+  return url;
+}
 function buildRouteShareText(r){
   if(!r) return "Check out my thrift route from ATL Thrift Guide.";
   const stores = r.stops.map(id=>getStoreById(id)).filter(Boolean);
   const lines = stores.map((s,i)=>`${i+1}. ${s.name} — ${s.neighborhood}`);
   const hrs = Math.floor(r.totalTime/60), mins = r.totalTime%60;
-  return `My ATL thrift route${r.title?': '+r.title:''}:\n${lines.join('\n')}\nEstimated time: ${hrs}h ${mins}m. Built with ATL Thrift Guide.`;
+  const mapsUrl = buildGoogleMapsUrl(r);
+  return `My ATL thrift route${r.title?': '+r.title:''}:\n${lines.join('\n')}\nEstimated time: ${hrs}h ${mins}m.${mapsUrl ? '\nDrive it in Google Maps: '+mapsUrl : ''}`;
 }
 function submitComment(id){
   const input = document.querySelector(`[data-comment-input="${id}"]`);
