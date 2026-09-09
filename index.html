@@ -1335,10 +1335,8 @@ function viewRouteBuilder(){
     body = `
       <div class="wizard-step-label">Step 1 of 4</div>
       <div class="wizard-q">Where are you starting?</div>
-      ${state.locationDetected
-        ? `${discoverMap([])}<p style="font-size:11.5px;color:var(--ink-soft);margin:10px 0 14px">Not right? Pick a different starting point below.</p>`
-        : `<button class="btn btn-outline btn-block" style="margin-bottom:16px" data-action="use-my-location">${ICONS.pin.replace('<svg','<svg style="width:16px;height:16px"')}Use my current location</button>`
-      }
+      ${state.locationDetected ? `${discoverMap([])}<p style="font-size:11.5px;color:var(--ink-soft);margin:10px 0 14px">Not right? Pick a different starting point below.</p>` : ''}
+      <button class="btn btn-outline btn-block" style="margin-bottom:16px" data-action="use-my-location">${ICONS.pin.replace('<svg','<svg style="width:16px;height:16px"')}${state.locationDetected ? 'Refresh my location' : 'Use my current location'}</button>
       <div class="chip-grid" style="margin-bottom:10px">
         ${Object.keys(NEIGHBORHOODS).map(n=>`<button class="chip ${c.start===n?'active':''}" data-action="set-start" data-n="${n}">${n}</button>`).join("")}
       </div>
