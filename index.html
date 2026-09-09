@@ -538,7 +538,7 @@ function mapDbStore(row){
     hours: row.hours, rating: row.google_rating ?? row.rating, reviewCount: row.google_review_count,
     tags: row.tags||[], description: row.description, phone: row.phone, website: row.website,
     bestFor: row.best_for||[], tips: row.tips, featured: row.featured, color: row.color,
-    chain: row.chain, googlePlaceId: row.google_place_id
+    chain: row.chain, googlePlaceId: row.google_place_id, lat: row.store_lat, lng: row.store_lng
   };
 }
 function initials(name){ return name.split(/[\s._]/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join(""); }
@@ -2011,20 +2011,22 @@ function doShareRaw(text){
 function buildGoogleMapsUrl(r){
   const stores = r.stops.map(id=>getStoreById(id)).filter(Boolean);
   if(!stores.length) return null;
-  // Coordinates instead of a text place name for the neighborhood-based
-  // start/end points — no spaces or commas to encode, nothing for a
-  // Google→Apple Maps hand-off to botch decoding.
+  // Coordinates everywhere possible — nothing text-based for a Google→Apple
+  // Maps hand-off to fail to decode. Falls back to the text address only
+  // for a store that hasn't been geocoded yet (sync-google-data.js not run,
+  // or Google had no match for that specific place).
+  const point = s => (s.lat!=null && s.lng!=null) ? `${s.lat},${s.lng}` : encodeURIComponent(s.address);
   const startPos = NEIGHBORHOODS[r.start];
   const origin = startPos ? `${startPos.lat},${startPos.lng}` : encodeURIComponent(r.start + ", Atlanta, GA");
   let destination, waypoints;
   if(r.destination){
     const destPos = NEIGHBORHOODS[r.destination];
     destination = destPos ? `${destPos.lat},${destPos.lng}` : encodeURIComponent(r.destination + ", Atlanta, GA");
-    waypoints = stores.map(s=>encodeURIComponent(s.address)).join("|");
+    waypoints = stores.map(point).join("|");
   } else {
     const last = stores[stores.length-1];
-    destination = encodeURIComponent(last.address);
-    waypoints = stores.slice(0,-1).map(s=>encodeURIComponent(s.address)).join("|");
+    destination = point(last);
+    waypoints = stores.slice(0,-1).map(point).join("|");
   }
   let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
   if(waypoints) url += `&waypoints=${waypoints}`;
