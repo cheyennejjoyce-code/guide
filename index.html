@@ -9,8 +9,9 @@
 <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,500;9..144,600;9..144,700;9..144,900&family=Inter:wght@400;500;600;700;800&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
 :root{
-  --cream:#FBF6EE;
-  --cream-card:#F5EFE4;
+  --cream:#FFFFFF;
+  --page-bg:#FFFFFF;
+  --cream-card:#FFFFFF;
   --ink:#221D24;
   --ink-soft:#6B6470;
   --body-text:#4A4450;
@@ -37,8 +38,9 @@
 @media (prefers-color-scheme: dark){
   :root:not([data-theme="light"]){
     --cream:#221D24;
+    --page-bg:#221D24;
     --cream-card:#2C262E;
-    --ink:#FBF6EE;
+    --ink:#FFFFFF;
     --ink-soft:#B0A8AE;
     --body-text:#D8D1D5;
     --royal:#E07A61;
@@ -50,13 +52,14 @@
     --navy:#3A5488;
     --sage:#C8D6C4;
     --line:#453D46;
-    --line-strong:#FBF6EE;
+    --line-strong:#FFFFFF;
   }
 }
 :root[data-theme="dark"]{
   --cream:#221D24;
+  --page-bg:#221D24;
   --cream-card:#2C262E;
-  --ink:#FBF6EE;
+  --ink:#FFFFFF;
   --ink-soft:#B0A8AE;
   --body-text:#D8D1D5;
   --royal:#E07A61;
@@ -68,12 +71,12 @@
   --navy:#3A5488;
   --sage:#C8D6C4;
   --line:#453D46;
-  --line-strong:#FBF6EE;
+  --line-strong:#FFFFFF;
 }
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{margin:0;padding:0;}
 body{
-  background:var(--cream);
+  background:var(--page-bg);
   color:var(--ink);
   font-family:var(--font-body);
   min-height:100vh;
@@ -83,8 +86,8 @@ img,svg{max-width:100%;display:block;}
 button{font-family:inherit;cursor:pointer;}
 input,select,textarea{font-family:inherit;}
 a{color:inherit;}
-.app-shell{max-width:520px;margin:0 auto;min-height:100vh;background:var(--cream);position:relative;display:flex;flex-direction:column;}
-.topbar{position:sticky;top:0;z-index:40;background:var(--cream);display:flex;align-items:center;justify-content:space-between;padding:16px 18px 10px;}
+.app-shell{max-width:520px;margin:0 auto;min-height:100vh;background:var(--page-bg);position:relative;display:flex;flex-direction:column;}
+.topbar{position:sticky;top:0;z-index:40;background:var(--page-bg);display:flex;align-items:center;justify-content:space-between;padding:16px 18px 10px;}
 .brand-mark{display:flex;align-items:center;gap:9px;background:none;border:none;padding:0;}
 .brand-logo{width:34px;height:34px;border-radius:9px;background:var(--royal);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .brand-logo svg{width:19px;height:19px;}
@@ -97,7 +100,7 @@ a{color:inherit;}
 main.view{flex:1;padding:0 18px 100px;}
 .bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:50;display:flex;justify-content:center;padding:10px 12px calc(10px + env(safe-area-inset-bottom));}
 .bottom-nav-inner{max-width:496px;width:100%;display:flex;gap:4px;background:var(--ink);border-radius:var(--radius-pill);padding:7px;}
-.nav-item{flex:1;background:none;border:none;border-radius:var(--radius-pill);display:flex;align-items:center;justify-content:center;gap:5px;padding:13px 4px;color:rgba(251,246,238,.62);font-family:var(--font-body);}
+.nav-item{flex:1;background:none;border:none;border-radius:var(--radius-pill);display:flex;align-items:center;justify-content:center;gap:5px;padding:13px 4px;color:rgba(255,255,255,.62);font-family:var(--font-body);}
 .nav-item svg{width:17px;height:17px;}
 .nav-item span{font-size:12.5px;font-weight:700;letter-spacing:-.01em;}
 .nav-item.active{color:var(--ink);background:var(--cream);}
@@ -173,7 +176,7 @@ p{margin:0;}
 .chain-toggle.on{border-color:var(--line-strong);background:var(--ink);color:var(--cream);}
 .chain-toggle .ct-title{font-size:13.5px;font-weight:700;}
 .chain-toggle .ct-sub{display:block;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);margin-top:3px;opacity:.85;}
-.chain-toggle.on .ct-sub{color:rgba(251,246,238,.75);}
+.chain-toggle.on .ct-sub{color:rgba(255,255,255,.75);}
 .chain-toggle .ct-switch{width:46px;height:26px;border-radius:99px;flex-shrink:0;padding:3px;display:flex;justify-content:flex-start;background:var(--line);}
 .chain-toggle.on .ct-switch{justify-content:flex-end;background:var(--gold);}
 .chain-toggle .ct-knob{width:20px;height:20px;border-radius:99px;background:var(--cream);display:block;}
@@ -213,14 +216,14 @@ p{margin:0;}
 .option-tile{display:flex;align-items:center;gap:12px;padding:16px 16px;border-radius:20px;border:2px solid var(--line);background:transparent;text-align:left;}
 .option-tile.active{border-color:var(--line-strong);background:var(--ink);}
 .option-tile .oi{width:36px;height:36px;border-radius:10px;background:var(--cream-card);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
-.option-tile.active .oi{background:rgba(251,246,238,.14);}
+.option-tile.active .oi{background:rgba(255,255,255,.14);}
 .option-tile .oi svg{width:18px;height:18px;color:var(--royal);}
 .option-tile.active .oi svg{color:var(--gold);}
 .option-tile .ot-text{flex:1;}
 .option-tile .ot-title{font-family:var(--font-display);font-weight:600;font-size:16.5px;letter-spacing:-.01em;}
 .option-tile.active .ot-title{color:var(--cream);}
 .option-tile .ot-sub{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);}
-.option-tile.active .ot-sub{color:rgba(251,246,238,.7);}
+.option-tile.active .ot-sub{color:rgba(255,255,255,.7);}
 .option-tile .check{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);flex-shrink:0;}
 .option-tile.active .check{background:var(--gold);border-color:var(--gold);position:relative;}
 .option-tile.active .check::after{content:"";position:absolute;left:6px;top:3px;width:5px;height:9px;border:solid var(--ink);border-width:0 2px 2px 0;transform:rotate(45deg);}
@@ -233,7 +236,7 @@ p{margin:0;}
 .route-summary-bar .rsb-item{text-align:left;}
 .route-summary-bar .rsb-num{font-family:var(--font-display);font-size:23px;font-weight:600;}
 .route-summary-bar .rsb-num.gold{color:var(--gold);}
-.route-summary-bar .rsb-lbl{font-family:var(--font-mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:rgba(251,246,238,.6);margin-top:5px;}
+.route-summary-bar .rsb-lbl{font-family:var(--font-mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;color:rgba(255,255,255,.6);margin-top:5px;}
 .stop-card{display:flex;gap:12px;background:var(--cream-card);border:1px solid var(--line);border-radius:22px;padding:13px;margin-bottom:10px;align-items:flex-start;}
 .stop-num{width:28px;height:28px;border-radius:50%;background:var(--ink);color:var(--cream-card);font-weight:800;font-size:13px;display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .stop-thumb{width:56px;height:56px;border-radius:50%;overflow:hidden;flex-shrink:0;}
@@ -280,7 +283,7 @@ p{margin:0;}
 .profile-stats div{text-align:center;flex:1;}
 .profile-stats .pnum{font-family:var(--font-display);font-size:22px;font-weight:600;color:var(--cream);}
 .profile-stats .pnum.gold{color:var(--gold);}
-.profile-stats .plbl{font-family:var(--font-mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:rgba(251,246,238,.6);margin-top:5px;}
+.profile-stats .plbl{font-family:var(--font-mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.6);margin-top:5px;}
 .settings-row{display:flex;align-items:center;justify-content:space-between;padding:15px 4px;border-bottom:1px solid var(--line);font-size:14.5px;font-weight:600;}
 .settings-row svg{width:17px;height:17px;color:var(--ink-soft);}
 .settings-row .sr-left{display:flex;align-items:center;gap:11px;}
@@ -340,6 +343,134 @@ p{margin:0;}
 .link-btn{background:none;border:none;color:var(--royal);font-weight:700;font-size:13px;padding:0;}
 ::selection{background:var(--gold-tint);}
 .sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);}
+
+
+/* =========================================================
+   2ND STUDIO REDESIGN MARRIAGE
+   Visual system adapted from the supplied Claude design file.
+   Existing application logic and data remain intact.
+   ========================================================= */
+:root{
+  --radius-card:22px;
+  --radius-pill:999px;
+  --cobalt:#2452C7;
+  --navy:#1B2A4A;
+  --sage:#C8D6C4;
+}
+.app-shell{max-width:430px;}
+.topbar{padding:18px 20px 12px;}
+.brand-logo{width:36px;height:36px;border-radius:999px;background:var(--ink);}
+.brand-logo svg{width:18px;height:18px;}
+.brand-text .b1{font-size:15.5px;font-weight:600;letter-spacing:-.01em;}
+.brand-text .b2{font-family:var(--font-mono);font-size:9px;letter-spacing:.12em;text-transform:uppercase;margin-top:2px;}
+.profile-bubble{width:36px;height:36px;border-radius:999px;border:none;background:var(--ink);color:var(--cream);font-family:var(--font-display);font-size:13.5px;font-weight:600;display:flex;align-items:center;justify-content:center;overflow:hidden;padding:0;}
+main.view{padding:0 20px 116px;}
+.bottom-nav{padding:10px 16px calc(16px + env(safe-area-inset-bottom));pointer-events:none;}
+.bottom-nav-inner{max-width:398px;gap:4px;padding:7px;pointer-events:auto;}
+.nav-item{padding:13px 4px;}
+.nav-item span{font-size:12.5px;font-weight:700;}
+.nav-item svg{display:none;}
+.section{margin-top:32px;}
+.section-head{margin-bottom:12px;}
+.section-head h2,.design-eyebrow{font-family:var(--font-mono);font-size:10.5px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);}
+.see-all{font-size:10.5px;}
+.hero{padding:6px 0 18px;}
+.hero .hero-tag{font-size:10px;margin-bottom:10px;}
+.hero h1{font-size:40px;line-height:.97;font-weight:600;margin-bottom:12px;letter-spacing:-.03em;}
+.hero p.sub{font-size:14px;line-height:1.55;max-width:31ch;margin-bottom:0;}
+.hero-btns{margin-top:0;gap:8px;}
+.btn{border-radius:var(--radius-pill);box-shadow:none;}
+.btn-primary{background:var(--ink);color:var(--cream);}
+.btn-primary:hover{background:var(--royal);}
+.btn-secondary-hero,.btn-outline{border:2px solid var(--ink);}
+.btn-royal{background:var(--ink);color:var(--cream);}
+.btn-royal:hover{background:var(--royal);}
+.btn-ghost{border:1.5px solid var(--line);background:transparent;}
+.hscroll{gap:10px;margin-left:-20px;margin-right:-20px;padding-left:20px;padding-right:20px;}
+.home-open-card{border:2px solid var(--ink);background:var(--cream);border-radius:22px;overflow:hidden;flex:none;width:238px;text-align:left;color:var(--ink);cursor:pointer;}
+.home-open-card .store-photo{height:132px;}
+.home-open-card .home-card-body{display:block;padding:12px 13px 14px;}
+.home-open-card .home-card-name{display:block;font-family:var(--font-display);font-size:17px;font-weight:600;line-height:1.12;letter-spacing:-.015em;}
+.home-open-card .home-card-meta{display:block;font-family:var(--font-mono);font-size:9.5px;color:var(--ink-soft);margin-top:5px;letter-spacing:.1em;text-transform:uppercase;}
+.home-open-card .save-btn{width:32px;height:32px;top:10px;right:10px;}
+.curated-route-card{border:none;border-radius:22px;padding:18px;width:236px;min-height:164px;display:flex;flex-direction:column;justify-content:space-between;gap:14px;box-shadow:none;}
+.curated-route-card h3{font-size:21px;line-height:1.08;letter-spacing:-.02em;}
+.curated-route-card p{font-size:12.5px;line-height:1.45;}
+.neighborhood-card{border:none!important;border-radius:20px!important;padding:16px 15px!important;width:176px;min-height:88px;text-align:left;box-shadow:none;}
+.neighborhood-card .nn{font-size:16px;}
+.neighborhood-card .nc{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:inherit;opacity:.8;margin-top:4px;}
+.search-wrap{margin:4px 0 14px;}
+.search-wrap input{padding:15px 16px 15px 38px;border:2px solid var(--line);font-size:14px;}
+.search-wrap svg{left:16px;width:16px;height:16px;}
+.filter-row{gap:7px;margin-left:-20px;margin-right:-20px;padding-left:20px;padding-right:20px;}
+.chip{border:1.5px solid var(--line);padding:9px 13px;font-size:10.5px;letter-spacing:.12em;}
+.chip.active{background:var(--ink);color:var(--cream);border-color:var(--ink);}
+.discover-controls{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;}
+.discover-count{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);text-align:right;}
+.view-toggle{background:var(--ink);border:none;padding:5px;margin-bottom:18px;}
+.view-toggle button{padding:11px 4px;color:rgba(255,255,255,.6);}
+.view-toggle button.active{background:var(--cream);color:var(--ink);}
+.grid-stack{gap:9px;}
+.grid-card{border:2px solid var(--ink);border-radius:22px;box-shadow:none;}
+.grid-card .gc-photo{height:112px;}
+.grid-card .gc-name{font-size:16px;}
+.grid-card .gc-meta{font-size:9.5px;}
+.open-badge{font-family:var(--font-mono);font-size:9px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;padding:5px 8px;border-radius:999px;}
+.open-badge.open{background:var(--cream);color:var(--ink);}
+.open-badge.closed{background:var(--ink);color:var(--cream);}
+.discover-page .map-canvas{height:300px;}
+.detail-photo{height:230px;border-radius:24px;margin-bottom:18px;}
+.detail-title-row{margin-bottom:8px;}
+.detail-title-row h1{font-size:30px;line-height:1.03;letter-spacing:-.03em;}
+.rating-badge{background:var(--gold);color:var(--ink);font-family:var(--font-mono);font-size:11.5px;font-weight:500;border-radius:8px;padding:7px 10px;}
+.detail-meta-line{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:18px;}
+.detail-cta-row{gap:8px;margin-bottom:24px;}
+.detail-cta-row .btn{padding:16px 10px;font-size:14px;}
+.detail-editorial{border-top:2px solid var(--ink);padding-top:15px;margin-bottom:22px;}
+.detail-editorial .label{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--royal);margin-bottom:10px;}
+.detail-editorial p{font-family:var(--font-display);font-size:17px;line-height:1.5;color:var(--ink);letter-spacing:-.005em;}
+.design-info-list{margin-bottom:24px;}
+.design-info-row{display:flex;gap:12px;font-size:13.5px;padding:11px 0;border-bottom:1px solid var(--line);}
+.design-info-row .label{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);min-width:84px;flex:none;padding-top:2px;}
+.design-info-row .value{color:var(--ink);font-weight:500;min-width:0;}
+.info-block{border:1.5px solid var(--line);border-radius:22px;background:transparent;padding:16px 17px;}
+.wizard-progress{gap:5px;margin:8px 0 24px;}
+.wizard-progress span{height:4px;border-radius:999px;}
+.wizard-step-label{font-family:var(--font-mono);font-size:10.5px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--royal);margin-bottom:9px;}
+.wizard-q{font-size:30px;font-weight:600;line-height:1.06;letter-spacing:-.03em;margin-bottom:22px;}
+.option-grid{gap:10px;}
+.option-tile{border-radius:20px;border:2px solid var(--line);padding:16px;}
+.option-tile.active{border-color:var(--ink);background:var(--ink);}
+.chain-toggle{border-radius:20px;}
+.route-start-map-wrap .map-canvas{height:190px;margin-bottom:10px;}
+.route-map-wrap .map-canvas{height:220px;margin-bottom:16px;}
+.route-summary-bar{border-radius:20px;padding:18px;margin-bottom:16px;}
+.stop-card{background:transparent;border:1.5px solid var(--line);border-radius:20px;padding:12px;align-items:center;}
+.stop-num{width:28px;height:28px;background:var(--ink);color:var(--cream);}
+.stop-thumb{width:44px;height:44px;border-radius:12px;}
+.stop-actions button{border:1px solid var(--line);background:transparent;border-radius:6px;width:24px;height:22px;}
+.travel-line{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;}
+.post-card{border:2px solid var(--ink);border-radius:22px;box-shadow:none;}
+.post-head{padding:13px 14px 11px;}
+.avatar{font-family:var(--font-display);font-size:15px;font-weight:600;}
+.post-head .pu-meta{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;margin-top:2px;}
+.post-photo{height:230px;}
+.price-tag{font-family:var(--font-mono);font-size:12px;font-weight:500;color:var(--ink);border-radius:8px;transform:none;padding:7px 11px;}
+.post-item{font-family:var(--font-display);font-size:18px;font-weight:600;letter-spacing:-.015em;}
+.post-store{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--royal);margin-top:5px;}
+.post-caption{font-size:13.5px;line-height:1.55;}
+.post-actions button{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.06em;text-transform:uppercase;}
+.profile-head{padding:14px 0 26px;}
+.profile-avatar{font-size:26px;font-weight:600;margin-bottom:14px;}
+.profile-head h2{font-size:23px;letter-spacing:-.02em;}
+.profile-head .pmeta{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;margin-top:6px;margin-bottom:10px;}
+.profile-stats{max-width:none;margin-top:16px;padding:18px;border-radius:20px;}
+.settings-row{padding:16px 2px;}
+.hairline{background:var(--line);}
+@media (min-width:700px){
+  .app-shell{border-left:1px solid var(--line);border-right:1px solid var(--line);}
+}
+
 </style>
 </head>
 <body>
@@ -529,7 +660,7 @@ function storeArt(store){
   const palettes = { royal:"#C5563E", gold:"#F2C230", ink:"#1B2A4A" };
   const bg = palettes[store.color] || palettes.royal;
   return `<div style="width:100%;height:100%;position:relative;background:${stripesBg(bg)};display:flex;align-items:flex-end;padding:10px">
-    <span style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#FBF6EE;background:rgba(34,29,36,.42);padding:5px 8px;border-radius:6px">Places photo</span>
+    <span style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#FFFFFF;background:rgba(34,29,36,.42);padding:5px 8px;border-radius:6px">Places photo</span>
   </div>`;
 }
 // Tries a real Google photo via the /api/photo serverless function. If it
@@ -548,7 +679,7 @@ function postArt(post){
   const palettes = { royal:"#C5563E", gold:"#F2C230", ink:"#1B2A4A" };
   const bg = palettes[post.color] || palettes.royal;
   return `<div style="width:100%;height:100%;position:relative;background:${stripesBg(bg)};display:flex;align-items:flex-end;padding:12px">
-    <span style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#FBF6EE;background:rgba(34,29,36,.42);padding:5px 8px;border-radius:6px">Member photo</span>
+    <span style="font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:#FFFFFF;background:rgba(34,29,36,.42);padding:5px 8px;border-radius:6px">Member photo</span>
   </div>`;
 }
 
@@ -988,7 +1119,7 @@ function render(){
         <span class="brand-text"><span class="b1">ATL Thrift Guide</span><span class="b2">by 2nd Studio</span></span>
       </button>
       <div class="top-actions">
-        ${state.user ? `<button class="icon-btn" data-action="go-profile" aria-label="Profile" style="overflow:hidden;padding:0">${state.user.avatarUrl ? `<img src="${state.user.avatarUrl}" style="width:100%;height:100%;object-fit:cover">` : ICONS.user}</button>` : `<button class="btn btn-outline btn-sm" data-action="open-login">Sign in</button>`}
+        ${state.user ? `<button class="profile-bubble" data-action="go-profile" aria-label="Profile">${state.user.avatarUrl ? `<img src="${state.user.avatarUrl}" style="width:100%;height:100%;object-fit:cover">` : initials(state.user.username||"User")}</button>` : `<button class="btn btn-outline btn-sm" data-action="open-login">Sign in</button>`}
       </div>
     </div>
     <main class="view" id="view-root"></main>
@@ -1007,7 +1138,7 @@ function render(){
 }
 function navItem(view, icon, label){
   const active = state.view===view || (view==="route" && (state.view==="routeResults"));
-  return `<button class="nav-item ${active?'active':''}" data-action="nav" data-view="${view}">${ICONS[icon]}<span>${label}</span></button>`;
+  return `<button class="nav-item ${active?'active':''}" data-action="nav" data-view="${view}"><span>${label}</span></button>`;
 }
 
 function renderView(){
@@ -1025,44 +1156,73 @@ function renderView(){
   }
 }
 
+function currentFieldGuideLabel(){
+  const d = new Date();
+  const day = d.toLocaleDateString(undefined,{weekday:"long"});
+  return `${day} · Atlanta field guide`;
+}
+function designPalette(index){
+  const p = [
+    {bg:"#C5563E",fg:"#FFFFFF"},
+    {bg:"#2452C7",fg:"#FFFFFF"},
+    {bg:"#C8D6C4",fg:"#221D24"},
+    {bg:"#1B2A4A",fg:"#FFFFFF"},
+    {bg:"#F2C230",fg:"#221D24"},
+    {bg:"#FFFFFF",fg:"#221D24"}
+  ];
+  return p[index%p.length];
+}
+function homeStoreCard(s){
+  const saved = state.savedStoreIds.includes(s.id);
+  const openState = isOpenNow(s);
+  return `<div class="home-open-card" data-action="open-store" data-id="${s.id}">
+    <div class="store-photo">
+      ${photoOrArt(s)}
+      <button class="save-btn ${saved?'saved':''}" data-action="save-store" data-id="${s.id}" aria-label="Save store">${ICONS.bookmark}</button>
+    </div>
+    <span class="home-card-body">
+      <span class="home-card-name">${s.name}</span>
+      <span class="home-card-meta">${s.neighborhood} · ${priceStr(s.priceLevel)}${openState===true?' · Open now':''}</span>
+    </span>
+  </div>`;
+}
 function viewHome(){
-  const featuredStores = state.stores.filter(s=>s.featured).slice(0,6);
-  const recentPosts = [...state.posts].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,4);
-  const neighborhoods = Object.keys(NEIGHBORHOODS).slice(0,6);
+  const openNow = state.stores.filter(s=>isOpenNow(s)===true).slice(0,6);
+  const displayStores = openNow.length ? openNow : state.stores.filter(s=>s.featured).slice(0,6);
+  const neighborhoods = Object.keys(NEIGHBORHOODS).filter(n=>state.stores.some(s=>s.neighborhood===n)).slice(0,6);
+  const independentCount = state.stores.filter(s=>!s.chain).length;
   return `
-    <div class="hero">
-      <span class="hero-tag">Atlanta, one thrift trip at a time</span>
-      <h1>Thrift Atlanta<br>better.</h1>
-      <p class="sub">Discover Atlanta thrift stores, build your perfect thrift route, and see what the community is finding.</p>
-      <div class="hero-btns">
-        <button class="btn btn-primary" data-action="nav" data-view="route">${ICONS.route}Build my route</button>
-        <button class="btn btn-secondary-hero" data-action="nav" data-view="discover">Explore stores</button>
+    <div class="design-home">
+      <div class="hero">
+        <span class="hero-tag">${currentFieldGuideLabel()}</span>
+        <h1>Thrift Atlanta<br>better.</h1>
+        <p class="sub">${independentCount} vetted independent shops, plus route building and community finds in one Atlanta field guide.</p>
       </div>
-    </div>
+      <div class="hero-btns" style="margin-bottom:32px">
+        <button class="btn btn-primary" style="flex:1;justify-content:center;padding:17px 20px" data-action="nav" data-view="route">Build a route</button>
+        <button class="btn btn-secondary-hero" style="padding:15px 20px" data-action="nav" data-view="discover">Browse</button>
+      </div>
 
-    <div class="section">
-      <div class="section-head"><h2>Popular stores this week</h2><button class="see-all" data-action="nav" data-view="discover">See all</button></div>
-      <div class="hscroll">${featuredStores.map(s=>storeCard(s)).join("")}</div>
-    </div>
+      <div class="section" style="margin-top:0">
+        <div class="section-head"><h2>${openNow.length?'Open now near you':'Featured shops'}</h2><button class="see-all" data-action="nav" data-view="discover">See all</button></div>
+        <div class="hscroll">${displayStores.map(s=>homeStoreCard(s)).join("")}</div>
+      </div>
 
-    <div class="section">
-      <div class="section-head"><h2>Recent ATL Finds</h2><button class="see-all" data-action="nav" data-view="community">See all</button></div>
-      <div class="hscroll">${recentPosts.map(p=>miniPostCard(p)).join("")}</div>
-    </div>
+      <div class="section">
+        <div class="section-head"><h2>Routes curated by 2nd Studio</h2></div>
+        <div class="hscroll">${CURATED_ROUTES.map((r,i)=>curatedRouteCard(r,i)).join("")}</div>
+      </div>
 
-    <div class="section">
-      <div class="section-head"><h2>Routes curated by 2nd Studio</h2></div>
-      <div class="hscroll">${CURATED_ROUTES.map(r=>curatedRouteCard(r)).join("")}</div>
-    </div>
-
-    <div class="section">
-      <div class="section-head"><h2>Neighborhood collections</h2></div>
-      <div class="hscroll">${neighborhoods.map(n=>`
-        <button class="neighborhood-card" data-action="filter-neighborhood" data-n="${n}" style="text-align:left;border:1px solid var(--line)">
-          <div class="nn">${n}</div>
-          <div class="nc">${state.stores.filter(s=>s.neighborhood===n).length} stores to explore</div>
-        </button>
-      `).join("")}</div>
+      <div class="section">
+        <div class="section-head"><h2>By neighborhood</h2></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${neighborhoods.map((n,i)=>{
+          const p=designPalette(i);
+          return `<button class="neighborhood-card" data-action="filter-neighborhood" data-n="${n}" style="background:${p.bg};color:${p.fg}">
+            <div class="nn">${n}</div>
+            <div class="nc">${state.stores.filter(s=>s.neighborhood===n).length} shops</div>
+          </button>`;
+        }).join("")}</div>
+      </div>
     </div>
   `;
 }
@@ -1122,13 +1282,23 @@ function miniPostCard(p){
   </div>`;
 }
 
-function curatedRouteCard(r){
+function curatedRouteCard(r, paletteIndex){
+  const idx = paletteIndex==null ? Math.max(0,CURATED_ROUTES.findIndex(x=>x.id===r.id)) : paletteIndex;
+  const p = [
+    {bg:"#221D24",fg:"#FFFFFF"},
+    {bg:"#1B2A4A",fg:"#FFFFFF"},
+    {bg:"#C5563E",fg:"#FFFFFF"},
+    {bg:"#2452C7",fg:"#FFFFFF"},
+    {bg:"#F2C230",fg:"#221D24"}
+  ][idx%5];
   return `
-  <div class="curated-route-card" data-action="view-curated-route" data-id="${r.id}">
-    <div class="crc-tag">${r.time} · ${r.storeIds.length} stops</div>
-    <h3>${r.title}</h3>
-    <p>${r.desc}</p>
-    <button class="link-btn" style="color:var(--gold)" data-action="view-curated-route" data-id="${r.id}">View route ${ICONS.chevronR.replace('<svg','<svg style="width:12px;height:12px;vertical-align:-1px"')}</button>
+  <div class="curated-route-card" data-action="view-curated-route" data-id="${r.id}" style="background:${p.bg};color:${p.fg}">
+    <div class="crc-tag" style="color:${p.fg};opacity:.85">Curated · ${r.time}</div>
+    <div>
+      <h3 style="color:${p.fg}">${r.title}</h3>
+      <p style="color:${p.fg};opacity:.85">${r.desc}</p>
+      <div style="font-family:var(--font-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;opacity:.8;margin-top:10px">${r.storeIds.length} stops</div>
+    </div>
   </div>`;
 }
 
@@ -1160,40 +1330,37 @@ function viewDiscover(){
       return true;
     });
   });
-  const allFilters = ["Open now", ...CATEGORIES];
-  const topPosts = [...state.posts].sort((a,b)=>(state.likes[b.id]||[]).length-(state.likes[a.id]||[]).length).slice(0,5);
+  const categoryFilters = CATEGORIES;
   return `
-    <div class="section" style="margin-top:16px">
-      <h2 style="font-size:22px;margin-bottom:14px">Discover</h2>
-
-      ${state.events.length ? `
-      <div class="section-head" style="margin-bottom:12px"><h2>Happening this week</h2><button class="see-all" data-action="nav" data-view="admin">Add a sale</button></div>
-      <div class="hscroll" style="margin-bottom:26px">${state.events.map(ev=>saleCard(ev)).join("")}</div>
-      ` : ''}
-
-      <div class="section-head" style="margin-bottom:12px"><h2>Most-loved finds</h2><button class="see-all" data-action="nav" data-view="community">See all</button></div>
-      <div class="hscroll" style="margin-bottom:28px">${topPosts.map(p=>miniPostCard(p)).join("")}</div>
-
-      <div class="hairline" style="margin:6px 0 22px"></div>
-      <h2 style="font-size:17px;margin-bottom:14px">All stores</h2>
+    <div class="discover-page" style="margin-top:4px">
       <div class="search-wrap">
         ${ICONS.search}
-        <input type="text" placeholder="Search stores, neighborhoods, categories" value="${state.searchQuery||''}" data-action="search-input">
+        <input type="text" placeholder="Search shops, neighborhoods, categories" value="${state.searchQuery||''}" data-action="search-input">
       </div>
-      <button class="chain-toggle ${state.hideChains?'on':''}" style="margin-bottom:16px" data-action="toggle-hide-chains">
-        <span style="flex:1"><span class="ct-title">Independent shops only</span><span class="ct-sub">Excludes Goodwill, Salvation Army</span></span>
+      <div class="filter-row">
+        <button class="chip ${filters.length===0?'active':''}" data-action="toggle-filter" data-f="All">All</button>
+        ${categoryFilters.map(f=>`<button class="chip ${filters.includes(f)?'active':''}" data-action="toggle-filter" data-f="${f}">${f}</button>`).join("")}
+      </div>
+      <div class="discover-controls">
+        <button class="chip ${filters.includes('Open now')?'active':''}" data-action="toggle-filter" data-f="Open now">Open now</button>
+        <span class="discover-count">${list.length} of ${state.stores.length} shops</span>
+      </div>
+      <button class="chain-toggle ${state.hideChains?'on':''}" style="margin-bottom:12px" data-action="toggle-hide-chains">
+        <span style="flex:1"><span class="ct-title">Independent shops only</span><span class="ct-sub">Excludes Goodwill and major chains</span></span>
         <span class="ct-switch"><span class="ct-knob"></span></span>
       </button>
-      <div class="filter-row">
-        ${allFilters.map(f=>`<button class="chip ${filters.includes(f)?'active':''}" data-action="toggle-filter" data-f="${f}">${f}</button>`).join("")}
-      </div>
       <div class="view-toggle">
-        <button class="${state.discoverMode==='list'?'active':''}" data-action="set-discover-mode" data-mode="list">${ICONS.list}List</button>
-        <button class="${state.discoverMode==='map'?'active':''}" data-action="set-discover-mode" data-mode="map">${ICONS.map}Map</button>
+        <button class="${state.discoverMode==='list'?'active':''}" data-action="set-discover-mode" data-mode="list">List</button>
+        <button class="${state.discoverMode==='map'?'active':''}" data-action="set-discover-mode" data-mode="map">Map</button>
       </div>
       ${state.discoverMode==='map' ? discoverMap(list) : ''}
-      <p style="font-size:12px;color:var(--ink-soft);margin-bottom:12px">${list.length} store${list.length===1?'':'s'}${state.hideChains?' · Goodwill & big chains hidden':''}</p>
-      ${list.length===0 ? `<div class="empty-state"><h3>No stores match yet</h3><p>Try clearing a filter, turning off "Independent shops only," or searching a different neighborhood.</p></div>` : `<div class="grid-stack">${list.map(s=>storeGridCard(s)).join("")}</div>`}
+      ${list.length===0 ? `<div class="empty-state"><h3>No stores match yet</h3><p>Clear a filter or search a different neighborhood.</p></div>` : `<div class="grid-stack">${list.map(s=>storeGridCard(s)).join("")}</div>`}
+
+      ${state.events.length ? `
+      <div class="section">
+        <div class="section-head"><h2>Happening this week</h2><button class="see-all" data-action="nav" data-view="admin">Add a sale</button></div>
+        <div class="hscroll">${state.events.map(ev=>saleCard(ev)).join("")}</div>
+      </div>` : ''}
     </div>
   `;
 }
@@ -1288,27 +1455,44 @@ function viewStoreDetail(id){
   const visited = state.visitedStoreIds.includes(s.id);
   const openState = isOpenNow(s);
   const storePosts = state.posts.filter(p=>p.store===s.id);
+  const votes = getStoreVotes(s.id);
+  const myUp = state.user && votes.up.includes(state.user.id);
+  const myDown = state.user && votes.down.includes(state.user.id);
   return `
     <div class="detail-photo">
       ${photoOrArt(s)}
       <button class="back-fab" data-action="go-back" aria-label="Back">${ICONS.back}</button>
+      <button class="save-btn ${saved?'saved':''}" data-action="save-store" data-id="${s.id}" aria-label="Save store" style="top:14px;right:14px;width:36px;height:36px">${ICONS.bookmark}</button>
     </div>
     <div class="detail-title-row">
       <h1>${s.name}</h1>
       <div class="rating-badge">${ICONS.star}${s.rating}</div>
     </div>
-    <div class="detail-meta-line">${s.type} · ${s.neighborhood} · ${priceStr(s.priceLevel)}${openState!==null ? ` · <span class="open-badge ${openState?'open':'closed'}" style="margin-left:2px">${openState?'Open now':'Closed now'}</span>` : ''}</div>
-    <div class="pill-row" style="margin-bottom:18px">${s.tags.map(t=>`<span class="pill gold">${t}</span>`).join("")}</div>
-    <div class="vote-block" style="display:block">
-      <div style="font-family:var(--font-mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);margin-bottom:10px">Still worth the trip?</div>
-      ${(()=>{ const v = getStoreVotes(s.id); const myUp = state.user && v.up.includes(state.user.id); const myDown = state.user && v.down.includes(state.user.id);
-      return `
-      <div style="display:flex;gap:8px">
-        <button class="vote-btn up ${myUp?'active':''}" style="flex:1;justify-content:center" data-action="vote-store" data-id="${s.id}" data-dir="up">Yes · ${v.up.length}</button>
-        <button class="vote-btn down ${myDown?'active':''}" style="flex:1;justify-content:center" data-action="vote-store" data-id="${s.id}" data-dir="down">Not lately · ${v.down.length}</button>
-      </div>
-      `; })()}
+    <div class="detail-meta-line">${s.type} · ${s.neighborhood} · ${priceStr(s.priceLevel)}${openState!==null ? ` · ${openState?'Open now':'Closed now'}` : ''}</div>
+    <div class="detail-cta-row">
+      <button class="btn btn-primary" data-action="get-directions" data-id="${s.id}">Directions</button>
+      <button class="btn btn-outline" data-action="add-to-route" data-id="${s.id}">Add to route</button>
     </div>
+
+    <div class="detail-editorial">
+      <div class="label">2nd Studio review</div>
+      <p>${s.description}</p>
+    </div>
+    <div class="design-info-list">
+      <div class="design-info-row"><span class="label">Hours</span><span class="value">${s.hours}</span></div>
+      <div class="design-info-row"><span class="label">Prices</span><span class="value">${priceStr(s.priceLevel)}</span></div>
+      <div class="design-info-row"><span class="label">Neighborhood</span><span class="value">${s.neighborhood}</span></div>
+      <div class="design-info-row"><span class="label">Good for</span><span class="value">${s.bestFor.join(" · ")}</span></div>
+    </div>
+
+    <div class="vote-block" style="display:block">
+      <div class="design-eyebrow" style="margin-bottom:10px">Still worth the trip?</div>
+      <div style="display:flex;gap:8px">
+        <button class="vote-btn up ${myUp?'active':''}" style="flex:1;justify-content:center" data-action="vote-store" data-id="${s.id}" data-dir="up">Yes · ${votes.up.length}</button>
+        <button class="vote-btn down ${myDown?'active':''}" style="flex:1;justify-content:center" data-action="vote-store" data-id="${s.id}" data-dir="down">Not lately · ${votes.down.length}</button>
+      </div>
+    </div>
+
     <div class="follow-block">
       ${(()=>{
         const pref = getFollowPref(s.id);
@@ -1316,46 +1500,26 @@ function viewStoreDetail(id){
         const freqOptions = [["instant","Every post"],["daily","Daily digest"],["weekly","Weekly digest"]];
         return `
         <div class="follow-head">
-          <div>
-            <div class="fh-text">Follow this store's updates</div>
-            <div class="fh-sub">${count} following${count===1?'':''} · new arrivals, sales, and posts</div>
-          </div>
+          <div><div class="fh-text">Follow this store's updates</div><div class="fh-sub">${count} following · new arrivals, sales, and posts</div></div>
           <button class="follow-btn ${pref?'active':''}" data-action="toggle-follow-store" data-id="${s.id}">${ICONS.plus}${pref?'Following':'Follow'}</button>
         </div>
-        ${pref ? `
-        <div class="freq-row">
-          ${freqOptions.map(([key,label])=>`<button class="freq-chip ${pref===key?'active':''}" data-action="set-follow-freq" data-id="${s.id}" data-freq="${key}">${label}</button>`).join("")}
-        </div>` : ''}
-        `;
+        ${pref ? `<div class="freq-row">${freqOptions.map(([key,label])=>`<button class="freq-chip ${pref===key?'active':''}" data-action="set-follow-freq" data-id="${s.id}" data-freq="${key}">${label}</button>`).join("")}</div>` : ''}`;
       })()}
     </div>
-    <div class="detail-cta-row">
-      <button class="btn btn-outline ${saved?'':''}" data-action="save-store" data-id="${s.id}">${ICONS.bookmark}${saved?'Saved':'Save'}</button>
-      <button class="btn btn-royal" data-action="add-to-route" data-id="${s.id}">${ICONS.route}Add to route</button>
-      <button class="btn btn-ghost" data-action="get-directions" data-id="${s.id}">${ICONS.pin}Directions</button>
-    </div>
-    <button class="btn ${visited?'btn-royal':'btn-outline'} btn-block" style="margin-bottom:22px" data-action="toggle-visited" data-id="${s.id}">${ICONS.check}${visited?"You've been here":'Mark as visited'}</button>
+
+    <button class="btn ${visited?'btn-primary':'btn-outline'} btn-block" style="margin-bottom:22px" data-action="toggle-visited" data-id="${s.id}">${ICONS.check}${visited?"You've been here":'Mark as visited'}</button>
+
     <div class="info-block">
-      <h3>2nd Studio review</h3>
-      <p>${s.description}</p>
-    </div>
-    <div class="info-block">
-      <h3>What this store is best for</h3>
-      <p>${s.bestFor.join(" · ")}</p>
-    </div>
-    <div class="info-block">
-      <h3>Tips before you go</h3>
-      <p>${s.tips}</p>
-    </div>
-    <div class="info-block">
+      <h3>Before you go</h3>
+      <p style="margin-bottom:10px">${s.tips}</p>
       <div class="info-row"><span class="lbl" style="min-width:0">${ICONS.pin}</span><span>${s.address}</span></div>
-      <div class="info-row"><span class="lbl" style="min-width:0">${ICONS.clock}</span><span>${s.hours}</span></div>
       ${s.phone ? `<div class="info-row"><span class="lbl" style="min-width:0">${ICONS.phone}</span><span>${s.phone}</span></div>` : ''}
-      ${s.website ? `<div class="info-row"><span class="lbl" style="min-width:0">${ICONS.globe}</span><span>${s.website}</span></div>` : `<div class="info-row"><span class="lbl" style="min-width:0">${ICONS.globe}</span><span>No website on file — search the store name to confirm current details.</span></div>`}
+      ${s.website ? `<div class="info-row"><span class="lbl" style="min-width:0">${ICONS.globe}</span><span>${s.website}</span></div>` : ''}
     </div>
+
     <div class="section">
       <div class="section-head"><h2>Community finds from here</h2><button class="see-all" data-action="open-share-find" data-store="${s.id}">Share a find</button></div>
-      ${storePosts.length ? storePosts.map(p=>postCard(p)).join("") : `<div class="empty-state" style="padding:24px 10px"><p>No finds shared from here yet — be the first.</p></div>`}
+      ${storePosts.length ? storePosts.map(p=>postCard(p)).join("") : `<div class="empty-state" style="padding:24px 10px"><p>No finds shared from here yet.</p></div>`}
     </div>
     <button class="btn btn-ghost btn-block" data-action="share-store" data-id="${s.id}">${ICONS.share}Share this store</button>
   `;
@@ -1376,13 +1540,13 @@ function viewRouteBuilder(){
     body = `
       <div class="wizard-step-label">Step 1 of 4</div>
       <div class="wizard-q">Where are you starting?</div>
-      ${state.locationDetected ? `${discoverMap([])}
+      ${state.locationDetected ? `<div class="route-start-map-wrap">${discoverMap([])}</div>
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--ink);border-radius:20px;padding:13px 15px;margin:10px 0 16px">
         <span style="min-width:0">
           <span style="display:block;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)">Detected${c.startCoords ? ' · '+c.startCoords.lat.toFixed(2)+', '+c.startCoords.lng.toFixed(2) : ''}</span>
           <span style="display:block;font-family:var(--font-display);font-size:18px;font-weight:600;color:var(--cream);margin-top:4px;letter-spacing:-.015em">${c.start}</span>
         </span>
-        <button data-action="use-my-location" style="border:1.5px solid rgba(251,246,238,.45);background:transparent;color:var(--cream);font-family:'DM Mono',monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding:9px 12px;border-radius:99px;flex-shrink:0">Refresh</button>
+        <button data-action="use-my-location" style="border:1.5px solid rgba(255,255,255,.45);background:transparent;color:var(--cream);font-family:'DM Mono',monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding:9px 12px;border-radius:99px;flex-shrink:0">Refresh</button>
       </div>` : `<button class="btn btn-outline btn-block" style="margin-bottom:16px" data-action="use-my-location">${ICONS.pin.replace('<svg','<svg style="width:16px;height:16px"')}Use my current location</button>`}
       <div class="chip-grid" style="margin-bottom:10px">
         ${Object.keys(NEIGHBORHOODS).map(n=>`<button class="chip ${c.start===n?'active':''}" data-action="set-start" data-n="${n}">${n}</button>`).join("")}
@@ -1438,15 +1602,13 @@ function viewRouteBuilder(){
       </div>`;
   }
   return `
-    <div style="margin-top:16px">
-      <h2 style="font-size:22px;margin-bottom:4px">Build my thrift route</h2>
-      <p style="font-size:13px;color:var(--ink-soft);margin-bottom:18px">Tell us how you want to thrift and we'll map the route.</p>
+    <div style="margin-top:8px">
       <div class="wizard-progress">${[0,1,2,3].map(i=>`<span class="${i<=step?'done':''}"></span>`).join("")}</div>
       <div class="wizard-card">
         ${body}
         <div class="wizard-nav">
           ${step>0 ? `<button class="btn btn-ghost" data-action="wizard-back">Back</button>` : ''}
-          ${step<3 ? `<button class="btn btn-royal btn-block" data-action="wizard-next">Continue</button>` : `<button class="btn btn-primary btn-block" data-action="build-route">${ICONS.route}Build my thrift route</button>`}
+          ${step<3 ? `<button class="btn btn-primary btn-block" data-action="wizard-next">Next</button>` : `<button class="btn btn-primary btn-block" data-action="build-route">Build my route</button>`}
         </div>
       </div>
     </div>
@@ -1524,31 +1686,30 @@ function generateRoute(){
 
 function viewRouteResults(){
   const r = state.currentRoute;
-  if(!r) return `<div class="empty-state"><h3>No route yet</h3><p>Build one from the Route tab.</p><button class="btn btn-royal" style="margin-top:14px" data-action="nav" data-view="route">Start building</button></div>`;
+  if(!r) return `<div class="empty-state"><h3>No route yet</h3><p>Build one from the Route tab.</p><button class="btn btn-primary" style="margin-top:14px" data-action="nav" data-view="route">Start building</button></div>`;
   const stores = r.stops.map(id=>getStoreById(id)).filter(Boolean);
   const hrs = Math.floor(r.totalTime/60), mins = r.totalTime%60;
   const saved = state.savedRouteIds.includes(r.id);
   return `
-    <div style="margin-top:16px">
-      <button class="btn btn-ghost btn-sm" data-action="nav" data-view="route" style="margin-bottom:14px">${ICONS.back}Rebuild</button>
-      <h2 style="font-size:22px;margin-bottom:4px">${r.title}</h2>
-      <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px">${r.destination ? `From ${r.start} to ${r.destination}` : `Starting from ${r.start}`}</p>
+    <div style="margin-top:8px">
+      <button class="btn btn-ghost btn-sm" data-action="nav" data-view="route" style="margin-bottom:16px">${ICONS.back}Rebuild</button>
+      <h2 style="font-size:30px;line-height:1.06;letter-spacing:-.03em;margin-bottom:7px">${r.title}</h2>
+      <p style="font-family:var(--font-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:16px">${r.destination ? `From ${r.start} to ${r.destination}` : `From ${r.start}`}</p>
       <div class="route-summary-bar">
         <div class="rsb-item"><div class="rsb-num gold">${stores.length}</div><div class="rsb-lbl">stops</div></div>
-        <div class="rsb-item"><div class="rsb-num">${hrs}h ${mins}m</div><div class="rsb-lbl">total time</div></div>
-        <div class="rsb-item"><div class="rsb-num">${r.totalTravel}m</div><div class="rsb-lbl">travel time</div></div>
+        <div class="rsb-item"><div class="rsb-num">${hrs}h ${mins}m</div><div class="rsb-lbl">time</div></div>
+        <div class="rsb-item"><div class="rsb-num">${r.totalTravel}m</div><div class="rsb-lbl">drive</div></div>
       </div>
-      ${discoverMap(stores)}
+      <div class="route-map-wrap">${discoverMap(stores)}</div>
       <div style="margin-bottom:16px">
         ${stores.map((s,i)=>`
           ${i>0 ? `<div class="travel-line">${ICONS.route}${r.legs[i]} min drive</div>` : ''}
           <div class="stop-card">
             <div class="stop-num">${i+1}</div>
             <div class="stop-thumb">${photoOrArt(s)}</div>
-            <div class="stop-info">
+            <div class="stop-info" data-action="open-store" data-id="${s.id}" style="cursor:pointer">
               <div class="sname">${s.name}</div>
-              <div class="smeta">${s.neighborhood} · ${s.hours}</div>
-              <div class="smeta">Best for ${s.bestFor[0]}</div>
+              <div class="smeta">${s.neighborhood.toUpperCase()} · ${s.hours.toUpperCase()}</div>
             </div>
             <div class="stop-actions">
               <button data-action="move-stop" data-dir="up" data-i="${i}" aria-label="Move up">${ICONS.up}</button>
@@ -1558,11 +1719,11 @@ function viewRouteResults(){
           </div>
         `).join("")}
       </div>
-      <button class="btn btn-outline btn-block" style="margin-bottom:12px" data-action="open-in-maps">${ICONS.pin}Open in Google Maps</button>
-      <button class="btn btn-outline btn-block" style="margin-bottom:20px" data-action="open-add-stop">${ICONS.plus}Add another stop</button>
-      <div style="display:flex;gap:10px">
-        <button class="btn btn-royal" style="flex:1" data-action="save-route">${ICONS.bookmark}${saved?'Saved':'Save route'}</button>
-        <button class="btn btn-outline" style="flex:1" data-action="share-route">${ICONS.share}Share route</button>
+      <button class="btn btn-outline btn-block" style="margin-bottom:12px" data-action="open-add-stop">${ICONS.plus}Add another stop</button>
+      <button class="btn btn-primary btn-block" style="margin-bottom:12px" data-action="open-in-maps">Open in Google Maps</button>
+      <div style="display:flex;gap:8px">
+        <button class="btn btn-outline" style="flex:1" data-action="share-route">${saved?'Share route':'Share route'}</button>
+        <button class="btn ${saved?'btn-primary':'btn-outline'}" style="flex:1" data-action="save-route">${saved?'Saved':'Save route'}</button>
       </div>
     </div>
   `;
@@ -1579,8 +1740,8 @@ function viewCommunity(){
   }
   return `
     <div style="margin-top:16px" id="community-top">
-      <div class="section-head"><h2 style="font-family:var(--font-display);font-size:32px;font-weight:600;letter-spacing:-.03em;text-transform:none;color:var(--ink)">Finds</h2>
-        <button class="btn btn-primary btn-sm" data-action="open-share-find">${ICONS.camera}Share a find</button>
+      <div class="section-head" style="align-items:flex-end;margin-bottom:16px"><h2 style="font-family:var(--font-display);font-size:34px;font-weight:600;line-height:1.03;letter-spacing:-.03em;text-transform:none;color:var(--ink)">Finds</h2>
+        <button class="btn btn-primary btn-sm" data-action="open-share-find">Share a find</button>
       </div>
       <div class="filter-row">
         ${filterOpts.map(o=>`<button class="chip ${f===o?'active':''}" data-action="set-community-filter" data-f="${o}">${o}</button>`).join("")}
@@ -2065,8 +2226,12 @@ function handleClick(e){
 }
 
 function toggleDiscoverFilter(f){
-  const i = state.discoverFilters.indexOf(f);
-  if(i>-1) state.discoverFilters.splice(i,1); else state.discoverFilters.push(f);
+  if(f==="All"){
+    state.discoverFilters = [];
+  } else {
+    const i = state.discoverFilters.indexOf(f);
+    if(i>-1) state.discoverFilters.splice(i,1); else state.discoverFilters.push(f);
+  }
   renderList();
 }
 function toggleBuilderCategory(c){
