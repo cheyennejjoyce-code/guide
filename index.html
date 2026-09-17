@@ -1560,6 +1560,10 @@ async function initDestinationAutocomplete(){
     includedRegionCodes: ["us"]
   });
   placeAutocomplete.style.width = "100%";
+  placeAutocomplete.style.height = "100%";
+  placeAutocomplete.style.border = "1.5px solid var(--line-strong)";
+  placeAutocomplete.style.borderRadius = "99px";
+  placeAutocomplete.style.boxSizing = "border-box";
   container.innerHTML = "";
   container.appendChild(placeAutocomplete);
   placeAutocomplete.addEventListener("gmp-select", async ({placePrediction})=>{
@@ -1681,7 +1685,7 @@ function viewRouteBuilder(){
       <div class="hairline" style="margin:18px 0"></div>
       <div class="wizard-q" style="font-size:22px;margin-bottom:14px">Have an end point in mind?</div>
       <div class="form-group" style="margin-bottom:14px">
-        <div id="dest-address-container" style="height:48px;border-radius:99px;overflow:hidden;border:1.5px solid var(--line-strong);display:flex;align-items:center"><div style="padding:12px 14px;font-size:14px;color:var(--ink-soft)">Loading address search…</div></div>
+        <div id="dest-address-container" style="height:48px;width:100%;border-radius:99px;overflow:hidden;display:flex;align-items:center"><div style="padding:12px 14px;font-size:14px;color:var(--ink-soft);width:100%;box-sizing:border-box">Loading address search…</div></div>
       </div>
       ${c.destinationAddress ? `
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--ink);border-radius:20px;padding:13px 15px;margin-bottom:18px">
