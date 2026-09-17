@@ -1543,7 +1543,16 @@ async function initDestinationAutocomplete(){
   const container = document.getElementById("dest-address-container");
   if(!container) return;
   if(!(window.google && window.google.maps)){ loadGoogleMapsScript(); return; }
-  const { PlaceAutocompleteElement } = await google.maps.importLibrary("places");
+  let PlaceAutocompleteElement;
+  try{
+    // Already requested via &libraries=places in the script URL, so this
+    // should exist directly — importLibrary as a fallback only if it doesn't.
+    PlaceAutocompleteElement = (google.maps.places && google.maps.places.PlaceAutocompleteElement)
+      || (await google.maps.importLibrary("places")).PlaceAutocompleteElement;
+  }catch(e){
+    container.innerHTML = '<div style="padding:12px 14px;font-size:13px;color:var(--danger)">Address search didn\'t load — try reloading the page.</div>';
+    return;
+  }
   const placeAutocomplete = new PlaceAutocompleteElement({
     // Biased to the Atlanta metro so "Target 30005" finds the Alpharetta
     // one, not a Target somewhere else in the country.
@@ -1672,7 +1681,7 @@ function viewRouteBuilder(){
       <div class="hairline" style="margin:18px 0"></div>
       <div class="wizard-q" style="font-size:22px;margin-bottom:14px">Have an end point in mind?</div>
       <div class="form-group" style="margin-bottom:14px">
-        <div id="dest-address-container"><div style="border:1px solid var(--line-strong);border-radius:99px;padding:12px 14px;font-size:14px;color:var(--ink-soft)">Loading address search…</div></div>
+        <div id="dest-address-container" style="height:48px;border-radius:99px;overflow:hidden;border:1.5px solid var(--line-strong);display:flex;align-items:center"><div style="padding:12px 14px;font-size:14px;color:var(--ink-soft)">Loading address search…</div></div>
       </div>
       ${c.destinationAddress ? `
       <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--ink);border-radius:20px;padding:13px 15px;margin-bottom:18px">
