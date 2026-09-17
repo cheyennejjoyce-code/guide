@@ -13,7 +13,7 @@
 :root{
   --cream:#FFFFFF;
   --page-bg:#FFFFFF;
-  --cream-card:#FFFFFF;
+  --cream-card:#F4F2F4;
   --ink:#221D24;
   --ink-soft:#6B6470;
   --body-text:#4A4450;
@@ -28,7 +28,7 @@
   --on-cobalt:#FFFFFF;
   --on-navy:#FFFFFF;
   --on-sage:#221D24;
-  --line:#DED2C3;
+  --line:#DCD7DD;
   --line-strong:#221D24;
   --danger:#B84A3E;
   --shadow-none:none;
@@ -244,6 +244,15 @@ p{margin:0;}
 .option-tile.active .check{background:var(--gold);border-color:var(--gold);position:relative;}
 .option-tile.active .check::after{content:"";position:absolute;left:6px;top:3px;width:5px;height:9px;border:solid var(--ink);border-width:0 2px 2px 0;transform:rotate(45deg);}
 .chip-grid{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:22px;}
+.chip-grid-scroll{display:flex;flex-wrap:wrap;align-content:flex-start;gap:9px;max-height:190px;overflow-y:auto;padding-right:8px;}
+.chip-grid-scroll::-webkit-scrollbar{width:6px;}
+.chip-grid-scroll::-webkit-scrollbar-track{background:transparent;}
+.chip-grid-scroll::-webkit-scrollbar-thumb{background:var(--royal);border-radius:999px;}
+.chip-grid-scroll::-webkit-scrollbar-thumb:hover{background:var(--royal-dark);}
+.chip-grid-scroll{scrollbar-width:thin;scrollbar-color:var(--royal) transparent;}
+.chip-grid-scroll.gold::-webkit-scrollbar-thumb{background:var(--gold);}
+.chip-grid-scroll.gold::-webkit-scrollbar-thumb:hover{background:#D9A61E;}
+.chip-grid-scroll.gold{scrollbar-color:var(--gold) transparent;}
 .wizard-progress{display:flex;gap:5px;margin-bottom:20px;}
 .wizard-progress span{height:4px;flex:1;background:var(--line);border-radius:4px;}
 .wizard-progress span.done{background:var(--royal);}
@@ -526,7 +535,6 @@ const NEIGHBORHOODS = {
   "Virginia-Highland": {x:57,y:40,lat:33.7830,lng:-84.3540},
   "Poncey-Highland": {x:55,y:44,lat:33.7720,lng:-84.3610},
   "Little Five Points": {x:61,y:47,lat:33.7630,lng:-84.3490},
-  "Inman Park": {x:59,y:45,lat:33.7570,lng:-84.3520},
   "Reynoldstown": {x:62,y:50,lat:33.7460,lng:-84.3610},
   "West End": {x:43,y:55,lat:33.7370,lng:-84.4160},
   "Upper Westside": {x:39,y:45,lat:33.7930,lng:-84.4130},
@@ -546,7 +554,13 @@ const NEIGHBORHOODS = {
   "Vinings": {x:35,y:34,lat:33.8590,lng:-84.4630},
   "College Park": {x:42,y:70,lat:33.6540,lng:-84.4490},
   "Stone Mountain": {x:80,y:30,lat:33.8078,lng:-84.1702},
-  "Duluth": {x:70,y:6,lat:34.0029,lng:-84.1446}
+  "Duluth": {x:70,y:6,lat:34.0029,lng:-84.1446},
+  "Acworth": {x:6,y:8,lat:34.0654,lng:-84.6769},
+  "Cartersville": {x:1,y:0,lat:34.1651,lng:-84.7999},
+  "Austell": {x:19,y:41,lat:33.8134,lng:-84.6266},
+  "Buford": {x:76,y:3,lat:34.1201,lng:-83.9993},
+  "Cumming": {x:63,y:0,lat:34.2073,lng:-84.1402},
+  "Alpharetta": {x:44,y:2,lat:34.0754,lng:-84.2941}
 };
 
 const CATEGORIES = ["Clothing","Furniture","Home Decor","Vintage","Designer","Books","Accessories"];
@@ -585,7 +599,7 @@ const STORES = [
   {id:"s31",name:"Antiques on the Square",neighborhood:"Marietta",address:"146 S Park Sq NE, Marietta, GA 30060",type:"Antique Store",priceLevel:2,categories:["Home Decor","Vintage","Accessories"],hours:"Call ahead to confirm current hours",rating:4.4,tags:["Hidden Gem","Best for Home Decor"],description:"Marietta's premier destination for vintage cameras, typewriters, and small collectibles since 1986, right on the historic square.",phone:"",website:"",bestFor:["Vintage cameras and typewriters","Small collectibles"],tips:"Easy to combine with lunch and the farmers market on Marietta Square.",featured:false,color:"gold",chain:false},
   {id:"s32",name:"Marietta Antique Mall",neighborhood:"Marietta",address:"1477 Roswell Rd, Marietta, GA 30062",type:"Antique Mall",priceLevel:2,categories:["Furniture","Home Decor","Accessories"],hours:"Call ahead to confirm current hours",rating:4.2,tags:["Large Selection","Best for Home Decor"],description:"A curated multi-dealer mall of vintage and antique furniture, collectibles, art, and jewelry.",phone:"(678) 779-4793",website:"",bestFor:["Furniture and collectibles","Jewelry"],tips:"Booth-based pricing, so it's worth a little negotiating.",featured:false,color:"ink",chain:false},
   {id:"s33",name:"DuPre's Antique Market",neighborhood:"Marietta",address:"17 Whitlock Ave SW, Marietta, GA 30060",type:"Antique Market",priceLevel:2,categories:["Furniture","Home Decor","Vintage"],hours:"Call ahead to confirm current hours",rating:4.1,tags:["Hidden Gem","Large Selection"],description:"A multi-dealer antique market just off Marietta Square with a broad, browsable mix of furniture and decor.",phone:"",website:"",bestFor:["Casual antique browsing","Furniture"],tips:"A quick add-on if you're already exploring the Square.",featured:false,color:"royal",chain:false},
-  {id:"s34",name:"Aviary Antiques",neighborhood:"Marietta",address:"2745 Sandy Plains Rd NE, Marietta, GA 30066",type:"Antique Store",priceLevel:2,categories:["Home Decor","Vintage","Accessories"],hours:"Call ahead to confirm current hours",rating:4.2,tags:["Hidden Gem"],description:"A smaller, well-kept antique shop away from the Square, worth a stop if you're already in east Marietta.",phone:"(678) 453-0600",website:"",bestFor:["A quieter browse","Small decor pieces"],tips:"Less crowded than the Square shops — good for an unhurried visit.",featured:false,color:"gold",chain:false},
+  {id:"s34",name:"Queen of Hearts Antiques & Interiors – Marietta",neighborhood:"Marietta",address:"2745 Sandy Plains Rd NE, Marietta, GA 30066",type:"Antique Mall",priceLevel:2,categories:["Home Decor","Furniture","Vintage","Accessories"],hours:"Call ahead to confirm current hours",rating:4.3,tags:["Large Selection"],description:"One of three North Georgia locations for this large antique and interiors mall, hosting hundreds of dealer-merchants under one roof.",phone:"(678) 453-0600",website:"queenofheartsantiques-interiors.com",bestFor:["A full afternoon of browsing","Furniture and home decor"],tips:"Pair with the other Marietta antique shops on the Square for a full day out.",featured:false,color:"gold",chain:false},
   {id:"s35",name:"Historic Roswell Antiques and Interiors",neighborhood:"Roswell",address:"970 Canton St, Roswell, GA 30075",type:"Antique & Design Mall",priceLevel:2,categories:["Furniture","Home Decor","Accessories"],hours:"Mon–Thu 10–6, Fri–Sat 10–7, Sun 11–6",rating:4.3,tags:["Large Selection","Best for Home Decor"],description:"Statement furniture, chandeliers, rugs, and art curated alongside newer novelty pieces, right on Canton Street.",phone:"(678) 587-5774",website:"",bestFor:["Statement furniture pieces","Lighting"],tips:"Combine with the rest of Canton Street's boutiques for a full afternoon.",featured:false,color:"ink",chain:false},
   {id:"s36",name:"425 Market Place Antiques",neighborhood:"Roswell",address:"425 Market Pl, Roswell, GA 30075",type:"Antique Mall",priceLevel:2,categories:["Furniture","Home Decor","Vintage"],hours:"Call ahead to confirm current hours",rating:4.2,tags:["Large Selection","Hidden Gem"],description:"A roomy, multi-dealer antique mall a short walk from Canton Street's main strip.",phone:"(770) 992-5400",website:"antiquetrail.com",bestFor:["Furniture and collectibles","A relaxed browse"],tips:"Good rainy-day stop when Canton Street's sidewalks are less appealing.",featured:false,color:"royal",chain:false},
   {id:"s37",name:"Amber Brown's Antiques",neighborhood:"Roswell",address:"710 Holcomb Bridge Rd, Roswell, GA 30076",type:"Antique Store",priceLevel:2,categories:["Furniture","Home Decor"],hours:"Call ahead to confirm current hours",rating:4.1,tags:["Hidden Gem"],description:"A smaller Roswell antique shop worth a stop if you're driving Holcomb Bridge Road.",phone:"(770) 688-7246",website:"",bestFor:["A quick browse en route","Furniture"],tips:"Easy to combine with a Canton Street trip since it's just off the main strip.",featured:false,color:"gold",chain:false},
@@ -610,7 +624,39 @@ const STORES = [
   {id:"s56",name:"Habitat for Humanity ReStore – South Fulton",neighborhood:"College Park",address:"5626 Old National Hwy, College Park, GA 30349",type:"Nonprofit Home Improvement Store",priceLevel:1,categories:["Furniture","Home Decor"],hours:"Wed–Sat 11–5",rating:4.3,tags:["Best for Furniture","Large Selection"],description:"A 30,000-square-foot Habitat ReStore and service center in South Fulton, with free parking and EV charging.",phone:"(404) 382-7615",website:"atlantahabitat.org",bestFor:["Furniture and appliances","South Fulton convenience"],tips:"One of the larger ReStore locations in the metro — worth the drive if you're furnishing on a budget.",featured:false,color:"gold",chain:false},
   {id:"s57",name:"Habitat for Humanity ReStore – Smyrna",neighborhood:"Smyrna",address:"3315 S Cobb Dr, Suite 150, Smyrna, GA 30080",type:"Nonprofit Home Improvement Store",priceLevel:1,categories:["Furniture","Home Decor"],hours:"Call ahead to confirm current hours",rating:4.3,tags:["Best for Furniture"],description:"Habitat for Humanity of Northwest Metro Atlanta's ReStore, selling donated furniture, appliances, and building materials.",phone:"(770) 415-1625",website:"habitat.org",bestFor:["Furniture and home improvement finds","Supporting local Habitat builds"],tips:"Pair with Revive Consignment a short drive away for a Smyrna/Cobb County loop.",featured:false,color:"ink",chain:false},
   {id:"s58",name:"Goodwill – Stone Mountain",neighborhood:"Stone Mountain",address:"1450 East Park Place Blvd, Stone Mountain, GA 30087",type:"Nonprofit Thrift Store",priceLevel:1,categories:["Clothing","Furniture","Home Decor","Books"],hours:"Mon–Sat 9–8, Sun 10–8",rating:4.0,tags:["Good for Beginners","Large Selection"],description:"A Stone Mountain Goodwill of North Georgia location with regular color-tag markdowns.",phone:"(678) 205-4658",website:"goodwillng.org",bestFor:["Everyday basics","East-metro convenience"],tips:"Ask about '99 Cent Mondays' on the current color tag.",featured:false,color:"royal",chain:true},
-  {id:"s59",name:"Elizabeth Anne Star Interiors",neighborhood:"Duluth",address:"750 Vista Bluff Dr, Duluth, GA 30097",type:"Antique Store",priceLevel:2,categories:["Furniture","Home Decor"],hours:"Call ahead to confirm current hours",rating:4.2,tags:["Hidden Gem","Best for Home Decor"],description:"A Duluth antique and interiors shop with curated furniture, lighting, and collectible pieces, with staff who can help with appraisals and restoration questions.",phone:"(770) 903-9997",website:"eastarinteriors.net",bestFor:["Furniture with a story","Design advice"],tips:"Worth calling ahead — staff can help track down specific pieces.",featured:false,color:"gold",chain:false}
+  {id:"s59",name:"Elizabeth Anne Star Interiors",neighborhood:"Duluth",address:"750 Vista Bluff Dr, Duluth, GA 30097",type:"Antique Store",priceLevel:2,categories:["Furniture","Home Decor"],hours:"Call ahead to confirm current hours",rating:4.2,tags:["Hidden Gem","Best for Home Decor"],description:"A Duluth antique and interiors shop with curated furniture, lighting, and collectible pieces, with staff who can help with appraisals and restoration questions.",phone:"(770) 903-9997",website:"eastarinteriors.net",bestFor:["Furniture with a story","Design advice"],tips:"Worth calling ahead — staff can help track down specific pieces.",featured:false,color:"gold",chain:false},
+  {id:"s60",name:"The Turnage Place Estate Sales Co.",neighborhood:"Upper Westside",address:"711 Trabert Ave NW, Atlanta, GA 30318",type:"Estate Liquidator",priceLevel:2,categories:["Furniture","Home Decor","Vintage"],hours:"Thu–Sun 10–5, closed Mon–Wed",rating:4.5,tags:["Hidden Gem","Large Selection"],description:"Atlanta's leading estate sales company since 1970 — a real warehouse showroom of English antiques, designer furniture, and art, not just rotating pop-up sales.",phone:"(770) 300-7775",website:"turnageplace.com",bestFor:["Serious antique furniture","English and vintage art"],tips:"They also run standalone estate sales around town — check their site for the current schedule.",featured:true,color:"royal",chain:false},
+  {id:"s61",name:"Uptown Cheapskate – Acworth",neighborhood:"Acworth",address:"3330 Cobb Pkwy NW 130, Acworth, GA 30101",type:"Resale Clothing Chain",priceLevel:1,categories:["Clothing","Accessories"],hours:"Call ahead to confirm current hours",rating:4.2,tags:["Best for Cheap Finds"],description:"Buy-sell-trade resale clothing chain for teens and twentysomethings — brand names at a fraction of retail.",phone:"(770) 529-1980",website:"uptowncheapskate.com",bestFor:["Trendy current styles","Selling your own closet"],tips:"Each location is independently owned, so inventory varies store to store.",featured:false,color:"ink",chain:true},
+  {id:"s62",name:"Uptown Cheapskate – Austell",neighborhood:"Austell",address:"3999 Austell Rd #417, Austell, GA 30106",type:"Resale Clothing Chain",priceLevel:1,categories:["Clothing","Accessories"],hours:"Call ahead to confirm current hours",rating:4.2,tags:["Best for Cheap Finds"],description:"Buy-sell-trade resale clothing chain for teens and twentysomethings — brand names at a fraction of retail.",phone:"(770) 693-7343",website:"uptowncheapskate.com",bestFor:["Trendy current styles","Selling your own closet"],tips:"Each location is independently owned, so inventory varies store to store.",featured:false,color:"gold",chain:true},
+  {id:"s63",name:"Uptown Cheapskate – Buford",neighborhood:"Buford",address:"1995 Mall of Georgia Blvd Suite D, Buford, GA 30519",type:"Resale Clothing Chain",priceLevel:1,categories:["Clothing","Accessories"],hours:"Call ahead to confirm current hours",rating:4.2,tags:["Best for Cheap Finds"],description:"Buy-sell-trade resale clothing chain for teens and twentysomethings — brand names at a fraction of retail.",phone:"(678) 926-3902",website:"uptowncheapskate.com",bestFor:["Trendy current styles","Selling your own closet"],tips:"Near the Mall of Georgia if you want to make a bigger shopping trip of it.",featured:false,color:"royal",chain:true},
+  {id:"s64",name:"Uptown Cheapskate – Cartersville",neighborhood:"Cartersville",address:"873 Joe Frank Harris Pkwy #97, Cartersville, GA 30120",type:"Resale Clothing Chain",priceLevel:1,categories:["Clothing","Accessories"],hours:"Call ahead to confirm current hours",rating:4.2,tags:["Best for Cheap Finds"],description:"Buy-sell-trade resale clothing chain for teens and twentysomethings — brand names at a fraction of retail.",phone:"(470) 315-4046",website:"uptowncheapskate.com",bestFor:["Trendy current styles","Selling your own closet"],tips:"Each location is independently owned, so inventory varies store to store.",featured:false,color:"gold",chain:true},
+  {id:"s65",name:"Uptown Cheapskate – Cumming",neighborhood:"Cumming",address:"511 Lakeland Plaza, Cumming, GA 30040",type:"Resale Clothing Chain",priceLevel:1,categories:["Clothing","Accessories"],hours:"Call ahead to confirm current hours",rating:4.2,tags:["Best for Cheap Finds"],description:"Buy-sell-trade resale clothing chain for teens and twentysomethings — brand names at a fraction of retail.",phone:"(770) 844-7600",website:"uptowncheapskate.com",bestFor:["Trendy current styles","Selling your own closet"],tips:"Each location is independently owned, so inventory varies store to store.",featured:false,color:"ink",chain:true},
+  {id:"s66",name:"Uptown Cheapskate – Johns Creek",neighborhood:"Johns Creek",address:"5900 State Bridge Rd, Johns Creek, GA 30097",type:"Resale Clothing Chain",priceLevel:1,categories:["Clothing","Accessories"],hours:"Call ahead to confirm current hours",rating:4.2,tags:["Best for Cheap Finds"],description:"Buy-sell-trade resale clothing chain for teens and twentysomethings — brand names at a fraction of retail.",phone:"(770) 495-1515",website:"uptowncheapskate.com",bestFor:["Trendy current styles","Selling your own closet"],tips:"Each location is independently owned, so inventory varies store to store.",featured:false,color:"royal",chain:true},
+  {id:"s67",name:"Uptown Cheapskate – Kennesaw",neighborhood:"Kennesaw",address:"1200 Ernest W Barrett Pkwy NW STE 112-116, Kennesaw, GA 30144",type:"Resale Clothing Chain",priceLevel:1,categories:["Clothing","Accessories"],hours:"Call ahead to confirm current hours",rating:4.2,tags:["Best for Cheap Finds"],description:"Buy-sell-trade resale clothing chain for teens and twentysomethings — brand names at a fraction of retail.",phone:"(770) 635-7560",website:"uptowncheapskate.com",bestFor:["Trendy current styles","Selling your own closet"],tips:"Each location is independently owned, so inventory varies store to store.",featured:false,color:"gold",chain:true},
+  {id:"s68",name:"Uptown Cheapskate – Marietta",neighborhood:"Marietta",address:"4880 Lower Roswell Rd #880, Marietta, GA 30068",type:"Resale Clothing Chain",priceLevel:1,categories:["Clothing","Accessories"],hours:"Call ahead to confirm current hours",rating:4.2,tags:["Best for Cheap Finds"],description:"Buy-sell-trade resale clothing chain for teens and twentysomethings — brand names at a fraction of retail.",phone:"(770) 999-1967",website:"uptowncheapskate.com",bestFor:["Trendy current styles","Selling your own closet"],tips:"Each location is independently owned, so inventory varies store to store.",featured:false,color:"ink",chain:true},
+  {id:"s69",name:"Uptown Cheapskate – Roswell",neighborhood:"Roswell",address:"1425 Market Blvd Suite 520, Roswell, GA 30076",type:"Resale Clothing Chain",priceLevel:1,categories:["Clothing","Accessories"],hours:"Call ahead to confirm current hours",rating:4.2,tags:["Best for Cheap Finds"],description:"Buy-sell-trade resale clothing chain for teens and twentysomethings — brand names at a fraction of retail.",phone:"(770) 559-5148",website:"uptowncheapskate.com",bestFor:["Trendy current styles","Selling your own closet"],tips:"Each location is independently owned, so inventory varies store to store.",featured:false,color:"gold",chain:true},
+  {id:"s70",name:"Uptown Cheapskate – Woodstock",neighborhood:"Woodstock",address:"12184 Hwy-92 Suite A-120, Woodstock, GA 30188",type:"Resale Clothing Chain",priceLevel:1,categories:["Clothing","Accessories"],hours:"Call ahead to confirm current hours",rating:4.2,tags:["Best for Cheap Finds"],description:"Buy-sell-trade resale clothing chain for teens and twentysomethings — brand names at a fraction of retail.",phone:"(770) 591-9474",website:"uptowncheapskate.com",bestFor:["Trendy current styles","Selling your own closet"],tips:"Near the Outlet Shoppes at Atlanta if you want to make a bigger trip of it.",featured:false,color:"royal",chain:true},
+  {id:"s71",name:"Queen of Hearts Antiques & Interiors – Alpharetta",neighborhood:"Alpharetta",address:"670 N Main St, Alpharetta, GA 30009",type:"Antique Mall",priceLevel:2,categories:["Home Decor","Furniture","Vintage"],hours:"Mon–Wed 10–6, Thu–Sat 10–7, Sun 12–6",rating:4.4,tags:["Large Selection","Best for Home Decor"],description:"The flagship of this large North Georgia antique mall chain — 33,000 sq ft and 200+ dealer-merchants of American and European antiques, glassware, and home accessories.",phone:"(678) 297-7571",website:"queenofheartsantiques-interiors.com",bestFor:["A full afternoon of browsing","Furniture and glassware"],tips:"Voted Best Furniture Store in North Fulton — worth the drive if you're not already nearby.",featured:true,color:"gold",chain:false},
+  {id:"s72",name:"Queen of Hearts Antiques & Interiors – Buford",neighborhood:"Buford",address:"4125 GA Hwy 20, Buford, GA 30518",type:"Antique Mall",priceLevel:2,categories:["Home Decor","Furniture","Vintage"],hours:"Call ahead to confirm current hours",rating:4.3,tags:["Large Selection"],description:"One of three North Georgia locations for this large antique and interiors mall, hosting hundreds of dealer-merchants under one roof.",phone:"(678) 714-0643",website:"queenofheartsantiques-interiors.com",bestFor:["A full afternoon of browsing","Furniture and home decor"],tips:"Located across from Home Depot on GA-20 — easy to find.",featured:false,color:"royal",chain:false},
+  {id:"s73",name:"Cobb Antique Mall",neighborhood:"Marietta",address:"2800 Canton Rd, Marietta, GA 30066",type:"Antique Mall",priceLevel:2,categories:["Home Decor","Furniture","Vintage"],hours:"Call ahead to confirm current hours",rating:4.2,tags:["Large Selection"],description:"A multi-dealer Marietta antique mall with a broad, browsable mix of furniture, collectibles, and home decor.",phone:"",website:"cobbantiques.com",bestFor:["Casual antique browsing","Furniture"],tips:"Pair with the other Marietta antique shops for a full day out.",featured:false,color:"ink",chain:false},
+  {id:"s74",name:"St. Vincent de Paul Thrift Store – Chamblee",neighborhood:"Chamblee",address:"5463 Peachtree Rd #A, Atlanta, GA 30341",type:"Nonprofit Thrift Store",priceLevel:1,categories:["Clothing","Furniture","Home Decor","Books"],hours:"Call ahead to confirm current hours",rating:4.3,tags:["Good for Beginners"],description:"A Catholic charity thrift store — proceeds fund food pantries, a free community pharmacy, and homelessness prevention programs across Georgia.",phone:"(770) 936-0766",website:"svdpgeorgia.org",bestFor:["Everyday basics","Supporting a well-run local charity"],tips:"They also have locations in Marietta, Kennesaw, Stone Mountain, and Lawrenceville.",featured:false,color:"gold",chain:true},
+  {id:"s75",name:"ATL 2nd Chance Thrift Store",neighborhood:"South Atlanta",address:"2527 Gresham Rd SE, Atlanta, GA 30316",type:"Thrift Store",priceLevel:1,categories:["Clothing","Furniture","Home Decor"],hours:"Call ahead to confirm current hours",rating:4.1,tags:["Hidden Gem"],description:"A neighborhood thrift store on Gresham Road with a rotating, donation-based selection across clothing, furniture, and household goods.",phone:"(833) 732-5285",website:"atl2ndchancethriftstore.com",bestFor:["Everyday basics","Frequent restocks"],tips:"Inventory changes daily, so it's worth checking back often.",featured:false,color:"royal",chain:false},
+  {id:"s76",name:"Second Life Upscale Thrift",neighborhood:"Decatur",address:"1 N Clarendon Ave, Avondale Estates, GA 30002",type:"Nonprofit Upscale Thrift Store",priceLevel:1,categories:["Clothing","Home Decor","Accessories","Books"],hours:"Tue–Sat 12–5",rating:4.5,tags:["Best for Cheap Finds","Hidden Gem"],description:"A nonprofit upscale thrift store benefiting animal rescue and spay/neuter programs — new merchandise added daily across clothing, housewares, electronics, and decor.",phone:"(678) 974-5671",website:"secondlifeatlanta.org",bestFor:["Supporting animal rescue","A genuinely fresh selection"],tips:"Located behind the Tudor Village buildings in downtown Avondale Estates.",featured:true,color:"sage",chain:false},
+  {id:"s77",name:"No Longer Bound Thrift – Cumming",neighborhood:"Cumming",address:"129 Merchants Square, Cumming, GA 30040",type:"Nonprofit Thrift Store",priceLevel:1,categories:["Clothing","Furniture","Home Decor"],hours:"Mon–Sat 9–5 (donations)",rating:4.4,tags:["Hidden Gem"],description:"Thrift store revenue funds No Longer Bound's year-long, Christ-centered residential recovery program for men in addiction.",phone:"",website:"nlbthrift.com",bestFor:["Supporting a real recovery program","Furniture and household donations"],tips:"They'll schedule a free pickup for large furniture donations.",featured:false,color:"navy",chain:false},
+  {id:"s78",name:"No Longer Bound Thrift – Johns Creek",neighborhood:"Johns Creek",address:"6000 Medlock Bridge Pkwy, Johns Creek, GA 30097",type:"Nonprofit Thrift Store",priceLevel:1,categories:["Clothing","Furniture","Home Decor"],hours:"Call ahead to confirm current hours",rating:4.6,tags:["Hidden Gem"],description:"Thrift store revenue funds No Longer Bound's year-long, Christ-centered residential recovery program for men in addiction.",phone:"(470) 839-8838",website:"nlbthrift.com",bestFor:["Supporting a real recovery program","Furniture and household donations"],tips:"Genuinely well-reviewed — worth checking their current inventory online first.",featured:false,color:"cobalt",chain:false},
+  {id:"s79",name:"No Longer Bound Thrift – Woodstock",neighborhood:"Woodstock",address:"Woodstock, GA (call to confirm current address)",type:"Nonprofit Thrift Store",priceLevel:1,categories:["Clothing","Furniture","Home Decor"],hours:"Call ahead to confirm current hours",rating:4.4,tags:["Hidden Gem"],description:"Thrift store revenue funds No Longer Bound's year-long, Christ-centered residential recovery program for men in addiction.",phone:"",website:"nlbthrift.com",bestFor:["Supporting a real recovery program","Furniture and household donations"],tips:"Confirm the current address before visiting — this location has moved before.",featured:false,color:"gold",chain:false},
+  {id:"s80",name:"Thrift-T",neighborhood:"Smyrna",address:"1529 Spring Rd SE Unit C, Smyrna, GA 30080",type:"Thrift Store",priceLevel:1,categories:["Clothing","Accessories"],hours:"Every day 11–7",rating:4.9,tags:["Hidden Gem","Best for Cheap Finds"],description:"A clean, well-organized Smyrna thrift shop with a nostalgic Y2K/90s vibe — genuinely one of the best-reviewed thrift stores in the metro.",phone:"(470) 377-3384",website:"thrift-t.com",bestFor:["Y2K and 90s fashion","A true hidden gem"],tips:"Reviewers consistently call out the clean, well-organized layout — rare for a thrift store.",featured:true,color:"royal",chain:false},
+  {id:"s81",name:"Ally's Attic",neighborhood:"Lawrenceville",address:"249 Scenic Hwy Ste A, Lawrenceville, GA 30046",type:"Antique & Furniture Mall",priceLevel:2,categories:["Furniture","Home Decor","Vintage","Accessories"],hours:"Mon–Sat 10–6, Sun 1–6",rating:4.3,tags:["Large Selection"],description:"A locally owned antique and furniture mall with 110 independent dealers — jewelry, farmhouse and rustic furniture, and designer items with weekly-changing inventory.",phone:"(770) 237-9003",website:"",bestFor:["Farmhouse and rustic furniture","Antique jewelry"],tips:"Inventory changes weekly — worth a repeat visit if you're furnishing a whole room.",featured:false,color:"gold",chain:false},
+  {id:"s82",name:"Park Avenue Thrift",neighborhood:"Lawrenceville",address:"3870 Lawrenceville Hwy, Lawrenceville, GA 30044",type:"Thrift Store Chain",priceLevel:1,categories:["Clothing","Furniture","Home Decor"],hours:"Mon–Sat 8–8, Sun 9–8",rating:3.9,tags:["Best for Cheap Finds"],description:"A large thrift chain with 10 locations across Georgia and Mississippi — clothing, furniture, and household goods at donation-based prices.",phone:"(678) 298-2073",website:"parkavethrift.com",bestFor:["Everyday basics","Furniture on a budget"],tips:"Quality varies by location and day — worth checking current reviews before a special trip.",featured:false,color:"ink",chain:true},
+  {id:"s83",name:"The Quinn House Thrift Store",neighborhood:"Lawrenceville",address:"219 Scenic Hwy S, Lawrenceville, GA 30046",type:"Nonprofit Thrift Store",priceLevel:1,categories:["Clothing","Furniture","Home Decor","Books"],hours:"Call ahead to confirm current hours",rating:4.2,tags:["Hidden Gem"],description:"A mission-driven nonprofit thrift store — proceeds furnish homes for people completing the Quinn House's recovery and support program.",phone:"(770) 962-7782",website:"thequinnhouse.com",bestFor:["Supporting a real community mission","Furniture and household basics"],tips:"Some sections can get crowded during peak hours — a weekday visit is usually calmer.",featured:false,color:"navy",chain:false},
+  {id:"s84",name:"Decatur Estate Vintage Market",neighborhood:"Decatur",address:"3429 Covington Hwy Suite C, Decatur, GA 30032",type:"Antique & Vintage Mall",priceLevel:2,categories:["Furniture","Home Decor","Vintage"],hours:"Mon–Fri 11–6, Sat–Sun 11–7",rating:4.5,tags:["Large Selection","Hidden Gem"],description:"Since 2000, a 20,000 sq ft antique lover's paradise with 70+ dealers — furniture, pottery, lamps, books, and kitchen collectibles from every era.",phone:"",website:"decaturestateantiques.com",bestFor:["A full afternoon of browsing","Genuinely unique finds"],tips:"Locals consistently call this one of Georgia's best-kept antiquing secrets.",featured:true,color:"cobalt",chain:false},
+  {id:"s85",name:"Mother Lode",neighborhood:"Decatur",address:"3429 Covington Hwy, Decatur, GA 30032",type:"Indoor Vintage & Makers Market",priceLevel:2,categories:["Furniture","Home Decor","Vintage","Accessories"],hours:"Call ahead to confirm current hours",rating:4.4,tags:["Hidden Gem"],description:"An indoor market of 30+ vendors representing Atlanta's finest mid-century modern furniture, lighting, curiosities, vintage clothing, and handmade goods.",phone:"",website:"",bestFor:["Mid-century modern furniture","Handmade and local goods"],tips:"Right next to Decatur Estate Vintage Market — easy to combine both in one stop.",featured:false,color:"sage",chain:false},
+  {id:"s86",name:"Jane Marsden Antiques & Interiors",neighborhood:"Buckhead",address:"2300 Peachtree Rd NW Suite A102, Atlanta, GA 30309",type:"Antique Store",priceLevel:3,categories:["Furniture","Home Decor"],hours:"Mon–Fri 9–5, Sat 10–4, or by appointment",rating:4.6,tags:["Best for Designer"],description:"A large inventory of French and English antique furniture since 1975, plus an impressive collection of French, English, Chinese export, and Japanese Imari porcelain.",phone:"(404) 355-1288",website:"marsdenantiques.com",bestFor:["European antique furniture","Fine porcelain"],tips:"Interior design services are also available on-site.",featured:false,color:"navy",chain:false},
+  {id:"s87",name:"14th Street Modern & Vintage Home",neighborhood:"Midtown",address:"530 14th St NW, Atlanta, GA 30318",type:"Design Showroom & Vintage Home",priceLevel:3,categories:["Furniture","Home Decor","Vintage"],hours:"Mon–Sat 10–6",rating:4.5,tags:["Best for Designer","Large Selection"],description:"A 65,000 sq ft Midtown showroom mixing luxury designer furniture lines with vintage and antique finds — lighting, art, rugs, and a full lampshade shop on site.",phone:"(404) 325-4600",website:"14thstreetmodern.com",bestFor:["Designer furniture at a discount","Lighting and lampshades"],tips:"Also runs a separate overflow warehouse open Fridays and Saturdays only.",featured:true,color:"gold",chain:false},
+  {id:"s88",name:"The Modernist Design Collective",neighborhood:"Upper Westside",address:"1218 Old Chattahoochee Ave NW Suite B, Atlanta, GA 30318",type:"Vintage Furniture Mall",priceLevel:3,categories:["Furniture","Home Decor","Vintage"],hours:"Mon–Sat 10–6, Sun 12–5",rating:4.3,tags:["Best for Designer"],description:"30+ dealers specializing in mid-century modern, Danish, and contemporary vintage furniture in the Westside Design District — Herman Miller, Knoll, Eames, and more.",phone:"(404) 600-1324",website:"themodernistatl.com",bestFor:["Authentic mid-century modern","Designer name furniture"],tips:"Rating sources disagree on this one — check current reviews before making a special trip.",featured:false,color:"cobalt",chain:false},
+  {id:"s89",name:"American Period Furniture",neighborhood:"Poncey-Highland",address:"1097 Ponce de Leon Ave NE, Atlanta, GA 30306",type:"Vintage Furniture Store",priceLevel:2,categories:["Furniture","Home Decor"],hours:"Tue–Sat 12–6, Sun 12–5, closed Mon",rating:4.6,tags:["Hidden Gem"],description:"A father-son operation restoring mid-century modern furniture to original luster — walnut pieces, mirrors, and desks with genuinely great, consistent reviews.",phone:"(404) 892-8576",website:"",bestFor:["Restored mid-century modern","Family-owned service"],tips:"Inventory is limited to what's arrived and been restored — worth checking in regularly.",featured:false,color:"royal",chain:false},
+  {id:"s90",name:"Rhett's Estate Sales",neighborhood:"Cheshire Bridge",address:"1843 Cheshire Bridge Rd NE, Atlanta, GA 30324",type:"Antique Store & Estate Liquidator",priceLevel:2,categories:["Furniture","Home Decor","Vintage"],hours:"Wed–Mon, call ahead to confirm hours",rating:4.2,tags:["Large Selection"],description:"A multi-floor, multi-vendor antique store in a historic building, alongside a full estate sale and liquidation service.",phone:"(678) 900-8443",website:"",bestFor:["Multi-floor browsing","Estate-fresh finds"],tips:"They also run standalone estate sales around Atlanta — check for current listings.",featured:false,color:"ink",chain:false},
+  {id:"s91",name:"Nello Vintage",neighborhood:"Midtown",address:"1211 11th St NW, Atlanta, GA 30318",type:"Vintage Clothing Boutique",priceLevel:2,categories:["Clothing","Vintage","Accessories"],hours:"Wed–Sat 10–7, Sun 12–6",rating:4.3,tags:["Hidden Gem"],description:"A curated West Midtown vintage boutique with nearly 10,000 Instagram followers and a feature in Vogue Australia — one-of-a-kind, hand-picked pieces.",phone:"(404) 716-4994",website:"nellovintage.com",bestFor:["Curated statement vintage","A genuinely stylish browse"],tips:"Expect a busy atmosphere on weekends — go on a weekday for a calmer visit.",featured:false,color:"gold",chain:false}
 ];
 
 const CURATED_ROUTES = [
@@ -1176,6 +1222,7 @@ function render(){
   attachGlobalHandlers();
   renderModal();
   renderGoogleMapIfNeeded();
+  initDestinationAutocomplete();
 }
 function navItem(view, icon, label){
   const active = state.view===view || (view==="route" && (state.view==="routeResults"));
@@ -1429,7 +1476,7 @@ function loadGoogleMapsScript(){
     if(el) el.outerHTML = fallbackStylizedMap(__pendingMapStores || []);
     return;
   }
-  window.__onGoogleMapsReady = function(){ renderGoogleMapIfNeeded(); };
+  window.__onGoogleMapsReady = function(){ renderGoogleMapIfNeeded(); initDestinationAutocomplete(); };
   // Google's official hook for exactly the "key exists but won't
   // authenticate" case — bad restriction, API not enabled, billing not
   // active, etc. Without this, Google silently overwrites our map div with
@@ -1439,7 +1486,7 @@ function loadGoogleMapsScript(){
     if(el) el.outerHTML = fallbackStylizedMap(__pendingMapStores || []);
   };
   const script = document.createElement("script");
-  script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_JS_KEY}&callback=__onGoogleMapsReady`;
+  script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_JS_KEY}&libraries=places&callback=__onGoogleMapsReady`;
   script.async = true;
   script.onerror = function(){
     const el = document.getElementById("gmap-canvas");
@@ -1487,6 +1534,36 @@ function renderGoogleMapIfNeeded(){
       icon: { url: "data:image/svg+xml," + encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="22" height="22"><circle cx="11" cy="11" r="8" fill="%232A3CE0" stroke="white" stroke-width="3"/></svg>') }
     });
   }
+}
+// Wires real Google Places search onto the end-point address box — same
+// search-as-you-type experience as typing into Google Maps itself. The
+// widget is fully self-contained (renders its own input), so we just build
+// a fresh one into the container each render, same pattern as the map.
+async function initDestinationAutocomplete(){
+  const container = document.getElementById("dest-address-container");
+  if(!container) return;
+  if(!(window.google && window.google.maps)){ loadGoogleMapsScript(); return; }
+  const { PlaceAutocompleteElement } = await google.maps.importLibrary("places");
+  const placeAutocomplete = new PlaceAutocompleteElement({
+    // Biased to the Atlanta metro so "Target 30005" finds the Alpharetta
+    // one, not a Target somewhere else in the country.
+    locationBias: {north:34.25, south:33.55, east:-83.95, west:-84.75},
+    includedRegionCodes: ["us"]
+  });
+  placeAutocomplete.style.width = "100%";
+  container.innerHTML = "";
+  container.appendChild(placeAutocomplete);
+  placeAutocomplete.addEventListener("gmp-select", async ({placePrediction})=>{
+    const place = placePrediction.toPlace();
+    await place.fetchFields({fields: ["displayName","formattedAddress","location"]});
+    if(!place.location) return;
+    state.builderChoice.destinationAddress = place.formattedAddress;
+    state.builderChoice.destinationName = place.displayName;
+    state.builderChoice.destinationCoords = {lat: place.location.lat(), lng: place.location.lng()};
+    state.builderChoice.destination = null; // a specific address now takes over from a neighborhood pick
+    state.showDestinationPicker = false;
+    renderList();
+  });
 }
 
 function viewStoreDetail(id){
@@ -1589,17 +1666,26 @@ function viewRouteBuilder(){
         </span>
         <button data-action="use-my-location" style="border:1.5px solid rgba(255,255,255,.45);background:transparent;color:var(--cream);font-family:'DM Mono',monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding:9px 12px;border-radius:99px;flex-shrink:0">Refresh</button>
       </div>` : `<button class="btn btn-outline btn-block" style="margin-bottom:16px" data-action="use-my-location">${ICONS.pin.replace('<svg','<svg style="width:16px;height:16px"')}Use my current location</button>`}
-      <div class="chip-grid" style="margin-bottom:10px">
+      <div class="chip-grid-scroll" style="margin-bottom:10px">
         ${Object.keys(NEIGHBORHOODS).map(n=>`<button class="chip ${c.start===n?'active':''}" data-action="set-start" data-n="${n}">${n}</button>`).join("")}
       </div>
       <div class="hairline" style="margin:18px 0"></div>
-      <button class="chip ${c.destination?'active':''}" style="margin-bottom:14px;display:inline-flex;align-items:center;gap:6px" data-action="toggle-destination-picker">${ICONS.route}${c.destination ? 'Ending near '+c.destination : 'Have an end point in mind? (optional)'}</button>
-      ${state.showDestinationPicker ? `
-        <div class="chip-grid" style="margin-bottom:22px">
-          <button class="chip ${!c.destination?'active':''}" data-action="set-destination" data-n="">No preference</button>
-          ${Object.keys(NEIGHBORHOODS).filter(n=>n!==c.start).map(n=>`<button class="chip ${c.destination===n?'active':''}" data-action="set-destination" data-n="${n}">${n}</button>`).join("")}
-        </div>
-      ` : `<div style="margin-bottom:22px"></div>`}
+      <div class="wizard-q" style="font-size:22px;margin-bottom:14px">Have an end point in mind?</div>
+      <div class="form-group" style="margin-bottom:14px">
+        <div id="dest-address-container"><div style="border:1px solid var(--line-strong);border-radius:99px;padding:12px 14px;font-size:14px;color:var(--ink-soft)">Loading address search…</div></div>
+      </div>
+      ${c.destinationAddress ? `
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--ink);border-radius:20px;padding:13px 15px;margin-bottom:18px">
+        <span style="min-width:0">
+          <span style="display:block;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)">Ending at</span>
+          <span style="display:block;font-family:var(--font-display);font-size:16px;font-weight:600;color:var(--cream);margin-top:4px;letter-spacing:-.015em">${c.destinationName || c.destinationAddress}</span>
+        </span>
+        <button data-action="clear-destination-address" style="border:1.5px solid rgba(255,255,255,.45);background:transparent;color:var(--cream);font-family:'DM Mono',monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding:9px 12px;border-radius:99px;flex-shrink:0">Clear</button>
+      </div>` : ''}
+      <div class="chip-grid-scroll gold" style="margin-bottom:22px">
+        <button class="chip ${!c.destination?'active':''}" data-action="set-destination" data-n="">No preference</button>
+        ${Object.keys(NEIGHBORHOODS).filter(n=>n!==c.start).map(n=>`<button class="chip ${c.destination===n?'active':''}" data-action="set-destination" data-n="${n}">${n}</button>`).join("")}
+      </div>
     `;
   } else if(step===1){
     body = `
@@ -1672,7 +1758,22 @@ function generateRoute(){
   if(picked.length===0) picked = state.stores.slice(0,2);
   let ordered;
   const destPos = c.destination && NEIGHBORHOODS[c.destination];
-  if(destPos){
+  if(c.destinationCoords){
+    // A real, specific address (from the autocomplete search) — order stops
+    // along the straight line from the real start point to that exact
+    // address, using each store's real geocoded position when we have it
+    // rather than just the neighborhood's rough center.
+    const startPos = c.startCoords || NEIGHBORHOODS[c.start];
+    const vx = c.destinationCoords.lng - startPos.lng, vy = c.destinationCoords.lat - startPos.lat;
+    const len2 = (vx*vx+vy*vy) || 1;
+    const posOf = s => (s.lat!=null && s.lng!=null) ? s : (NEIGHBORHOODS[s.neighborhood] || startPos);
+    ordered = [...picked].sort((a,b)=>{
+      const pa = posOf(a), pb = posOf(b);
+      const ta = ((pa.lng-startPos.lng)*vx + (pa.lat-startPos.lat)*vy)/len2;
+      const tb = ((pb.lng-startPos.lng)*vx + (pb.lat-startPos.lat)*vy)/len2;
+      return ta-tb;
+    });
+  } else if(destPos){
     const startPos = NEIGHBORHOODS[c.start];
     const vx = destPos.x-startPos.x, vy = destPos.y-startPos.y;
     const len2 = (vx*vx+vy*vy) || 1;
@@ -1704,8 +1805,8 @@ function generateRoute(){
     totalTravel += mins;
     prev = s.neighborhood;
   });
-  if(destPos){
-    const finalLeg = Math.max(4, Math.round(dist(prev, c.destination)*2.6));
+  if(destPos || c.destinationCoords){
+    const finalLeg = Math.max(4, Math.round(dist(prev, c.destination || prev)*2.6) || 8);
     totalTravel += finalLeg;
   }
   const totalBrowse = browseMin * ordered.length;
@@ -1715,6 +1816,9 @@ function generateRoute(){
     start: c.start,
     startCoords: c.startCoords || null,
     destination: c.destination || null,
+    destinationAddress: c.destinationAddress || null,
+    destinationName: c.destinationName || null,
+    destinationCoords: c.destinationCoords || null,
     stops: ordered.map(s=>s.id),
     legs,
     totalTravel,
@@ -1763,8 +1867,8 @@ function viewRouteResults(){
       <button class="btn btn-outline btn-block" style="margin-bottom:12px" data-action="open-add-stop">${ICONS.plus}Add another stop</button>
       <button class="btn btn-primary btn-block" style="margin-bottom:12px" data-action="open-in-maps">Open in Google Maps</button>
       <div style="display:flex;gap:8px">
-        <button class="btn btn-outline" style="flex:1" data-action="share-route">${saved?'Share route':'Share route'}</button>
-        <button class="btn ${saved?'btn-primary':'btn-outline'}" style="flex:1" data-action="save-route">${saved?'Saved':'Save route'}</button>
+        <button class="btn btn-outline" style="flex:1" data-action="share-route">${ICONS.share}Share route</button>
+        <button class="btn ${saved?'btn-primary':'btn-outline'}" style="flex:1" data-action="save-route">${ICONS.bookmark}${saved?'Saved':'Save route'}</button>
       </div>
     </div>
   `;
@@ -2167,6 +2271,7 @@ function attachGlobalHandlers(){
 function renderList(){
   document.getElementById("view-root").innerHTML = renderView();
   renderGoogleMapIfNeeded();
+  initDestinationAutocomplete();
 }
 
 function handleClick(e){
@@ -2219,7 +2324,8 @@ function handleClick(e){
     case "set-start": state.builderChoice.start = t.dataset.n; if(state.builderChoice.destination===t.dataset.n) state.builderChoice.destination=null; state.locationDetected=false; state.builderChoice.startCoords=null; renderList(); break;
     case "use-my-location": tryDetectLocation(true); break;
     case "toggle-destination-picker": state.showDestinationPicker = !state.showDestinationPicker; renderList(); break;
-    case "set-destination": state.builderChoice.destination = t.dataset.n || null; state.showDestinationPicker=false; renderList(); break;
+    case "set-destination": state.builderChoice.destination = t.dataset.n || null; state.builderChoice.destinationAddress = null; state.builderChoice.destinationName = null; state.builderChoice.destinationCoords = null; state.showDestinationPicker=false; renderList(); break;
+    case "clear-destination-address": state.builderChoice.destinationAddress = null; state.builderChoice.destinationName = null; state.builderChoice.destinationCoords = null; renderList(); break;
     case "set-time": state.builderChoice.time = t.dataset.t; renderList(); break;
     case "set-distance": state.builderChoice.distance = t.dataset.d; renderList(); break;
     case "toggle-category": toggleBuilderCategory(t.dataset.c); break;
@@ -2370,7 +2476,12 @@ function buildGoogleMapsUrl(r){
     : startPos ? `${startPos.lat},${startPos.lng}`
     : encodeURIComponent(r.start + ", Atlanta, GA");
   let destination, waypoints;
-  if(r.destination){
+  if(r.destinationCoords){
+    // A real, specific address wins over a neighborhood — exact coordinates,
+    // nothing left for any hand-off to mangle.
+    destination = `${r.destinationCoords.lat},${r.destinationCoords.lng}`;
+    waypoints = stores.map(point).join("|");
+  } else if(r.destination){
     const destPos = NEIGHBORHOODS[r.destination];
     destination = destPos ? `${destPos.lat},${destPos.lng}` : encodeURIComponent(r.destination + ", Atlanta, GA");
     waypoints = stores.map(point).join("|");
@@ -2389,7 +2500,8 @@ function buildRouteShareText(r){
   const lines = stores.map((s,i)=>`${i+1}. ${s.name} — ${s.neighborhood}`);
   const hrs = Math.floor(r.totalTime/60), mins = r.totalTime%60;
   const mapsUrl = buildGoogleMapsUrl(r);
-  return `My ATL thrift route${r.title?': '+r.title:''}:\n${lines.join('\n')}\nEstimated time: ${hrs}h ${mins}m.${mapsUrl ? '\nDrive it in Google Maps: '+mapsUrl : ''}`;
+  const destLine = r.destinationAddress ? `\nEnding at: ${r.destinationName || r.destinationAddress}` : '';
+  return `My ATL thrift route${r.title?': '+r.title:''}:\n${lines.join('\n')}${destLine}\nEstimated time: ${hrs}h ${mins}m.${mapsUrl ? '\nDrive it in Google Maps: '+mapsUrl : ''}`;
 }
 function submitComment(id){
   const input = document.querySelector(`[data-comment-input="${id}"]`);
