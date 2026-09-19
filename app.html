@@ -488,6 +488,27 @@ main.view{padding:0 20px 116px;}
 .profile-head h2{font-size:23px;letter-spacing:-.02em;}
 .profile-head .pmeta{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;margin-top:6px;margin-bottom:10px;}
 .profile-stats{max-width:none;margin-top:16px;padding:18px;border-radius:20px;}
+.profile-shortcuts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 28px;}
+.profile-shortcut{appearance:none;border:1.5px solid var(--line);background:var(--cream-card);color:var(--ink);border-radius:20px;padding:15px 10px;text-align:left;font-family:var(--font-body);min-height:112px;display:flex;flex-direction:column;justify-content:space-between;}
+.profile-shortcut:hover{border-color:var(--ink);}
+.profile-shortcut svg{width:19px;height:19px;color:var(--royal);fill:none;stroke:currentColor;}
+.profile-shortcut .ps-title{display:block;font-size:12.5px;font-weight:700;line-height:1.15;margin-top:13px;}
+.profile-shortcut .ps-count{display:block;font-family:var(--font-mono);font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);margin-top:5px;}
+.note-list{display:flex;flex-direction:column;gap:9px;}
+.note-card{border:1px solid var(--line);background:var(--cream-card);border-radius:20px;padding:15px 16px;text-align:left;color:var(--ink);}
+.note-card-button{appearance:none;width:100%;font-family:var(--font-body);cursor:pointer;}
+.note-card .note-store{font-family:var(--font-display);font-size:16px;font-weight:600;line-height:1.15;}
+.note-card .note-date{font-family:var(--font-mono);font-size:8.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--royal);margin-top:5px;}
+.note-card .note-text{font-size:13px;line-height:1.5;color:var(--body-text);margin-top:9px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden;}
+.profile-section{margin-top:28px;}
+.profile-library-head{display:flex;align-items:flex-start;justify-content:space-between;gap:12px;margin:4px 0 20px;}
+.profile-library-head h1{font-size:31px;line-height:1;letter-spacing:-.03em;}
+.profile-library-head p{font-size:12.5px;color:var(--ink-soft);margin-top:7px;}
+.profile-compact-store{display:flex;align-items:center;gap:12px;width:100%;border:1px solid var(--line);background:var(--cream-card);color:var(--ink);border-radius:20px;padding:11px;text-align:left;font-family:var(--font-body);}
+.profile-compact-store .stop-thumb{width:50px;height:50px;}
+.profile-compact-store .pcs-body{min-width:0;flex:1;}
+.profile-compact-store .pcs-name{display:block;font-family:var(--font-display);font-size:16px;font-weight:600;line-height:1.15;}
+.profile-compact-store .pcs-meta{display:block;font-family:var(--font-mono);font-size:8.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);margin-top:5px;}
 .settings-row{padding:16px 2px;}
 .hairline{background:var(--line);}
 
@@ -514,6 +535,46 @@ main.view{padding:0 20px 116px;}
 .sale-card h3{color:var(--ink);}
 .sale-card p{color:var(--body-text);}
 .sale-card .sale-date{color:var(--royal);}
+.events-section{margin:22px 0 28px;padding:20px 0 22px;border-top:2px solid var(--ink);border-bottom:1px solid var(--line);}
+.events-section .section-head{align-items:center;}
+.events-actions{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:13px;}
+.events-actions p{font-size:11.5px;line-height:1.45;color:var(--ink-soft);max-width:240px;}
+.preview-note{display:flex;align-items:center;gap:7px;font-family:var(--font-mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:11px;}
+.preview-note::before{content:"";width:7px;height:7px;border-radius:999px;background:var(--gold);flex:none;}
+.sale-card{appearance:none;text-align:left;font-family:var(--font-body);cursor:pointer;min-height:196px;display:flex;flex-direction:column;align-items:flex-start;}
+.sale-card:hover{border-color:var(--ink);}
+.sale-card .event-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;width:100%;margin-bottom:14px;}
+.event-date-block{width:50px;min-height:54px;border-radius:14px;background:var(--ink);color:var(--cream);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;flex:none;}
+.event-date-block .month{font-family:var(--font-mono);font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:5px;}
+.event-date-block .day{font-family:var(--font-display);font-size:24px;font-weight:600;}
+.event-type{font-family:var(--font-mono);font-size:8.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--royal);padding-top:3px;text-align:right;}
+.sale-card h3{font-size:19px;line-height:1.08;letter-spacing:-.015em;margin-bottom:8px;}
+.sale-card .event-location{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink);margin-bottom:7px;}
+.sale-card .event-meta{font-size:11.5px;color:var(--ink-soft);margin-top:auto;padding-top:8px;}
+.preview-badge{display:inline-flex;font-family:var(--font-mono);font-size:8px;letter-spacing:.1em;text-transform:uppercase;background:var(--gold);color:#221D24;border-radius:999px;padding:4px 7px;}
+.events-page{padding-top:4px;}
+.events-hero{padding:10px 0 20px;}
+.events-hero h1{font-size:38px;line-height:.98;letter-spacing:-.035em;margin-bottom:10px;}
+.events-hero p{font-size:13.5px;line-height:1.55;color:var(--body-text);max-width:34ch;}
+.event-filter-row{display:flex;gap:7px;overflow-x:auto;margin:0 -20px 18px;padding:0 20px 7px;scrollbar-width:none;}
+.event-filter-row::-webkit-scrollbar{display:none;}
+.event-list{display:flex;flex-direction:column;gap:11px;}
+.event-list-card{appearance:none;width:100%;border:1.5px solid var(--line);background:var(--cream-card);color:var(--ink);border-radius:20px;padding:15px;display:flex;gap:14px;text-align:left;font-family:var(--font-body);align-items:flex-start;}
+.event-list-card:hover{border-color:var(--ink);}
+.event-list-card .event-list-body{min-width:0;flex:1;}
+.event-list-card h3{font-size:18px;line-height:1.12;margin:1px 0 6px;}
+.event-list-card .event-list-location{display:block;font-size:12.5px;font-weight:700;color:var(--ink);margin-bottom:4px;}
+.event-list-card .event-list-meta{display:block;font-family:var(--font-mono);font-size:9px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);line-height:1.5;}
+.event-list-card .event-type{margin-left:auto;max-width:92px;}
+.events-submit-card{margin-top:22px;background:var(--ink);color:var(--cream);border-radius:20px;padding:20px;}
+.events-submit-card h3{color:var(--cream);font-size:21px;margin-bottom:7px;}
+.events-submit-card p{font-size:12.5px;line-height:1.5;color:rgba(255,255,255,.72);margin-bottom:14px;}
+.events-submit-card .btn{background:var(--gold);color:#221D24;}
+.event-detail-date{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--royal);margin-bottom:8px;}
+.event-detail-meta{display:flex;flex-direction:column;gap:9px;padding:15px 0 18px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);margin:17px 0;}
+.event-detail-meta div{display:flex;gap:10px;font-size:13px;}
+.event-detail-meta b{min-width:68px;font-family:var(--font-mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);padding-top:3px;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:10px;}
 .toast{box-shadow:none;}
 [data-action="use-my-location"]{border-radius:999px!important;}
 @media (min-width:700px){
@@ -671,9 +732,22 @@ const CURATED_ROUTES = [
 
 const SAMPLE_USERS = ["mara.thrifts","eastatl.vintage","deej_finds","kudzu.kid","thrifty.reese","o4w.forager","lowcountry.linens","atl.rehome"];
 
+// Front-end preview only. No rows are created or changed in Supabase while
+// this is true. Switch this off after the event schema and review workflow
+// have been approved and added to the database.
+const EVENTS_PREVIEW_MODE = true;
+function previewISODate(daysAhead){
+  const d = new Date();
+  d.setHours(12,0,0,0);
+  d.setDate(d.getDate()+daysAhead);
+  const y=d.getFullYear(), m=String(d.getMonth()+1).padStart(2,"0"), day=String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
 const SAMPLE_EVENTS = [
-  {id:"ev1",title:"Example: Fall Warehouse Clearance",linkedStoreId:"s9",dateLabel:"Sat Sep 12 – Sun Sep 13",description:"Sample listing — swap this out for a real upcoming sale, or delete it from the admin panel.",isSample:true},
-  {id:"ev2",title:"Example: Half-Off Color Tag Weekend",linkedStoreId:"s23",dateLabel:"This weekend",description:"Sample listing — donation-based thrift stores often run rotating color-tag discounts like this.",isSample:true}
+  {id:"preview-market",title:"Atlanta Vintage Market",startDate:previewISODate(2),endDate:previewISODate(2),startTime:"11:00",endTime:"17:00",venue:"The Works",address:"Upper Westside, Atlanta",eventType:"Vintage Market",priceLabel:"Free",description:"A one-day market with local vintage clothing, home goods, and collectible vendors.",isPreview:true},
+  {id:"preview-swap",title:"West End Clothing Swap",startDate:previewISODate(4),endDate:previewISODate(4),startTime:"13:00",endTime:"16:00",venue:"West End",address:"Atlanta, GA",eventType:"Clothing Swap",priceLabel:"Bring items to trade",description:"Bring clean, gently used pieces and trade them for something new to you.",isPreview:true},
+  {id:"preview-flea",title:"East Atlanta Fall Flea",startDate:previewISODate(9),endDate:previewISODate(10),startTime:"10:00",endTime:"16:00",venue:"East Atlanta Village",address:"Atlanta, GA",eventType:"Flea Market",priceLabel:"Free entry",description:"A weekend mix of vintage sellers, handmade goods, records, and secondhand finds.",isPreview:true},
+  {id:"preview-sale",title:"Midtown Estate Sale Weekend",startDate:previewISODate(14),endDate:previewISODate(16),startTime:"09:00",endTime:"15:00",venue:"Midtown",address:"Address shared by organizer",eventType:"Estate Sale",priceLabel:"Prices vary",description:"Furniture, art, books, and housewares across a three-day estate sale.",isPreview:true}
 ];
 
 const SAMPLE_POSTS = [
@@ -922,9 +996,13 @@ const DEFAULT_STATE = {
   comments:{},
   stores: [],
   events: [],
+  eventFilter:"All",
+  outdoorTempF:null,
+  visitNotes:[],
+  profileLibraryTab:"notes",
   storeVotes:{},
   storeFollows:{},
-  authMode:"signup",
+  authMode:"signin",
   view:"home",
   params:{},
   discoverMode:"list",
@@ -984,7 +1062,12 @@ async function loadStores(){
 async function loadEvents(){
   const { data, error } = await sb.from("events").select("*").order("created_at",{ascending:false});
   if(error){ console.error("loadEvents failed:", error.message); state.events = []; return; }
-  state.events = data.map(e=>({id:e.id, title:e.title, linkedStoreId:e.linked_store_id, dateLabel:e.date_label, description:e.description, isSample:e.is_sample}));
+  state.events = data.map(e=>({
+    id:e.id, title:e.title, linkedStoreId:e.linked_store_id, dateLabel:e.date_label,
+    startDate:e.start_date, endDate:e.end_date, startTime:e.start_time, endTime:e.end_time,
+    venue:e.venue, address:e.address, sourceUrl:e.source_url, eventType:e.event_type,
+    priceLabel:e.price_label, status:e.status, description:e.description, isSample:e.is_sample
+  }));
 }
 async function loadPosts(){
   const { data, error } = await sb.from("posts").select("*, profiles(username)").order("created_at",{ascending:false});
@@ -1047,7 +1130,30 @@ async function boot(){
   await Promise.all([loadStores(), loadEvents(), loadPosts()]);
   await loadMyData();
   render();
+  loadOutdoorTemperature();
   if(!("geolocation" in navigator)) state.geoAttempted = true;
+}
+
+function loadOutdoorTemperature(){
+  if(!("geolocation" in navigator)) return;
+  navigator.geolocation.getCurrentPosition(async position=>{
+    try{
+      // Weather only needs an approximate location. Rounded coordinates avoid
+      // sending the user's precise position to the forecast service.
+      const lat = Number(position.coords.latitude.toFixed(2));
+      const lng = Number(position.coords.longitude.toFixed(2));
+      const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m&temperature_unit=fahrenheit`;
+      const response = await fetch(url);
+      if(!response.ok) return;
+      const weather = await response.json();
+      const temperature = Number(weather?.current?.temperature_2m);
+      if(!Number.isFinite(temperature)) return;
+      state.outdoorTempF = Math.round(temperature);
+      if(state.view==="home") renderList();
+    }catch(error){
+      console.warn("Weather unavailable:", error.message);
+    }
+  },()=>{}, {timeout:8000,maximumAge:900000});
 }
 
 function go(view, params){
@@ -1183,7 +1289,7 @@ function postPhotoHtml(post){
   return postArt(post);
 }
 function openModal(name, params){
-  if(name==="login") state.authMode = "signup";
+  if(name==="login") state.authMode = "signin";
   activeModal = {name, params: params||{}};
   renderModal();
 }
@@ -1233,12 +1339,14 @@ function renderView(){
   switch(state.view){
     case "home": return viewHome();
     case "discover": return viewDiscover();
+    case "events": return viewEvents();
     case "storeDetail": return viewStoreDetail(state.params.id);
     case "route": return viewRouteBuilder();
     case "routeResults": return viewRouteResults();
     case "community": return viewCommunity();
     case "saved": return viewSaved();
     case "profile": return viewProfile();
+    case "profileLibrary": return viewProfileLibrary();
     case "admin": return viewAdmin();
     default: return viewHome();
   }
@@ -1247,7 +1355,9 @@ function renderView(){
 function currentFieldGuideLabel(){
   const d = new Date();
   const day = d.toLocaleDateString(undefined,{weekday:"long"});
-  return `${day} · Atlanta field guide`;
+  const date = d.toLocaleDateString(undefined,{month:"long",day:"numeric"});
+  const temperature = Number.isFinite(state.outdoorTempF) ? ` · ${state.outdoorTempF}°` : "";
+  return `${day} · ${date}${temperature}`;
 }
 function designPalette(index, neighborhood){
   if(neighborhood === "Virginia-Highland") return {bg:"var(--ink)",fg:"#FFFFFF"};
@@ -1277,7 +1387,7 @@ function homeStoreCard(s){
 function viewHome(){
   const openNow = state.stores.filter(s=>isOpenNow(s)===true).slice(0,6);
   const displayStores = openNow.length ? openNow : state.stores.filter(s=>s.featured).slice(0,6);
-  const neighborhoods = Object.keys(NEIGHBORHOODS).filter(n=>state.stores.some(s=>s.neighborhood===n)).slice(0,6);
+  const upcomingEvents = getUpcomingEvents();
   const independentCount = state.stores.filter(s=>!s.chain).length;
   return `
     <div class="design-home">
@@ -1296,20 +1406,16 @@ function viewHome(){
         <div class="hscroll">${displayStores.map(s=>homeStoreCard(s)).join("")}</div>
       </div>
 
-      <div class="section">
-        <div class="section-head"><h2>Routes curated by 2nd Studio</h2></div>
-        <div class="hscroll">${CURATED_ROUTES.map((r,i)=>curatedRouteCard(r,i)).join("")}</div>
+      <div class="events-section">
+        <div class="section-head"><h2>Upcoming in ATL</h2><button class="see-all" data-action="view-all-events">See all</button></div>
+        ${EVENTS_PREVIEW_MODE?`<div class="preview-note">Preview only. Supabase is unchanged.</div>`:""}
+        ${upcomingEvents.length?`<div class="hscroll">${upcomingEvents.slice(0,4).map(saleCard).join("")}</div>`:`<div class="empty-state" style="padding:24px 12px"><h3>Events are coming soon</h3><p>Know about one? Send it for review.</p></div>`}
+        <div class="events-actions"><p>Markets, swaps, estate sales, and special store events.</p><button class="see-all" data-action="open-event-submission">Submit an event</button></div>
       </div>
 
       <div class="section">
-        <div class="section-head"><h2>By neighborhood</h2></div>
-        <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">${neighborhoods.map((n,i)=>{
-          const p=designPalette(i,n);
-          return `<button class="neighborhood-card" data-action="filter-neighborhood" data-n="${n}" style="background:${p.bg};color:${p.fg};border:1px solid var(--line)!important">
-            <div class="nn">${n}</div>
-            <div class="nc">${state.stores.filter(s=>s.neighborhood===n).length} shops</div>
-          </button>`;
-        }).join("")}</div>
+        <div class="section-head"><h2>Routes curated by 2nd Studio</h2></div>
+        <div class="hscroll">${CURATED_ROUTES.map((r,i)=>curatedRouteCard(r,i)).join("")}</div>
       </div>
     </div>
   `;
@@ -1390,15 +1496,121 @@ function curatedRouteCard(r, paletteIndex){
   </div>`;
 }
 
-function saleCard(ev){
+function eventDateValue(value){
+  if(!value) return null;
+  const parts = String(value).slice(0,10).split("-").map(Number);
+  if(parts.length!==3 || parts.some(Number.isNaN)) return null;
+  return new Date(parts[0],parts[1]-1,parts[2],12,0,0,0);
+}
+function eventDayParts(ev){
+  const d = eventDateValue(ev.startDate);
+  if(!d) return {month:"DATE",day:"TBD"};
+  return {month:d.toLocaleDateString(undefined,{month:"short"}).toUpperCase(),day:String(d.getDate())};
+}
+function formatEventDate(ev){
+  const start = eventDateValue(ev.startDate);
+  const end = eventDateValue(ev.endDate || ev.startDate);
+  if(!start) return ev.dateLabel || "Date to be announced";
+  const startText = start.toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});
+  if(!end || start.toDateString()===end.toDateString()) return startText;
+  const endText = end.toLocaleDateString(undefined,{weekday:"short",month:"short",day:"numeric"});
+  return `${startText} to ${endText}`;
+}
+function formatEventTime(value){
+  if(!value) return "";
+  const [h,m] = String(value).slice(0,5).split(":").map(Number);
+  if(Number.isNaN(h)) return value;
+  const d = new Date(2000,0,1,h,m||0);
+  return d.toLocaleTimeString(undefined,{hour:"numeric",minute:m?"2-digit":undefined});
+}
+function eventTimeRange(ev){
+  const start = formatEventTime(ev.startTime);
+  const end = formatEventTime(ev.endTime);
+  return start && end ? `${start} to ${end}` : (start || end || "Time to be announced");
+}
+function eventLocation(ev){
   const store = ev.linkedStoreId ? getStoreById(ev.linkedStoreId) : null;
+  return ev.venue || (store ? store.name : "Atlanta");
+}
+function getUpcomingEvents(){
+  const today = new Date(); today.setHours(0,0,0,0);
+  const source = EVENTS_PREVIEW_MODE ? SAMPLE_EVENTS : state.events;
+  return source.filter(ev=>{
+    if(ev.status && ev.status!=="published") return false;
+    const end = eventDateValue(ev.endDate || ev.startDate);
+    return !end || end >= today;
+  }).sort((a,b)=>{
+    const ad=eventDateValue(a.startDate), bd=eventDateValue(b.startDate);
+    if(!ad && !bd) return 0;
+    if(!ad) return 1;
+    if(!bd) return -1;
+    return ad-bd;
+  });
+}
+function isThisWeekend(ev){
+  const start = eventDateValue(ev.startDate), end = eventDateValue(ev.endDate || ev.startDate);
+  if(!start || !end) return false;
+  const today = new Date(); today.setHours(0,0,0,0);
+  const saturday = new Date(today);
+  const daysUntilSaturday = (6-today.getDay()+7)%7;
+  saturday.setDate(today.getDate()+daysUntilSaturday);
+  const sunday = new Date(saturday); sunday.setDate(saturday.getDate()+1);
+  return start<=sunday && end>=saturday;
+}
+function filterEvents(events, filter){
+  if(filter==="This weekend") return events.filter(isThisWeekend);
+  if(filter==="Markets") return events.filter(ev=>/market|flea/i.test(ev.eventType||""));
+  if(filter==="Sales") return events.filter(ev=>/sale/i.test(ev.eventType||""));
+  if(filter==="Swaps") return events.filter(ev=>/swap/i.test(ev.eventType||""));
+  return events;
+}
+function saleCard(ev){
+  const date = eventDayParts(ev);
   return `
-  <div class="sale-card" data-action="${store?'open-store':''}" data-id="${store?store.id:''}">
-    <div class="sale-date">${ev.dateLabel}</div>
+  <button class="sale-card" data-action="view-event" data-id="${ev.id}">
+    <span class="event-card-top">
+      <span class="event-date-block"><span class="month">${date.month}</span><span class="day">${date.day}</span></span>
+      <span class="event-type">${ev.eventType||"Local event"}</span>
+    </span>
     <h3>${ev.title}</h3>
-    ${store ? `<p style="color:var(--gold);font-weight:600">${store.name} · ${store.neighborhood}</p>` : ''}
-    <p>${ev.description}</p>
-    ${ev.isSample ? `<span class="sample-badge">Sample listing</span>` : ''}
+    <span class="event-location">${eventLocation(ev)}</span>
+    <span class="event-meta">${eventTimeRange(ev)}${ev.priceLabel?` · ${ev.priceLabel}`:""}</span>
+    ${ev.isPreview ? `<span class="preview-badge" style="margin-top:9px">Preview</span>` : ''}
+  </button>`;
+}
+
+function eventListCard(ev){
+  const date = eventDayParts(ev);
+  return `<button class="event-list-card" data-action="view-event" data-id="${ev.id}">
+    <span class="event-date-block"><span class="month">${date.month}</span><span class="day">${date.day}</span></span>
+    <span class="event-list-body">
+      <h3>${ev.title}</h3>
+      <span class="event-list-location">${eventLocation(ev)}</span>
+      <span class="event-list-meta">${formatEventDate(ev)} · ${eventTimeRange(ev)}${ev.priceLabel?` · ${ev.priceLabel}`:""}</span>
+    </span>
+    <span class="event-type">${ev.eventType||"Event"}</span>
+  </button>`;
+}
+
+function viewEvents(){
+  const allEvents = getUpcomingEvents();
+  const filtered = filterEvents(allEvents,state.eventFilter||"All");
+  const filters = ["All","This weekend","Markets","Sales","Swaps"];
+  return `<div class="events-page">
+    <button class="btn btn-ghost btn-sm" data-action="nav" data-view="discover" style="margin-bottom:12px">${ICONS.back}Back to Discover</button>
+    <div class="events-hero">
+      <div class="design-eyebrow" style="color:var(--royal);margin-bottom:9px">Curated by 2nd Studio</div>
+      <h1>Upcoming in ATL</h1>
+      <p>Vintage markets, clothing swaps, estate sales, and special events worth planning around.</p>
+    </div>
+    ${EVENTS_PREVIEW_MODE?`<div class="preview-note">Design preview. Nothing here changes Supabase.</div>`:""}
+    <div class="event-filter-row">${filters.map(f=>`<button class="chip ${state.eventFilter===f?'active':''}" data-action="set-event-filter" data-filter="${f}">${f}</button>`).join("")}</div>
+    ${filtered.length?`<div class="event-list">${filtered.map(eventListCard).join("")}</div>`:`<div class="empty-state"><h3>Nothing in this category yet</h3><p>Try another filter or submit an event for review.</p></div>`}
+    <div class="events-submit-card">
+      <h3>Know what is happening?</h3>
+      <p>Send us a market, swap, sale, or store event. Submissions will be reviewed before they appear in the guide.</p>
+      <button class="btn" data-action="open-event-submission">Submit an event</button>
+    </div>
   </div>`;
 }
 
@@ -1444,11 +1656,6 @@ function viewDiscover(){
       ${state.discoverMode==='map' ? discoverMap(list) : ''}
       ${list.length===0 ? `<div class="empty-state"><h3>No stores match yet</h3><p>Clear a filter or search a different neighborhood.</p></div>` : `<div class="grid-stack">${list.map(s=>storeGridCard(s)).join("")}</div>`}
 
-      ${state.events.length ? `
-      <div class="section">
-        <div class="section-head"><h2>Happening this week</h2><button class="see-all" data-action="nav" data-view="admin">Add a sale</button></div>
-        <div class="hscroll">${state.events.map(ev=>saleCard(ev)).join("")}</div>
-      </div>` : ''}
     </div>
   `;
 }
@@ -1638,7 +1845,8 @@ function viewStoreDetail(id){
       })()}
     </div>
 
-    <button class="btn ${visited?'btn-primary':'btn-outline'} btn-block" style="margin-bottom:22px" data-action="toggle-visited" data-id="${s.id}">${ICONS.check}${visited?"You've been here":'Mark as visited'}</button>
+    <button class="btn ${visited?'btn-primary':'btn-outline'} btn-block" style="margin-bottom:8px" data-action="toggle-visited" data-id="${s.id}">${ICONS.check}${visited?"You've been here":'Mark as visited'}</button>
+    <button class="btn btn-ghost btn-block" style="margin-bottom:22px" data-action="open-visit-note" data-store="${s.id}">${ICONS.edit}${state.visitNotes.some(n=>n.storeId===s.id)?'View or add a visit note':'Add a visit note'}</button>
 
     <div class="info-block">
       <h3>Before you go</h3>
@@ -1997,6 +2205,10 @@ function viewProfile(){
   }
   const u = state.user;
   const myPosts = state.posts.filter(p=>p.user===u.username);
+  const likedFinds = getLikedFinds();
+  const recentNotes = state.visitNotes.slice().sort((a,b)=>new Date(b.visitedAt)-new Date(a.visitedAt)).slice(0,2);
+  const storeCount = state.stores.length || 0;
+  const exploredPercent = storeCount ? Math.min(100,Math.round((state.visitedStoreIds.length/storeCount)*100)) : 0;
   return `
     <div class="profile-head">
       <div class="profile-avatar">${state.user.avatarUrl ? `<img src="${state.user.avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : initials(u.username)}</div>
@@ -2010,29 +2222,96 @@ function viewProfile(){
       </div>
       <div style="width:100%;max-width:260px;margin:16px auto 0">
         <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink-soft);margin-bottom:5px">
-          <span>Stores explored</span><span>${state.visitedStoreIds.length}/${state.stores.length}</span>
+          <span>Stores explored</span><span>${state.visitedStoreIds.length}/${storeCount}</span>
         </div>
         <div style="height:6px;border-radius:4px;background:var(--line);overflow:hidden">
-          <div style="height:100%;width:${Math.round((state.visitedStoreIds.length/state.stores.length)*100)}%;background:var(--royal);border-radius:4px"></div>
+          <div style="height:100%;width:${exploredPercent}%;background:var(--royal);border-radius:4px"></div>
         </div>
       </div>
-      <button class="btn btn-outline btn-sm" style="margin-top:16px" data-action="open-edit-profile">Edit profile</button>
     </div>
-    <div class="hairline"></div>
-    <button class="settings-row" style="width:100%;background:none;border:none;text-align:left" data-action="nav" data-view="saved">
-      <span class="sr-left">${ICONS.bookmark}Saved</span>${ICONS.chevronR}
-    </button>
-    <div class="hairline"></div>
-    <div class="section-head"><h2>Your finds</h2></div>
-    ${myPosts.length ? myPosts.map(p=>postCard(p)).join("") : `<div class="empty-state"><p>You haven't shared a find yet.</p></div>`}
-    <div class="hairline"></div>
+    <div class="profile-shortcuts">
+      <button class="profile-shortcut" data-action="open-profile-library" data-tab="notes">${ICONS.edit}<span><span class="ps-title">Visit Notes</span><span class="ps-count">${state.visitNotes.length} ${state.visitNotes.length===1?'note':'notes'}</span></span></button>
+      <button class="profile-shortcut" data-action="open-profile-library" data-tab="stores">${ICONS.bookmark}<span><span class="ps-title">Saved Shops</span><span class="ps-count">${state.savedStoreIds.length} ${state.savedStoreIds.length===1?'shop':'shops'}</span></span></button>
+      <button class="profile-shortcut" data-action="open-profile-library" data-tab="liked">${ICONS.heart}<span><span class="ps-title">Liked Finds</span><span class="ps-count">${likedFinds.length} ${likedFinds.length===1?'find':'finds'}</span></span></button>
+    </div>
+
+    <div class="profile-section">
+      <div class="section-head"><h2>Recent Visit Notes</h2><button class="see-all" data-action="open-profile-library" data-tab="notes">See all</button></div>
+      ${recentNotes.length?`<div class="note-list">${recentNotes.map(visitNoteCard).join("")}</div>`:`<div class="empty-state" style="padding:24px 12px"><p>Keep private notes about stores you visit.</p><button class="btn btn-ghost btn-sm" style="margin-top:12px" data-action="open-visit-note">Add your first note</button></div>`}
+    </div>
+
+    <div class="profile-section">
+      <div class="section-head"><h2>Your Finds</h2>${myPosts.length?`<button class="see-all" data-action="open-share-find">Share another</button>`:""}</div>
+      ${myPosts.length ? myPosts.map(p=>postCard(p)).join("") : `<div class="empty-state" style="padding:30px 12px"><p>Your best thrift finds belong here.</p><button class="btn btn-primary btn-sm" style="margin-top:12px" data-action="open-share-find">Share your first find</button></div>`}
+    </div>
+
+    <div class="profile-section">
+      <div class="section-head"><h2>Settings</h2></div>
+      <button class="settings-row" style="width:100%;background:none;border:none;text-align:left" data-action="open-edit-profile">
+        <span class="sr-left">${ICONS.edit}Edit profile</span>${ICONS.chevronR}
+      </button>
     <button class="settings-row" style="width:100%;background:none;border:none;text-align:left" data-action="nav" data-view="admin">
       <span class="sr-left">${ICONS.shield}2nd Studio admin</span>${ICONS.chevronR}
     </button>
     <button class="settings-row" style="width:100%;background:none;border:none;text-align:left;color:var(--danger)" data-action="sign-out">
       <span class="sr-left" style="color:var(--danger)">Sign out</span>
     </button>
+    </div>
   `;
+}
+
+function getLikedFinds(){
+  if(!state.user) return [];
+  return state.posts.filter(p=>(state.likes[p.id]||[]).includes(state.user.id));
+}
+function escapeHtml(value){
+  return String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[char]));
+}
+function noteDateLabel(value){
+  if(!value) return "Visit date not added";
+  const parts=String(value).slice(0,10).split("-").map(Number);
+  const d=new Date(parts[0],parts[1]-1,parts[2],12);
+  return d.toLocaleDateString(undefined,{month:"long",day:"numeric",year:"numeric"});
+}
+function visitNoteCard(note){
+  const store=getStoreById(note.storeId);
+  return `<button class="note-card note-card-button" data-action="edit-visit-note" data-id="${note.id}">
+    <div class="note-store">${escapeHtml(store?.name||"Store")}</div>
+    <div class="note-date">${noteDateLabel(note.visitedAt)}</div>
+    <div class="note-text">${escapeHtml(note.text)}</div>
+  </button>`;
+}
+function compactProfileStore(s){
+  return `<button class="profile-compact-store" data-action="open-store" data-id="${s.id}">
+    <span class="stop-thumb">${photoOrArt(s)}</span>
+    <span class="pcs-body"><span class="pcs-name">${s.name}</span><span class="pcs-meta">${s.neighborhood} · ${s.categories[0]||s.type}</span></span>
+    ${ICONS.chevronR}
+  </button>`;
+}
+function viewProfileLibrary(){
+  if(!state.user) return viewProfile();
+  const tab=state.profileLibraryTab||"notes";
+  let content="";
+  if(tab==="notes"){
+    const notes=state.visitNotes.slice().sort((a,b)=>new Date(b.visitedAt)-new Date(a.visitedAt));
+    content=`<div class="preview-note">Notes are a session preview until database storage is approved.</div>${notes.length?`<div class="note-list">${notes.map(visitNoteCard).join("")}</div>`:`<div class="empty-state"><h3>No visit notes yet</h3><p>Add private notes about stores you have explored.</p></div>`}<button class="btn btn-primary btn-block" style="margin-top:16px" data-action="open-visit-note">Add a visit note</button>`;
+  }else if(tab==="stores"){
+    const stores=state.savedStoreIds.map(getStoreById).filter(Boolean);
+    content=stores.length?`<div class="note-list">${stores.map(compactProfileStore).join("")}</div>`:`<div class="empty-state"><h3>No saved shops yet</h3><p>Bookmark a shop to keep it here.</p></div>`;
+  }else{
+    const finds=getLikedFinds();
+    content=finds.length?finds.map(postCard).join(""):`<div class="empty-state"><h3>No liked finds yet</h3><p>Like a community find and it will appear here.</p></div>`;
+  }
+  return `<div style="margin-top:6px">
+    <button class="btn btn-ghost btn-sm" data-action="nav" data-view="profile" style="margin-bottom:16px">${ICONS.back}Back to profile</button>
+    <div class="profile-library-head"><div><h1>Your Collection</h1><p>Private notes and things you want to revisit.</p></div></div>
+    <div class="tab-row">
+      <button class="${tab==='notes'?'active':''}" data-action="set-profile-library-tab" data-tab="notes">Visit Notes</button>
+      <button class="${tab==='stores'?'active':''}" data-action="set-profile-library-tab" data-tab="stores">Saved Shops</button>
+      <button class="${tab==='liked'?'active':''}" data-action="set-profile-library-tab" data-tab="liked">Liked Finds</button>
+    </div>
+    ${content}
+  </div>`;
 }
 
 function viewAdmin(){
@@ -2122,14 +2401,85 @@ function renderModal(){
   else if(name==="addStop") html = addStopModal();
   else if(name==="adminStoreForm") html = adminStoreFormModal(params);
   else if(name==="adminEventForm") html = adminEventFormModal(params);
+  else if(name==="eventDetail") html = eventDetailModal(params);
+  else if(name==="eventSubmission") html = eventSubmissionModal();
+  else if(name==="visitNote") html = visitNoteModal(params);
   else if(name==="forgotPassword") html = forgotPasswordModal();
   else if(name==="setNewPassword") html = setNewPasswordModal();
   root.innerHTML = html;
   attachModalHandlers();
 }
 
+function visitNoteModal(params){
+  const editing=params.id?state.visitNotes.find(n=>n.id===params.id):null;
+  const preferredStoreId=params.storeId||editing?.storeId||state.visitedStoreIds[0]||"";
+  const storeOptions=state.stores.map(s=>`<option value="${s.id}" ${preferredStoreId===s.id?'selected':''}>${s.name}</option>`).join("");
+  const today=new Date().toISOString().slice(0,10);
+  return `<div class="modal-overlay"><div class="modal-sheet">
+    <div class="modal-handle"></div>
+    <div class="modal-title">${editing?'Edit visit note':'Add a visit note'}</div>
+    <div class="modal-sub">Keep a private record of what you found, prices you noticed, or whether you want to return.</div>
+    <div class="preview-note">Preview mode. This note will last for this session only.</div>
+    <div class="form-group"><label>Store visited</label><select id="vn-store"><option value="">Choose a store</option>${storeOptions}</select></div>
+    <div class="form-group"><label>Date visited</label><input type="date" id="vn-date" value="${editing?.visitedAt||today}"></div>
+    <div class="form-group"><label>Private note</label><textarea id="vn-text" placeholder="What did you find? How were the prices? Would you return?">${escapeHtml(editing?.text||"")}</textarea></div>
+    <button class="btn btn-primary btn-block" data-action="save-visit-note" data-id="${editing?.id||''}">${editing?'Save changes':'Save note'}</button>
+    <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
+  </div></div>`;
+}
+
+function eventDetailModal(params){
+  const ev = getUpcomingEvents().find(e=>e.id===params.id);
+  if(!ev) return "";
+  const store = ev.linkedStoreId ? getStoreById(ev.linkedStoreId) : null;
+  return `<div class="modal-overlay">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="event-detail-date">${formatEventDate(ev)} · ${ev.eventType||"Local event"}</div>
+      <div class="modal-title" style="font-size:26px;line-height:1.08">${ev.title}</div>
+      ${ev.isPreview?`<span class="preview-badge" style="margin-top:8px">Preview listing</span>`:""}
+      <div class="event-detail-meta">
+        <div><b>Where</b><span>${eventLocation(ev)}${ev.address?`<br>${ev.address}`:""}</span></div>
+        <div><b>When</b><span>${formatEventDate(ev)}<br>${eventTimeRange(ev)}</span></div>
+        ${ev.priceLabel?`<div><b>Cost</b><span>${ev.priceLabel}</span></div>`:""}
+      </div>
+      <p style="font-size:14px;line-height:1.6;color:var(--body-text);margin-bottom:18px">${ev.description||"More details will be added soon."}</p>
+      ${ev.sourceUrl?`<a class="btn btn-royal btn-block" href="${ev.sourceUrl}" target="_blank" rel="noopener">View official event</a>`:""}
+      ${store?`<button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="open-store" data-id="${store.id}">View ${store.name}</button>`:""}
+      <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Close</button>
+    </div>
+  </div>`;
+}
+
+function eventSubmissionModal(){
+  return `<div class="modal-overlay">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Submit an event</div>
+      <div class="modal-sub">Preview the in-app submission flow. Nothing will be saved or sent until you approve the Supabase setup.</div>
+      <div class="form-group"><label>Event name</label><input type="text" id="es-title" placeholder="Atlanta Vintage Market"></div>
+      <div class="form-group"><label>Event type</label><select id="es-type"><option>Vintage Market</option><option>Flea Market</option><option>Clothing Swap</option><option>Estate Sale</option><option>Store Sale</option><option>Other</option></select></div>
+      <div class="form-row">
+        <div class="form-group"><label>Start date</label><input type="date" id="es-start"></div>
+        <div class="form-group"><label>End date</label><input type="date" id="es-end"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Start time</label><input type="time" id="es-start-time"></div>
+        <div class="form-group"><label>End time</label><input type="time" id="es-end-time"></div>
+      </div>
+      <div class="form-group"><label>Venue</label><input type="text" id="es-venue" placeholder="Venue or neighborhood"></div>
+      <div class="form-group"><label>Address</label><input type="text" id="es-address" placeholder="Event address"></div>
+      <div class="form-group"><label>Official link</label><input type="url" id="es-url" placeholder="https://"></div>
+      <div class="form-group"><label>Details</label><textarea id="es-details" placeholder="What should people know?"></textarea></div>
+      <div class="form-group"><label>Your email</label><input type="email" id="es-email" placeholder="For review questions only"></div>
+      <button class="btn btn-royal btn-block" data-action="submit-event-preview">Preview submission</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
+    </div>
+  </div>`;
+}
+
 function loginModal(){
-  const mode = state.authMode || "signup";
+  const mode = state.authMode || "signin";
   return `<div class="modal-overlay">
     <div class="modal-sheet center">
       <div class="modal-handle"></div>
@@ -2333,6 +2683,11 @@ function handleClick(e){
     case "view-curated-route": loadCuratedRoute(t.dataset.id); break;
     case "toggle-filter": toggleDiscoverFilter(t.dataset.f); break;
     case "set-discover-mode": state.discoverMode = t.dataset.mode; saveState(); renderList(); break;
+    case "view-all-events": go("events"); break;
+    case "set-event-filter": state.eventFilter = t.dataset.filter; renderList(); break;
+    case "view-event": openModal("eventDetail", {id:t.dataset.id}); break;
+    case "open-event-submission": openModal("eventSubmission"); break;
+    case "submit-event-preview": submitEventPreview(); break;
     case "toggle-hide-chains": state.hideChains = !state.hideChains; saveState(); renderList(); break;
     case "set-start": state.builderChoice.start = t.dataset.n; if(state.builderChoice.destination===t.dataset.n) state.builderChoice.destination=null; state.locationDetected=false; state.builderChoice.startCoords=null; renderList(); break;
     case "use-my-location": tryDetectLocation(true); break;
@@ -2367,6 +2722,11 @@ function handleClick(e){
     case "close-modal": case "close-modal-bg": closeModal(); break;
     case "submit-login": submitLogin(); break;
     case "open-edit-profile": openModal("editProfile"); break;
+    case "open-profile-library": state.profileLibraryTab=t.dataset.tab||"notes"; go("profileLibrary"); break;
+    case "set-profile-library-tab": state.profileLibraryTab=t.dataset.tab; renderList(); break;
+    case "open-visit-note": openModal("visitNote", {storeId:t.dataset.store||""}); break;
+    case "edit-visit-note": openModal("visitNote", {id:t.dataset.id}); break;
+    case "save-visit-note": saveVisitNote(t.dataset.id); break;
     case "submit-edit-profile": submitEditProfile(); break;
     case "submit-find": submitFind(); break;
     case "sign-out": sb.auth.signOut().then(()=>{ state.user=null; loadMyData().then(()=>go("home")); }); break;
@@ -2550,7 +2910,7 @@ async function submitNewPassword(){
   render();
 }
 async function submitLogin(){
-  const mode = state.authMode || "signup";
+  const mode = state.authMode || "signin";
   const email = document.getElementById("login-email").value.trim().toLowerCase();
   const password = document.getElementById("login-password").value;
 
@@ -2642,6 +3002,27 @@ function adminDeletePost(id){
 function submitAdminEvent(id){
   toast("Sales/events editing isn't wired to Supabase yet — add rows to the 'events' table directly for now.");
   closeModal();
+}
+function submitEventPreview(){
+  const title = document.getElementById("es-title")?.value.trim();
+  const startDate = document.getElementById("es-start")?.value;
+  const email = document.getElementById("es-email")?.value.trim();
+  if(!title || !startDate){ toast("Add the event name and start date first."); return; }
+  if(email && !/^\S+@\S+\.\S+$/.test(email)){ toast("Enter a valid email address."); return; }
+  closeModal();
+  toast("Preview complete. Nothing was saved or sent.");
+}
+function saveVisitNote(id){
+  const storeId=document.getElementById("vn-store")?.value;
+  const visitedAt=document.getElementById("vn-date")?.value;
+  const noteText=document.getElementById("vn-text")?.value.trim();
+  if(!storeId || !visitedAt || !noteText){ toast("Choose a store, date, and add your note."); return; }
+  const existing=id?state.visitNotes.find(n=>n.id===id):null;
+  if(existing){ existing.storeId=storeId; existing.visitedAt=visitedAt; existing.text=noteText; }
+  else state.visitNotes.unshift({id:uid("note_"),storeId,visitedAt,text:noteText});
+  closeModal();
+  renderList();
+  toast(existing?"Visit note updated.":"Visit note added for this session.");
 }
 function submitAdminStore(id){
   toast("Store editing isn't wired to Supabase yet — add or edit rows in the Table Editor for now.");
