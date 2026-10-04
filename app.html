@@ -2089,7 +2089,7 @@ function viewRouteResults(){
       <button class="btn btn-primary btn-block" style="margin-bottom:12px" data-action="open-in-maps">Open in Google Maps</button>
       <div style="display:flex;gap:8px">
         <button class="btn btn-outline" style="flex:1" data-action="share-route">${ICONS.share}Share route</button>
-        <button class="btn " style="flex:1;background:var(--sage);color:var(--on-sage);border:2px solid var(--sage)" data-action="save-route">${ICONS.bookmark}${saved?'Saved':'Save route'}</button>
+        <button class="btn ${saved?'btn-primary':'btn-outline'}" style="flex:1" data-action="save-route">${ICONS.bookmark.replace('fill="none"','style="fill:var(--sage)"')}${saved?'Saved':'Save route'}</button>
       </div>
     </div>
   `;
