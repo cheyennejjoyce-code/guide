@@ -2346,6 +2346,9 @@ function viewProfile(){
     <button class="settings-row" style="width:100%;background:none;border:none;text-align:left;color:var(--danger)" data-action="sign-out">
       <span class="sr-left" style="color:var(--danger)">Sign out</span>
     </button>
+    <button class="settings-row" style="width:100%;background:none;border:none;text-align:left" data-action="open-delete-account">
+      <span class="sr-left" style="color:var(--ink-soft);font-size:13px">Delete account</span>
+    </button>
     </div>
   `;
 }
@@ -2492,6 +2495,7 @@ function renderModal(){
   else if(name==="eventDetail") html = eventDetailModal(params);
   else if(name==="eventSubmission") html = eventSubmissionModal();
   else if(name==="verifyEmail") html = verifyEmailModal();
+  else if(name==="deleteAccount") html = deleteAccountModal();
   else if(name==="membership") html = membershipModal();
   else if(name==="report") html = reportModal(params);
   else if(name==="visitNote") html = visitNoteModal(params);
@@ -2911,6 +2915,8 @@ function handleClick(e){
     case "toggle-auth-mode": state.authMode = (state.authMode==="signup"?"signin":"signup"); renderModal(); break;
     case "close-modal": case "close-modal-bg": closeModal(); break;
     case "open-membership": openModal("membership"); break;
+    case "open-delete-account": openModal("deleteAccount"); break;
+    case "confirm-delete-account": deleteMyAccount(); break;
     case "submit-verify-code": submitVerifyCode(); break;
     case "resend-verify-code": if(state.verifyEmail){ sendSignupCode(state.verifyEmail).then(ok=>{ if(ok) toast("New code sent."); }); } break;
     case "verify-use-different-email": state.verifyEmail=null; openModal("login"); state.authMode="signup"; renderModal(); break;
@@ -3201,6 +3207,49 @@ async function submitLogin(){
       return;
     }
     await finishAuth("Signed in as @{u}");
+  }
+}
+function deleteAccountModal(){
+  return `<div class="modal-overlay">
+    <div class="modal-sheet center">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Delete your account?</div>
+      <div class="modal-sub">This permanently deletes your account, profile, posts, photos, comments, likes, saved stores and routes, and visit notes. It can't be undone.</div>
+      ${state.user?.isMember && !state.user?.isAdmin ? `<div style="font-size:12.5px;line-height:1.5;color:var(--body-text);background:var(--cream-card);border-radius:14px;padding:12px 14px;margin-bottom:14px">Deleting your account doesn't cancel an Insider subscription. If you subscribed through the App Store, cancel it in your iPhone's Settings → your name → Subscriptions.</div>` : ""}
+      <div class="form-group"><label>Type DELETE to confirm</label><input type="text" id="delete-confirm" autocapitalize="characters" autocomplete="off" placeholder="DELETE"></div>
+      <button class="btn btn-block" style="background:var(--danger);color:#FFFFFF" data-action="confirm-delete-account">Delete my account</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
+    </div>
+  </div>`;
+}
+let deletingAccount = false;
+async function deleteMyAccount(){
+  if(!state.user || deletingAccount) return;
+  const typed = (document.getElementById("delete-confirm")?.value||"").trim().toUpperCase();
+  if(typed !== "DELETE"){ toast("Type DELETE to confirm."); return; }
+  deletingAccount = true;
+  try{
+    // 1. Remove their uploaded post photos (their own folder only).
+    const folder = state.user.id;
+    for(let round=0; round<20; round++){
+      const { data: files, error: listErr } = await sb.storage.from("post-photos").list(folder, { limit: 100 });
+      if(listErr || !files || !files.length) break;
+      const paths = files.filter(f=>f.name).map(f=>`${folder}/${f.name}`);
+      if(!paths.length) break;
+      const { error: rmErr } = await sb.storage.from("post-photos").remove(paths);
+      if(rmErr){ console.error("photo cleanup failed:", rmErr.message); break; }
+    }
+    // 2. Delete the account; everything else is cleaned up by the database.
+    const { error } = await sb.rpc("delete_my_account");
+    if(error){ console.error("delete account failed:", error.message); toast("Couldn't delete your account — try again."); return; }
+    try{ await sb.auth.signOut(); }catch(e){}
+    state.user = null; state.isAdmin = false; state.events = []; state.posts = []; state.comments = {};
+    closeModal();
+    await loadMyData();
+    toast("Your account has been deleted.");
+    go("home");
+  } finally {
+    deletingAccount = false;
   }
 }
 function verifyEmailModal(){
