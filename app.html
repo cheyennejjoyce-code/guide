@@ -735,7 +735,7 @@ const SAMPLE_USERS = ["mara.thrifts","eastatl.vintage","deej_finds","kudzu.kid",
 // Front-end preview only. No rows are created or changed in Supabase while
 // this is true. Switch this off after the event schema and review workflow
 // have been approved and added to the database.
-const EVENTS_PREVIEW_MODE = true;
+const EVENTS_PREVIEW_MODE = false;
 function previewISODate(daysAhead){
   const d = new Date();
   d.setHours(12,0,0,0);
@@ -1053,6 +1053,9 @@ async function refreshSessionAndProfile(){
     avatarUrl: profile?.avatar_url || "",
     followers:[], following:[] // not shown per your call to drop follower counts — kept as empty for any leftover UI references
   };
+  // Admin status comes from the private admins list in Supabase (not a passcode).
+  const { data: adminFlag } = await sb.rpc("is_admin");
+  state.user.isAdmin = !!adminFlag;
 }
 async function loadStores(){
   const { data, error } = await sb.from("stores").select("*");
@@ -2456,7 +2459,7 @@ function eventSubmissionModal(){
     <div class="modal-sheet">
       <div class="modal-handle"></div>
       <div class="modal-title">Submit an event</div>
-      <div class="modal-sub">Preview the in-app submission flow. Nothing will be saved or sent until you approve the Supabase setup.</div>
+      <div class="modal-sub">${state.user && state.user.isAdmin ? "You're an admin, so this will go live right away." : "Submissions are reviewed before they appear on the Events page."}</div>
       <div class="form-group"><label>Event name</label><input type="text" id="es-title" placeholder="Atlanta Vintage Market"></div>
       <div class="form-group"><label>Event type</label><select id="es-type"><option>Vintage Market</option><option>Flea Market</option><option>Clothing Swap</option><option>Estate Sale</option><option>Store Sale</option><option>Other</option></select></div>
       <div class="form-row">
@@ -2472,7 +2475,7 @@ function eventSubmissionModal(){
       <div class="form-group"><label>Official link</label><input type="url" id="es-url" placeholder="https://"></div>
       <div class="form-group"><label>Details</label><textarea id="es-details" placeholder="What should people know?"></textarea></div>
       <div class="form-group"><label>Your email</label><input type="email" id="es-email" placeholder="For review questions only"></div>
-      <button class="btn btn-royal btn-block" data-action="submit-event-preview">Preview submission</button>
+      <button class="btn btn-royal btn-block" data-action="submit-event-preview">${state.user && state.user.isAdmin ? "Publish event" : "Submit for review"}</button>
       <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
     </div>
   </div>`;
@@ -2686,7 +2689,7 @@ function handleClick(e){
     case "view-all-events": go("events"); break;
     case "set-event-filter": state.eventFilter = t.dataset.filter; renderList(); break;
     case "view-event": openModal("eventDetail", {id:t.dataset.id}); break;
-    case "open-event-submission": openModal("eventSubmission"); break;
+    case "open-event-submission": requireAuth(()=>openModal("eventSubmission")); break;
     case "submit-event-preview": submitEventPreview(); break;
     case "toggle-hide-chains": state.hideChains = !state.hideChains; saveState(); renderList(); break;
     case "set-start": state.builderChoice.start = t.dataset.n; if(state.builderChoice.destination===t.dataset.n) state.builderChoice.destination=null; state.locationDetected=false; state.builderChoice.startCoords=null; renderList(); break;
@@ -3003,14 +3006,37 @@ function submitAdminEvent(id){
   toast("Sales/events editing isn't wired to Supabase yet — add rows to the 'events' table directly for now.");
   closeModal();
 }
-function submitEventPreview(){
-  const title = document.getElementById("es-title")?.value.trim();
-  const startDate = document.getElementById("es-start")?.value;
-  const email = document.getElementById("es-email")?.value.trim();
+async function submitEventPreview(){
+  if(!state.user){ requireAuth(()=>openModal("eventSubmission")); return; }
+  const val = id => (document.getElementById(id)?.value || "").trim();
+  const title = val("es-title");
+  const startDate = val("es-start");
+  const endDate = val("es-end") || startDate;
+  const email = val("es-email");
   if(!title || !startDate){ toast("Add the event name and start date first."); return; }
+  if(endDate < startDate){ toast("The end date can't be before the start date."); return; }
   if(email && !/^\S+@\S+\.\S+$/.test(email)){ toast("Enter a valid email address."); return; }
+  const isAdmin = !!state.user.isAdmin;
+  const row = {
+    title, start_date:startDate, end_date:endDate,
+    start_time: val("es-start-time") || null, end_time: val("es-end-time") || null,
+    event_type: val("es-type") || null, venue: val("es-venue") || null,
+    address: val("es-address") || null, source_url: val("es-url") || null,
+    description: val("es-details") || null,
+    submitter_email: email || state.user.email || null,
+    submitted_by: state.user.id, is_sample: false,
+    status: isAdmin ? "published" : "pending"
+  };
+  const { error } = await sb.from("events").insert(row);
+  if(error){ console.error("submitEvent failed:", error.message); toast("Couldn't submit that event — try again."); return; }
   closeModal();
-  toast("Preview complete. Nothing was saved or sent.");
+  if(isAdmin){
+    await loadEvents();
+    renderList();
+    toast("Event published.");
+  } else {
+    toast("Thanks! Your event was sent for review.");
+  }
 }
 function saveVisitNote(id){
   const storeId=document.getElementById("vn-store")?.value;
