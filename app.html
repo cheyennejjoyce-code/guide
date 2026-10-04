@@ -1358,8 +1358,8 @@ const GATED_TAB_INFO = {
   discover: {tier:"Account", title:"Browse every store", body:()=>`Search and filter all ${state.stores.filter(s=>!s.chain).length || ""} vetted thrift and antique stores by neighborhood, category, and price. See hours, insider tips, and what each store is best for.`},
   route: {tier:"Account", title:"Build your own route", body:()=>"Choose where you're starting, what you're hunting for, and how much time you have. We'll plan an efficient route through the best stores, with travel times and directions in Google Maps."},
   community: {tier:"Account", title:"Join the community", body:()=>"See what Atlanta thrifters are finding, share your own finds, and swap tips on where to shop."},
-  events: {tier:"Membership", title:"Curated Atlanta events", body:()=>"Vintage markets, clothing swaps, estate sales, and special store events, hunted down by 2nd Studio so you don't have to. Included with membership."},
-  saved: {tier:"Membership", title:"Save your favorites", body:()=>"Keep your favorite stores and routes in one place for your next trip. Included with membership."},
+  events: {tier:"Membership", title:"Curated Atlanta events", body:()=>"Vintage markets, clothing swaps, estate sales, and special store events, hunted down by 2nd Studio so you don't have to. Included with ATL Guide Insider."},
+  saved: {tier:"Membership", title:"Save your favorites", body:()=>"Keep your favorite stores and routes in one place for your next trip. Included with ATL Guide Insider."},
   profile: {tier:"Account", title:"Your thrift profile", body:()=>"Set up your profile, track the stores you've visited, and keep private notes on each one."},
   profileLibrary: {tier:"Account", title:"Your thrift profile", body:()=>"Set up your profile, track the stores you've visited, and keep private notes on each one."}
 };
@@ -2485,6 +2485,7 @@ function renderModal(){
   else if(name==="adminEventForm") html = adminEventFormModal(params);
   else if(name==="eventDetail") html = eventDetailModal(params);
   else if(name==="eventSubmission") html = eventSubmissionModal();
+  else if(name==="verifyEmail") html = verifyEmailModal();
   else if(name==="membership") html = membershipModal();
   else if(name==="report") html = reportModal(params);
   else if(name==="visitNote") html = visitNoteModal(params);
@@ -2540,25 +2541,44 @@ function eventDetailModal(params){
 
 function memberEventsInvite(){
   return `<div class="events-submit-card" style="margin-bottom:28px">
-    <h3>Curated events are for members</h3>
-    <p>We hunt down Atlanta's markets, swaps, and estate sales so you don't have to. Members also save stores and routes for later.</p>
-    <button class="btn" data-action="open-membership">See membership</button>
+    <h3>Curated events are for Insiders</h3>
+    <p>We hunt down Atlanta's markets, swaps, and estate sales so you don't have to. ATL Guide Insiders also save stores and routes for later.</p>
+    <button class="btn" data-action="open-membership">See Insider perks</button>
     <button class="see-all" style="display:block;margin-top:12px;color:var(--cream)" data-action="open-event-submission">Know about an event? Submit it</button>
   </div>`;
 }
 function membershipModal(){
+  const row = (label, member, insider) => `<tr>
+    <td style="padding:10px 6px 10px 0;border-bottom:1px solid var(--line);font-size:13.5px;color:var(--body-text)">${label}</td>
+    <td style="padding:10px 6px;border-bottom:1px solid var(--line);text-align:center;font-size:15px;color:${member?'var(--ink)':'var(--line-strong)'}">${member?'✓':'–'}</td>
+    <td style="padding:10px 0 10px 6px;border-bottom:1px solid var(--line);text-align:center;font-size:15px;font-weight:700;color:var(--royal)">✓</td>
+  </tr>`;
+  const isMember = !!state.user;
   return `<div class="modal-overlay">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
-      <div class="modal-title">Become a member</div>
-      <div class="modal-sub">Everything in your account, plus:</div>
-      <div style="font-size:14px;line-height:1.7;color:var(--body-text);margin-bottom:16px">
-        • Curated Atlanta events: markets, swaps, and estate sales<br>
-        • Save your favorite stores<br>
-        • Save routes for your next trip
+      <div class="modal-title">Become an ATL Guide Insider</div>
+      <div class="modal-sub">${isMember ? "You're an ATL Guide Member. Here's what Insiders get:" : "Here's what each membership includes:"}</div>
+      <div style="overflow-x:auto;margin-bottom:18px">
+        <table style="width:100%;border-collapse:collapse">
+          <thead><tr>
+            <th style="text-align:left;padding:0 6px 8px 0"></th>
+            <th style="padding:0 6px 8px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);font-weight:500;text-align:center">Member</th>
+            <th style="padding:0 0 8px 6px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--royal);font-weight:500;text-align:center">Insider</th>
+          </tr></thead>
+          <tbody>
+            ${row("Browse every store", true)}
+            ${row("Build your own routes", true)}
+            ${row("Community finds and posts", true)}
+            ${row("Submit events", true)}
+            ${row("<b>Curated Atlanta events</b>", false)}
+            ${row("<b>Save favorite stores</b>", false)}
+            ${row("<b>Save routes for later</b>", false)}
+          </tbody>
+        </table>
       </div>
-      <div style="font-family:var(--font-display);font-size:22px;color:var(--ink);margin-bottom:4px">$7/month or $60/year</div>
-      <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:18px">Memberships are opening soon, with a 3-day free trial and founding-member pricing for early supporters.</div>
+      <div style="font-family:var(--font-display);font-size:22px;color:var(--ink);margin-bottom:4px">Insider: $7/month or $60/year</div>
+      <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:18px">Insider memberships are opening soon, with a 3-day free trial and founding-member pricing for early supporters.</div>
       <button class="btn btn-royal btn-block" data-action="close-modal">Got it</button>
     </div>
   </div>`;
@@ -2645,8 +2665,8 @@ function loginModal(){
     <div class="modal-sheet center">
       <div class="modal-handle"></div>
       <div class="modal-title">${mode==='signup' ? 'Create your account' : 'Sign in'}</div>
-      <div class="modal-sub">${mode==='signup' ? "Password needs 8+ characters, at least one number, and one special character. Usernames and emails must be unique." : "Welcome back."}</div>
-      ${mode==='signup' ? `<div class="form-group"><label>Username</label><input type="text" id="login-username" placeholder="yourusername"></div>` : ''}
+      <div class="modal-sub">${mode==='signup' ? "Password needs 8+ characters, at least one number, and one special character. We'll email you a code to confirm your email." : "Welcome back."}</div>
+      ${mode==='signup' ? `<div class="form-group"><label>Username</label><input type="text" id="login-username" placeholder="yourusername" autocapitalize="none" autocomplete="username" maxlength="20"><div id="login-username-hint" style="font-size:12px;margin-top:6px;min-height:16px;color:var(--ink-soft)">3–20 characters: letters, numbers, periods, or underscores.</div></div>` : ''}
       <div class="form-group"><label>Email</label><input type="email" id="login-email" placeholder="you@email.com"></div>
       <div class="form-group"><label>Password</label><input type="password" id="login-password" placeholder="••••••••"></div>
       <button class="btn btn-royal btn-block" data-action="submit-login">${mode==='signup' ? 'Create account' : 'Sign in'}</button>
@@ -2885,6 +2905,9 @@ function handleClick(e){
     case "toggle-auth-mode": state.authMode = (state.authMode==="signup"?"signin":"signup"); renderModal(); break;
     case "close-modal": case "close-modal-bg": closeModal(); break;
     case "open-membership": openModal("membership"); break;
+    case "submit-verify-code": submitVerifyCode(); break;
+    case "resend-verify-code": if(state.verifyEmail){ sendSignupCode(state.verifyEmail).then(ok=>{ if(ok) toast("New code sent."); }); } break;
+    case "verify-use-different-email": state.verifyEmail=null; openModal("login"); state.authMode="signup"; renderModal(); break;
     case "open-report": requireAuth(()=>openModal("report",{type:t.dataset.type, id:t.dataset.id})); break;
     case "submit-report": submitReport(t.dataset.type, t.dataset.id); break;
     case "admin-remove-post": adminRemovePost(t.dataset.id); break;
@@ -3078,48 +3101,108 @@ async function submitNewPassword(){
   toast("Password updated — you're signed in.");
   render();
 }
+const USERNAME_RULE = /^[a-z0-9._]{3,20}$/;
+function cleanUsername(raw){ return (raw||"").trim().replace(/\s+/g,"").toLowerCase(); }
+let usernameCheckTimer = null;
+function onUsernameInput(){
+  const hint = document.getElementById("login-username-hint");
+  const name = cleanUsername(document.getElementById("login-username")?.value);
+  if(!hint) return;
+  clearTimeout(usernameCheckTimer);
+  if(!name){ hint.style.color="var(--ink-soft)"; hint.textContent="3–20 characters: letters, numbers, periods, or underscores."; return; }
+  if(!USERNAME_RULE.test(name)){ hint.style.color="var(--danger)"; hint.textContent="Use 3–20 letters, numbers, periods, or underscores."; return; }
+  hint.style.color="var(--ink-soft)"; hint.textContent="Checking…";
+  usernameCheckTimer = setTimeout(async ()=>{
+    const { data: taken, error } = await sb.rpc("username_taken", { name });
+    const current = cleanUsername(document.getElementById("login-username")?.value);
+    if(current !== name) return; // they kept typing
+    if(error){ hint.style.color="var(--ink-soft)"; hint.textContent=""; return; }
+    hint.style.color = taken ? "var(--danger)" : "var(--ink)";
+    hint.textContent = taken ? "✕ @"+name+" is already taken." : "✓ @"+name+" is available.";
+  }, 400);
+}
+async function finishAuth(message){
+  await refreshSessionAndProfile();
+  await Promise.all([loadMyData(), loadEvents(), loadPosts()]);
+  closeModal();
+  const pending = state.pendingAction;
+  state.pendingAction = null;
+  toast(message.replace("{u}", state.user?.username||""));
+  render();
+  if(pending) pending();
+}
+async function sendSignupCode(email){
+  const { error } = await sb.auth.resend({ type:"signup", email });
+  if(error){ console.error("resend failed:", error.message); toast("Couldn't send a code right now — wait a minute and try again."); return false; }
+  return true;
+}
 async function submitLogin(){
   const mode = state.authMode || "signin";
   const email = document.getElementById("login-email").value.trim().toLowerCase();
   const password = document.getElementById("login-password").value;
 
   if(mode === "signup"){
-    const unameRaw = document.getElementById("login-username").value.trim();
-    const username = unameRaw.replace(/\s+/g,'').toLowerCase();
+    const username = cleanUsername(document.getElementById("login-username").value);
     if(!username || !email || !password){ toast("Fill in username, email, and password."); return; }
+    if(!USERNAME_RULE.test(username)){ toast("Usernames are 3–20 letters, numbers, periods, or underscores."); return; }
+    if(!/^\S+@\S+\.\S+$/.test(email)){ toast("Enter a valid email address."); return; }
     const pwError = validatePassword(password);
     if(pwError){ toast(pwError); return; }
     const { data: taken } = await sb.rpc("username_taken", { name: username });
     if(taken){ toast("That username is already taken."); return; }
     const { data, error } = await sb.auth.signUp({ email, password, options:{ data:{ username } } });
-    if(error){
-      // Supabase's own message ("User already registered", etc.) is
-      // clearer than anything we'd write ourselves here.
-      toast(error.message);
+    if(error){ toast(error.message); return; }
+    if(data && data.session){
+      // Email confirmation is switched off in Supabase, so they're in right away.
+      await finishAuth("Account created — welcome, @{u}!");
       return;
     }
-    await refreshSessionAndProfile();
-    await Promise.all([loadMyData(), loadEvents(), loadPosts()]);
-    closeModal();
-    const pending = state.pendingAction;
-    state.pendingAction = null;
-    toast("Account created — welcome, @"+(state.user?.username||username)+"!");
-    render();
-    if(pending) pending();
+    // Email confirmation is on: they need the code we just emailed.
+    state.verifyEmail = email;
+    openModal("verifyEmail");
   } else {
     if(!email || !password){ toast("Enter your email and password."); return; }
     const { error } = await sb.auth.signInWithPassword({ email, password });
-    if(error){ toast("Incorrect email or password."); return; }
-    await refreshSessionAndProfile();
-    await Promise.all([loadMyData(), loadEvents(), loadPosts()]);
-    closeModal();
-    const pending = state.pendingAction;
-    state.pendingAction = null;
-    toast("Signed in as @"+state.user.username);
-    render();
-    if(pending) pending();
+    if(error){
+      if(/confirm/i.test(error.message)){
+        state.verifyEmail = email;
+        await sendSignupCode(email);
+        openModal("verifyEmail");
+        toast("Confirm your email first — we sent you a new code.");
+        return;
+      }
+      toast("Incorrect email or password.");
+      return;
+    }
+    await finishAuth("Signed in as @{u}");
   }
 }
+function verifyEmailModal(){
+  const email = escapeHtml(state.verifyEmail||"");
+  return `<div class="modal-overlay">
+    <div class="modal-sheet center">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Check your email</div>
+      <div class="modal-sub">We sent a code to <b>${email}</b>. Enter it below to finish creating your account. It can take a minute to arrive, so check your spam folder too.</div>
+      <div class="form-group"><label>Code</label><input type="text" id="verify-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="123456" style="letter-spacing:.3em;font-size:20px;text-align:center"></div>
+      <button class="btn btn-royal btn-block" data-action="submit-verify-code">Confirm email</button>
+      <button class="link-btn" style="display:block;margin:12px auto 0" data-action="resend-verify-code">Send a new code</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="verify-use-different-email">Use a different email</button>
+    </div>
+  </div>`;
+}
+async function submitVerifyCode(){
+  const token = (document.getElementById("verify-code")?.value||"").replace(/\s+/g,"");
+  const email = state.verifyEmail;
+  if(!email){ openModal("login"); state.authMode="signup"; renderModal(); return; }
+  if(!/^\d{6,10}$/.test(token)){ toast("Enter the code from your email."); return; }
+  let { error } = await sb.auth.verifyOtp({ email, token, type:"email" });
+  if(error){ ({ error } = await sb.auth.verifyOtp({ email, token, type:"signup" })); }
+  if(error){ toast("That code didn't work. Check it, or send a new one."); return; }
+  state.verifyEmail = null;
+  await finishAuth("Email confirmed — welcome, @{u}!");
+}
+
 async function submitEditProfile(){
   const bio = document.getElementById("ep-bio").value;
   const favCategory = document.getElementById("ep-cat").value;
@@ -3284,6 +3367,10 @@ function submitAdminStore(id){
 document.body.addEventListener("click", handleClick);
 
 function attachModalHandlers(){
+  const unameInput = document.getElementById("login-username");
+  if(unameInput) unameInput.addEventListener("input", onUsernameInput);
+  const codeInput = document.getElementById("verify-code");
+  if(codeInput) codeInput.addEventListener("keydown", e=>{ if(e.key==="Enter") submitVerifyCode(); });
   const flyerInput = document.getElementById("es-flyer");
   if(flyerInput){
     flyerInput.addEventListener("change", async e=>{
