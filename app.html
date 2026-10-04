@@ -3156,6 +3156,16 @@ async function submitLogin(){
     if(pwError){ toast(pwError); return; }
     const { data: taken } = await sb.rpc("username_taken", { name: username });
     if(taken){ toast("That username is already taken."); return; }
+    // Check the email up front so people aren't sent to a code that never comes.
+    const { data: emailUsed } = await sb.rpc("email_registered", { addr: email });
+    if(emailUsed){
+      state.authMode = "signin";
+      renderModal();
+      const emailField = document.getElementById("login-email");
+      if(emailField) emailField.value = email;
+      toast("An account with this email already exists. Sign in instead.");
+      return;
+    }
     const { data, error } = await sb.auth.signUp({ email, password, options:{ data:{ username } } });
     if(error){ toast(error.message); return; }
     // Supabase quietly "succeeds" for an email that already has an account
