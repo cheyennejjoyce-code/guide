@@ -1904,7 +1904,7 @@ function viewRouteBuilder(){
         <button data-action="clear-destination-address" style="border:1.5px solid rgba(255,255,255,.45);background:transparent;color:var(--cream);font-family:'DM Mono',monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding:9px 12px;border-radius:99px;flex-shrink:0">Clear</button>
       </div>` : ''}
       <div class="chip-grid-scroll gold" style="margin-bottom:22px">
-        <button class="chip ${!c.destination?'active':''}" data-action="set-destination" data-n="">No preference</button>
+        <button class="chip ${!c.destination && !c.destinationAddress?'active':''}" data-action="set-destination" data-n="">No preference</button>
         ${Object.keys(NEIGHBORHOODS).filter(n=>n!==c.start).map(n=>`<button class="chip ${c.destination===n?'active':''}" data-action="set-destination" data-n="${n}">${n}</button>`).join("")}
       </div>
     `;
