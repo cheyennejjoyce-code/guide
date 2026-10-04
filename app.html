@@ -2298,6 +2298,7 @@ function viewProfile(){
       <div class="profile-avatar">${state.user.avatarUrl ? `<img src="${state.user.avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : initials(u.username)}</div>
       <h2>@${u.username}</h2>
       <div class="pmeta">${u.neighborhood||'Atlanta'} · Loves ${u.favCategory||'thrifting'}</div>
+      <div style="margin:8px 0 4px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;padding:5px 11px;border-radius:99px;display:inline-block;${u.isMember ? 'background:var(--gold);color:#221D24' : 'background:var(--cream-card);color:var(--ink-soft);border:1px solid var(--line)'}">${u.isMember ? 'ATL Guide Insider' : 'ATL Guide Member'}</div>
       ${u.bio ? `<p style="font-size:13px;color:var(--ink-soft);max-width:280px">${u.bio}</p>` : ''}
       <div class="profile-stats">
         <div><div class="pnum gold">${myPosts.length}</div><div class="plbl">finds</div></div>
@@ -2313,6 +2314,11 @@ function viewProfile(){
         </div>
       </div>
     </div>
+    ${u.isMember ? "" : `<div class="events-submit-card" style="margin:6px 0 22px">
+      <h3>Upgrade to Insider</h3>
+      <p>Get curated Atlanta events, and save your favorite stores and routes for your next trip.</p>
+      <button class="btn" data-action="open-membership">See Insider perks</button>
+    </div>`}
     <div class="profile-shortcuts">
       <button class="profile-shortcut" data-action="open-profile-library" data-tab="notes">${ICONS.edit}<span><span class="ps-title">Visit Notes</span><span class="ps-count">${state.visitNotes.length} ${state.visitNotes.length===1?'note':'notes'}</span></span></button>
       <button class="profile-shortcut" data-action="open-profile-library" data-tab="stores">${ICONS.bookmark}<span><span class="ps-title">Saved Shops</span><span class="ps-count">${state.savedStoreIds.length} ${state.savedStoreIds.length===1?'shop':'shops'}</span></span></button>
@@ -3152,6 +3158,16 @@ async function submitLogin(){
     if(taken){ toast("That username is already taken."); return; }
     const { data, error } = await sb.auth.signUp({ email, password, options:{ data:{ username } } });
     if(error){ toast(error.message); return; }
+    // Supabase quietly "succeeds" for an email that already has an account
+    // (it returns a user with no identities). Tell them and switch to sign in.
+    if(data && data.user && Array.isArray(data.user.identities) && data.user.identities.length === 0){
+      state.authMode = "signin";
+      renderModal();
+      const emailField = document.getElementById("login-email");
+      if(emailField) emailField.value = email;
+      toast("An account with this email already exists. Sign in instead.");
+      return;
+    }
     if(data && data.session){
       // Email confirmation is switched off in Supabase, so they're in right away.
       await finishAuth("Account created — welcome, @{u}!");
