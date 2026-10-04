@@ -2334,9 +2334,9 @@ function viewProfile(){
       <button class="settings-row" style="width:100%;background:none;border:none;text-align:left" data-action="open-edit-profile">
         <span class="sr-left">${ICONS.edit}Edit profile</span>${ICONS.chevronR}
       </button>
-    <button class="settings-row" style="width:100%;background:none;border:none;text-align:left" data-action="nav" data-view="admin">
+    ${state.isAdmin ? `<button class="settings-row" style="width:100%;background:none;border:none;text-align:left" data-action="nav" data-view="admin">
       <span class="sr-left">${ICONS.shield}2nd Studio admin</span>${ICONS.chevronR}
-    </button>
+    </button>` : ""}
     <button class="settings-row" style="width:100%;background:none;border:none;text-align:left;color:var(--danger)" data-action="sign-out">
       <span class="sr-left" style="color:var(--danger)">Sign out</span>
     </button>
