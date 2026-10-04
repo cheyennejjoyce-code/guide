@@ -1053,9 +1053,12 @@ async function refreshSessionAndProfile(){
     avatarUrl: profile?.avatar_url || "",
     followers:[], following:[] // not shown per your call to drop follower counts — kept as empty for any leftover UI references
   };
-  // Admin status comes from the private admins list in Supabase (not a passcode).
-  const { data: adminFlag } = await sb.rpc("is_admin");
+  // Admin and membership status come from private lists in Supabase,
+  // which only the database can change (no passcodes in the app).
+  const [{ data: adminFlag }, { data: memberFlag }] = await Promise.all([sb.rpc("is_admin"), sb.rpc("is_member")]);
   state.user.isAdmin = !!adminFlag;
+  state.user.isMember = !!memberFlag || !!adminFlag;
+  state.isAdmin = state.user.isAdmin;
 }
 async function loadStores(){
   const { data, error } = await sb.from("stores").select("*");
@@ -1065,27 +1068,34 @@ async function loadStores(){
 async function loadEvents(){
   const { data, error } = await sb.from("events").select("*").order("created_at",{ascending:false});
   if(error){ console.error("loadEvents failed:", error.message); state.events = []; return; }
+  // Event text comes from members now, so it's made HTML-safe here, once,
+  // before any screen displays it. Links must be real web addresses.
+  const safe = v => v==null ? v : escapeHtml(v);
+  const safeUrl = v => (v && /^https?:\/\//i.test(v)) ? escapeHtml(v) : null;
   state.events = data.map(e=>({
-    id:e.id, title:e.title, linkedStoreId:e.linked_store_id, dateLabel:e.date_label,
+    id:e.id, title:safe(e.title), linkedStoreId:e.linked_store_id, dateLabel:safe(e.date_label),
     startDate:e.start_date, endDate:e.end_date, startTime:e.start_time, endTime:e.end_time,
-    venue:e.venue, address:e.address, sourceUrl:e.source_url, eventType:e.event_type,
-    priceLabel:e.price_label, status:e.status, description:e.description, isSample:e.is_sample
+    venue:safe(e.venue), address:safe(e.address), sourceUrl:safeUrl(e.source_url), eventType:safe(e.event_type),
+    priceLabel:safe(e.price_label), status:e.status, description:safe(e.description), isSample:e.is_sample,
+    flyerUrl:safeUrl(e.flyer_url), submitterRole:e.submitter_role
   }));
 }
 async function loadPosts(){
-  const { data, error } = await sb.from("posts").select("*, profiles(username)").order("created_at",{ascending:false});
+  const { data, error } = await sb.from("posts").select("*, profiles!posts_user_id_fkey(username)").order("created_at",{ascending:false});
   if(error){ console.error("loadPosts failed:", error.message); state.posts = []; return; }
+  // Posts are written by members, so their text is made HTML-safe here,
+  // and photos must be real images (no sneaky links).
   state.posts = data.map(p=>({
-    id:p.id, user:p.profiles?.username||"unknown", userId:p.user_id, item:p.item, store:p.store_id,
-    price:p.price, category:p.category, caption:p.caption, photoDataUrl:p.photo_url,
+    id:p.id, user:escapeHtml(p.profiles?.username||"unknown"), userId:p.user_id, item:escapeHtml(p.item), store:p.store_id,
+    price:Number(p.price)||0, category:escapeHtml(p.category), caption:p.caption?escapeHtml(p.caption):"", photoDataUrl:safeImageSrc(p.photo_url),
     date:(p.created_at||"").slice(0,10)
   }));
   const { data: likeRows } = await sb.from("post_likes").select("post_id,user_id");
   state.likes = {};
   (likeRows||[]).forEach(r=>{ (state.likes[r.post_id] = state.likes[r.post_id]||[]).push(r.user_id); });
-  const { data: commentRows } = await sb.from("comments").select("*, profiles(username)").order("created_at",{ascending:true});
+  const { data: commentRows } = await sb.from("comments").select("*, profiles!comments_user_id_fkey(username)").order("created_at",{ascending:true});
   state.comments = {};
-  (commentRows||[]).forEach(c=>{ (state.comments[c.post_id] = state.comments[c.post_id]||[]).push({user:c.profiles?.username||"unknown", text:c.text}); });
+  (commentRows||[]).forEach(c=>{ (state.comments[c.post_id] = state.comments[c.post_id]||[]).push({user:escapeHtml(c.profiles?.username||"unknown"), text:escapeHtml(c.text)}); });
 }
 async function loadMyData(){
   // Vote and follow counts are public — everyone browsing should see them,
@@ -1185,6 +1195,7 @@ async function toggleSaveStore(id){
       await sb.from("saved_stores").delete().eq("user_id",state.user.id).eq("store_id",id);
       state.savedStoreIds = state.savedStoreIds.filter(x=>x!==id);
     } else {
+      if(!state.user.isMember){ openModal("membership"); return; }
       const { error } = await sb.from("saved_stores").insert({user_id:state.user.id, store_id:id});
       if(error){ toast("Couldn't save that — try again."); return; }
       state.savedStoreIds.push(id);
@@ -1286,7 +1297,7 @@ function getStoreById(id){ return state.stores.find(s=>s.id===id); }
 
 let activeModal = null;
 let pendingAvatarData = null;
-let pendingFindPhotoData = null;
+let pendingFindPhotoData = null; // now holds a re-encoded image file (no hidden location data)
 function postPhotoHtml(post){
   if(post.photoDataUrl) return `<img src="${post.photoDataUrl}" style="width:100%;height:100%;object-fit:cover;display:block">`;
   return postArt(post);
@@ -1338,7 +1349,32 @@ function navItem(view, icon, label){
   return `<button class="nav-item ${active?'active':''}" data-action="nav" data-view="${view}" aria-label="${label}"${active?' aria-current="page"':''}>${ICONS[icon]||''}<span class="sr-only">${label}</span></button>`;
 }
 
+// Signed-out visitors can only see the home page (nearby stores and
+// curated routes), plus the store pages and curated routes they open from it.
+const PUBLIC_VIEWS = ["home","storeDetail","routeResults"];
+// What signed-out visitors see on each members-only tab, so they know
+// exactly what they're missing.
+const GATED_TAB_INFO = {
+  discover: {tier:"Account", title:"Browse every store", body:()=>`Search and filter all ${state.stores.filter(s=>!s.chain).length || ""} vetted thrift and antique stores by neighborhood, category, and price. See hours, insider tips, and what each store is best for.`},
+  route: {tier:"Account", title:"Build your own route", body:()=>"Choose where you're starting, what you're hunting for, and how much time you have. We'll plan an efficient route through the best stores, with travel times and directions in Google Maps."},
+  community: {tier:"Account", title:"Join the community", body:()=>"See what Atlanta thrifters are finding, share your own finds, and swap tips on where to shop."},
+  events: {tier:"Membership", title:"Curated Atlanta events", body:()=>"Vintage markets, clothing swaps, estate sales, and special store events, hunted down by 2nd Studio so you don't have to. Included with membership."},
+  saved: {tier:"Membership", title:"Save your favorites", body:()=>"Keep your favorite stores and routes in one place for your next trip. Included with membership."},
+  profile: {tier:"Account", title:"Your thrift profile", body:()=>"Set up your profile, track the stores you've visited, and keep private notes on each one."},
+  profileLibrary: {tier:"Account", title:"Your thrift profile", body:()=>"Set up your profile, track the stores you've visited, and keep private notes on each one."}
+};
+function viewSignInRequired(){
+  const info = GATED_TAB_INFO[state.view] || {tier:"Account", title:"Members only", body:()=>"Create an account to browse every store, build your own routes, and join the community."};
+  const paid = info.tier === "Membership";
+  return `<div class="empty-state" style="margin-top:60px">
+    <h2 style="font-family:var(--font-display);font-size:36px;line-height:1.05;letter-spacing:-.02em;color:var(--ink);margin:0 0 14px">Members only</h2>
+    <div style="font-family:var(--font-body);font-size:12.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:800;color:var(--royal);margin-bottom:8px">${info.title}</div>
+    <p>${info.body()}</p>
+    <button class="btn btn-royal" style="margin-top:16px" data-action="open-signup">Create account</button>
+  </div>`;
+}
 function renderView(){
+  if(!state.user && !PUBLIC_VIEWS.includes(state.view)) return viewSignInRequired();
   switch(state.view){
     case "home": return viewHome();
     case "discover": return viewDiscover();
@@ -1399,22 +1435,27 @@ function viewHome(){
         <h1>A better way<br>to discover.</h1>
         <p class="sub">A discovery and route planning guide to Atlanta's ${independentCount} vetted independent thrift and antique stores.</p>
       </div>
-      <div class="hero-btns" style="margin-bottom:32px">
+      ${state.user ? `<div class="hero-btns" style="margin-bottom:32px">
         <button class="btn btn-primary" style="flex:1;justify-content:center;padding:17px 20px" data-action="nav" data-view="route">Build a route</button>
         <button class="btn btn-secondary-hero" style="padding:15px 20px" data-action="nav" data-view="discover">Browse</button>
-      </div>
+      </div>` : `<div style="margin-bottom:24px"></div>`}
 
       <div class="section" style="margin-top:0">
-        <div class="section-head"><h2>${openNow.length?'Open now near you':'Featured shops'}</h2><button class="see-all" data-action="nav" data-view="discover">See all</button></div>
+        <div class="section-head"><h2>${openNow.length?'Open now near you':'Featured shops'}</h2>${state.user?`<button class="see-all" data-action="nav" data-view="discover">See all</button>`:""}</div>
         <div class="hscroll">${displayStores.map(s=>homeStoreCard(s)).join("")}</div>
       </div>
 
-      <div class="events-section">
+      ${state.user && !state.user.isMember ? memberEventsInvite() : ""}
+      ${state.user && state.user.isMember ? `<div class="events-section">
         <div class="section-head"><h2>Upcoming in ATL</h2><button class="see-all" data-action="view-all-events">See all</button></div>
         ${EVENTS_PREVIEW_MODE?`<div class="preview-note">Preview only. Supabase is unchanged.</div>`:""}
         ${upcomingEvents.length?`<div class="hscroll">${upcomingEvents.slice(0,4).map(saleCard).join("")}</div>`:`<div class="empty-state" style="padding:24px 12px"><h3>Events are coming soon</h3><p>Know about one? Send it for review.</p></div>`}
         <div class="events-actions"><p>Markets, swaps, estate sales, and special store events.</p><button class="see-all" data-action="open-event-submission">Submit an event</button></div>
-      </div>
+      </div>` : (!state.user ? `<div class="events-submit-card" style="margin-bottom:28px">
+        <h3>Your thrift trip starts here</h3>
+        <p>Create an account to browse every store, build your own routes, join the community, and get curated local events.</p>
+        <button class="btn" data-action="open-signup">Create account</button>
+      </div>` : "")}
 
       <div class="section">
         <div class="section-head"><h2>Routes curated by 2nd Studio</h2></div>
@@ -1596,6 +1637,7 @@ function eventListCard(ev){
 }
 
 function viewEvents(){
+  if(!state.user.isMember) return `<div class="events-page" style="margin-top:20px">${memberEventsInvite()}</div>`;
   const allEvents = getUpcomingEvents();
   const filtered = filterEvents(allEvents,state.eventFilter||"All");
   const filters = ["All","This weekend","Markets","Sales","Swaps"];
@@ -1686,7 +1728,7 @@ function loadGoogleMapsScript(){
     if(el) el.outerHTML = fallbackStylizedMap(__pendingMapStores || []);
     return;
   }
-  window.__onGoogleMapsReady = function(){ renderGoogleMapIfNeeded(); initDestinationAutocomplete(); };
+  window.__onGoogleMapsReady = function(){ renderGoogleMapIfNeeded(); initDestinationAutocomplete(); initEventAddressAutocomplete(); };
   // Google's official hook for exactly the "key exists but won't
   // authenticate" case — bad restriction, API not enabled, billing not
   // active, etc. Without this, Google silently overwrites our map div with
@@ -1789,6 +1831,42 @@ async function initDestinationAutocomplete(){
   });
 }
 
+// Same Google address search as the route builder, used on the
+// "Submit an event" form. If Google can't load, the plain text box that
+// was there first simply stays, so people can still type an address.
+async function initEventAddressAutocomplete(){
+  const container = document.getElementById("es-address-container");
+  if(!container || container.dataset.ready) return;
+  if(!(window.google && window.google.maps)){ loadGoogleMapsScript(); return; }
+  let PlaceAutocompleteElement;
+  try{
+    PlaceAutocompleteElement = (google.maps.places && google.maps.places.PlaceAutocompleteElement)
+      || (await google.maps.importLibrary("places")).PlaceAutocompleteElement;
+  }catch(e){ return; }
+  const ac = new PlaceAutocompleteElement({
+    locationBias: {north:34.25, south:33.55, east:-83.95, west:-84.75},
+    includedRegionCodes: ["us"]
+  });
+  ac.style.width = "100%";
+  ac.style.border = "1px solid var(--line-strong)";
+  ac.style.borderRadius = "99px";
+  ac.style.boxSizing = "border-box";
+  container.dataset.ready = "1";
+  container.innerHTML = "";
+  container.appendChild(ac);
+  ac.addEventListener("gmp-select", async ({placePrediction})=>{
+    const place = placePrediction.toPlace();
+    await place.fetchFields({fields: ["displayName","formattedAddress"]});
+    const hidden = document.getElementById("es-address");
+    if(hidden) hidden.value = place.formattedAddress || "";
+    // Handy extra: if the venue box is empty, fill it with the place's name.
+    const venue = document.getElementById("es-venue");
+    if(venue && !venue.value.trim() && place.displayName && place.displayName !== place.formattedAddress){
+      venue.value = place.displayName;
+    }
+  });
+}
+
 function viewStoreDetail(id){
   const s = getStoreById(id);
   if(!s) return `<div class="empty-state"><h3>Store not found</h3></div>`;
@@ -1864,6 +1942,7 @@ function viewStoreDetail(id){
       ${storePosts.length ? storePosts.map(p=>postCard(p)).join("") : `<div class="empty-state" style="padding:24px 10px"><p>No finds shared from here yet.</p></div>`}
     </div>
     <button class="btn btn-ghost btn-block" data-action="share-store" data-id="${s.id}">${ICONS.share}Share this store</button>
+    <button class="btn btn-ghost btn-block" style="margin-top:6px;font-size:13px;color:var(--ink-soft)" data-action="open-report" data-type="store" data-id="${s.id}">Report an issue with this store</button>
   `;
 }
 
@@ -2146,6 +2225,8 @@ function postCard(p){
         <button data-action="toggle-comments" data-id="${p.id}">${ICONS.comment}${comments.length}</button>
         <button class="${savedT?'saved-t':''}" data-action="save-post" data-id="${p.id}">${ICONS.bookmark}</button>
         <button data-action="share-post" data-id="${p.id}">${ICONS.share}</button>
+        <button data-action="open-report" data-type="post" data-id="${p.id}" style="margin-left:auto;font-size:12px;color:var(--ink-soft)">Report</button>
+        ${state.isAdmin ? `<button data-action="admin-remove-post" data-id="${p.id}" style="font-size:12px;color:var(--danger)">Remove</button>` : ""}
       </div>
       <div class="comments-box" id="comments-${p.id}" style="display:${state.openComments===p.id?'block':'none'}">
         ${comments.map(c=>`<div class="comment-row"><b>@${c.user}</b><span>${c.text}</span></div>`).join("") || `<div class="comment-row" style="color:var(--ink-soft)">No comments yet.</div>`}
@@ -2267,6 +2348,15 @@ function getLikedFinds(){
   if(!state.user) return [];
   return state.posts.filter(p=>(state.likes[p.id]||[]).includes(state.user.id));
 }
+function safeImageSrc(v){
+  if(!v) return null;
+  if(/^data:image\/(png|jpe?g|gif|webp);base64,[A-Za-z0-9+\/=]+$/i.test(v)) return v;
+  if(/^https:\/\/[^\s"'<>]+$/i.test(v)) return v;
+  return null;
+}
+function blobToDataURL(blob){
+  return new Promise((resolve,reject)=>{ const r = new FileReader(); r.onload = ()=>resolve(r.result); r.onerror = reject; r.readAsDataURL(blob); });
+}
 function escapeHtml(value){
   return String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[char]));
 }
@@ -2319,18 +2409,7 @@ function viewProfileLibrary(){
 
 function viewAdmin(){
   if(!state.isAdmin){
-    return `
-      <div style="margin-top:40px">
-        <button class="btn btn-ghost btn-sm" data-action="go-back" style="margin-bottom:16px">${ICONS.back}Back</button>
-        <div class="wizard-card">
-          <h2 style="font-size:19px;margin-bottom:8px">2nd Studio admin</h2>
-          <p style="font-size:13px;color:var(--ink-soft);margin-bottom:16px">Enter the admin passcode to manage stores, routes, and community moderation.</p>
-          <div class="form-group"><input type="password" id="admin-pass" placeholder="Passcode"></div>
-          <button class="btn btn-royal btn-block" data-action="admin-login">Enter</button>
-          <p style="font-size:11.5px;color:var(--ink-soft);margin-top:10px">Prototype passcode: 2ndstudio</p>
-        </div>
-      </div>
-    `;
+    return `<div class="empty-state" style="margin-top:60px"><h3>Admins only</h3><p>This area is for the 2nd Studio team.</p><button class="btn btn-ghost" style="margin-top:12px" data-action="go-back">Back</button></div>`;
   }
   const tab = state.adminTab || "stores";
   let body = "";
@@ -2406,11 +2485,14 @@ function renderModal(){
   else if(name==="adminEventForm") html = adminEventFormModal(params);
   else if(name==="eventDetail") html = eventDetailModal(params);
   else if(name==="eventSubmission") html = eventSubmissionModal();
+  else if(name==="membership") html = membershipModal();
+  else if(name==="report") html = reportModal(params);
   else if(name==="visitNote") html = visitNoteModal(params);
   else if(name==="forgotPassword") html = forgotPasswordModal();
   else if(name==="setNewPassword") html = setNewPasswordModal();
   root.innerHTML = html;
   attachModalHandlers();
+  initEventAddressAutocomplete();
 }
 
 function visitNoteModal(params){
@@ -2446,20 +2528,89 @@ function eventDetailModal(params){
         <div><b>When</b><span>${formatEventDate(ev)}<br>${eventTimeRange(ev)}</span></div>
         ${ev.priceLabel?`<div><b>Cost</b><span>${ev.priceLabel}</span></div>`:""}
       </div>
+      ${ev.flyerUrl?`<img src="${ev.flyerUrl}" alt="Event flyer" style="width:100%;border-radius:16px;display:block;margin-bottom:16px">`:""}
       <p style="font-size:14px;line-height:1.6;color:var(--body-text);margin-bottom:18px">${ev.description||"More details will be added soon."}</p>
-      ${ev.sourceUrl?`<a class="btn btn-royal btn-block" href="${ev.sourceUrl}" target="_blank" rel="noopener">View official event</a>`:""}
+      ${ev.sourceUrl?`<a class="btn btn-royal btn-block" href="${ev.sourceUrl}" target="_blank" rel="noopener">View event link</a>`:""}
       ${store?`<button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="open-store" data-id="${store.id}">View ${store.name}</button>`:""}
+      <button class="btn btn-ghost btn-block" style="margin-top:8px;font-size:13px;color:var(--ink-soft)" data-action="open-report" data-type="event" data-id="${ev.id}">Report this event</button>
       <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Close</button>
     </div>
   </div>`;
 }
 
+function memberEventsInvite(){
+  return `<div class="events-submit-card" style="margin-bottom:28px">
+    <h3>Curated events are for members</h3>
+    <p>We hunt down Atlanta's markets, swaps, and estate sales so you don't have to. Members also save stores and routes for later.</p>
+    <button class="btn" data-action="open-membership">See membership</button>
+    <button class="see-all" style="display:block;margin-top:12px;color:var(--cream)" data-action="open-event-submission">Know about an event? Submit it</button>
+  </div>`;
+}
+function membershipModal(){
+  return `<div class="modal-overlay">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Become a member</div>
+      <div class="modal-sub">Everything in your account, plus:</div>
+      <div style="font-size:14px;line-height:1.7;color:var(--body-text);margin-bottom:16px">
+        • Curated Atlanta events: markets, swaps, and estate sales<br>
+        • Save your favorite stores<br>
+        • Save routes for your next trip
+      </div>
+      <div style="font-family:var(--font-display);font-size:22px;color:var(--ink);margin-bottom:4px">$7/month or $60/year</div>
+      <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:18px">Memberships are opening soon, with a 3-day free trial and founding-member pricing for early supporters.</div>
+      <button class="btn btn-royal btn-block" data-action="close-modal">Got it</button>
+    </div>
+  </div>`;
+}
+const REPORT_REASONS = {
+  store: ["Wrong hours","Permanently closed","Wrong address or details","Something else"],
+  post: ["Inappropriate","Spam","Not their photo","Something else"],
+  event: ["Wrong details","Cancelled","Spam or not a real event","Something else"],
+  comment: ["Inappropriate","Spam","Something else"],
+  user: ["Inappropriate profile","Spam account","Something else"]
+};
+function reportModal(params){
+  const type = REPORT_REASONS[params.type] ? params.type : "post";
+  return `<div class="modal-overlay">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">${type==="store" ? "Report an issue" : "Report"}</div>
+      <div class="modal-sub">Thanks for helping keep the guide accurate and safe. Reports go privately to the 2nd Studio team.</div>
+      <div class="form-group"><label>What's wrong?</label><select id="rp-reason"><option value="" selected disabled>Choose one</option>${REPORT_REASONS[type].map(r=>`<option>${r}</option>`).join("")}</select></div>
+      <div class="form-group"><label>Details (optional)</label><textarea id="rp-details" maxlength="1000" placeholder="Anything that would help us fix it"></textarea></div>
+      <button class="btn btn-royal btn-block" data-action="submit-report" data-type="${type}" data-id="${escapeHtml(params.id||"")}">Send report</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
+    </div>
+  </div>`;
+}
+async function submitReport(type, id){
+  if(!state.user){ requireAuth(()=>openModal("report",{type,id})); return; }
+  const reason = (document.getElementById("rp-reason")?.value||"").trim();
+  const details = (document.getElementById("rp-details")?.value||"").trim().slice(0,1000);
+  if(!reason){ toast("Choose what's wrong first."); return; }
+  const { error } = await sb.from("reports").insert({ target_type:type, target_id:String(id), reason, details: details||null });
+  if(error){ console.error("report failed:", error.message); toast("Couldn't send that report — try again."); return; }
+  closeModal();
+  toast("Thanks — your report was sent.");
+}
+async function adminRemovePost(id){
+  if(!state.isAdmin) return;
+  if(!confirm("Remove this post for everyone?")) return;
+  const { error } = await sb.from("posts").delete().eq("id", id);
+  if(error){ toast("Couldn't remove that post — try again."); return; }
+  state.posts = state.posts.filter(p=>p.id!==id);
+  toast("Post removed.");
+  renderList();
+}
+
 function eventSubmissionModal(){
+  const hint = t => `<div style="font-size:12px;color:var(--ink-soft);margin:-2px 0 8px;line-height:1.45">${t}</div>`;
   return `<div class="modal-overlay">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
       <div class="modal-title">Submit an event</div>
-      <div class="modal-sub">${state.user && state.user.isAdmin ? "You're an admin, so this will go live right away." : "Submissions are reviewed before they appear on the Events page."}</div>
+      <div class="modal-sub">${state.user && state.user.isAdmin ? "You're an admin, so this will go live right away." : "Submissions are reviewed before they appear on the Events page."} All fields are required except the flyer.</div>
       <div class="form-group"><label>Event name</label><input type="text" id="es-title" placeholder="Atlanta Vintage Market"></div>
       <div class="form-group"><label>Event type</label><select id="es-type"><option>Vintage Market</option><option>Flea Market</option><option>Clothing Swap</option><option>Estate Sale</option><option>Store Sale</option><option>Other</option></select></div>
       <div class="form-row">
@@ -2470,11 +2621,18 @@ function eventSubmissionModal(){
         <div class="form-group"><label>Start time</label><input type="time" id="es-start-time"></div>
         <div class="form-group"><label>End time</label><input type="time" id="es-end-time"></div>
       </div>
-      <div class="form-group"><label>Venue</label><input type="text" id="es-venue" placeholder="Venue or neighborhood"></div>
-      <div class="form-group"><label>Address</label><input type="text" id="es-address" placeholder="Event address"></div>
-      <div class="form-group"><label>Official link</label><input type="url" id="es-url" placeholder="https://"></div>
+      <div class="form-group"><label>Venue</label><input type="text" id="es-venue" placeholder="Venue name or neighborhood"></div>
+      <div class="form-group"><label>Address</label>${hint("Start typing, then pick the address from the list.")}<div id="es-address-container" style="width:100%;overflow:visible"><input type="text" id="es-address-fallback" placeholder="Event address"></div><input type="hidden" id="es-address"></div>
+      <div class="form-group"><label>Cost / admission</label><input type="text" id="es-price" placeholder="Free, $5 entry, prices vary"></div>
+      <div class="form-group"><label>Event link</label>${hint("An official website, ticket page, or social media post (like Instagram or Facebook) all work.")}<input type="url" id="es-url" placeholder="https://"></div>
       <div class="form-group"><label>Details</label><textarea id="es-details" placeholder="What should people know?"></textarea></div>
-      <div class="form-group"><label>Your email</label><input type="email" id="es-email" placeholder="For review questions only"></div>
+      <div class="form-group"><label>Flyer (optional)</label>
+        <div class="photo-upload-box" style="margin-bottom:10px">${ICONS.camera}<div>Tap to add the event flyer</div><input type="file" accept="image/*" id="es-flyer"></div>
+        <div id="es-flyer-preview"></div>
+      </div>
+      <div class="hairline" style="margin:6px 0 16px"></div>
+      <div class="form-group"><label>How are you connected to this event?</label><select id="es-role"><option value="" selected disabled>Choose one</option><option value="organizer">I'm organizing or hosting it</option><option value="spotted">I saw it and want to share it</option></select></div>
+      <div class="form-group"><label>Your email</label>${hint("Only used if we have questions about your submission.")}<input type="email" id="es-email" placeholder="you@example.com" value="${escapeHtml(state.user?.email||"")}"></div>
       <button class="btn btn-royal btn-block" data-action="submit-event-preview">${state.user && state.user.isAdmin ? "Publish event" : "Submit for review"}</button>
       <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
     </div>
@@ -2635,7 +2793,9 @@ function attachGlobalHandlers(){
   }
 }
 function renderList(){
-  document.getElementById("view-root").innerHTML = renderView();
+  const viewRoot = document.getElementById("view-root");
+  if(!viewRoot) return; // signed out: the welcome screen is showing instead
+  viewRoot.innerHTML = renderView();
   renderGoogleMapIfNeeded();
   initDestinationAutocomplete();
 }
@@ -2689,7 +2849,7 @@ function handleClick(e){
     case "view-all-events": go("events"); break;
     case "set-event-filter": state.eventFilter = t.dataset.filter; renderList(); break;
     case "view-event": openModal("eventDetail", {id:t.dataset.id}); break;
-    case "open-event-submission": requireAuth(()=>openModal("eventSubmission")); break;
+    case "open-event-submission": pendingFlyerBlob = null; requireAuth(()=>openModal("eventSubmission")); break;
     case "submit-event-preview": submitEventPreview(); break;
     case "toggle-hide-chains": state.hideChains = !state.hideChains; saveState(); renderList(); break;
     case "set-start": state.builderChoice.start = t.dataset.n; if(state.builderChoice.destination===t.dataset.n) state.builderChoice.destination=null; state.locationDetected=false; state.builderChoice.startCoords=null; renderList(); break;
@@ -2721,8 +2881,13 @@ function handleClick(e){
     case "open-forgot-password": openModal("forgotPassword"); break;
     case "submit-forgot-password": submitForgotPassword(); break;
     case "submit-new-password": submitNewPassword(); break;
+    case "open-signup": openModal("login"); state.authMode = "signup"; renderModal(); break;
     case "toggle-auth-mode": state.authMode = (state.authMode==="signup"?"signin":"signup"); renderModal(); break;
     case "close-modal": case "close-modal-bg": closeModal(); break;
+    case "open-membership": openModal("membership"); break;
+    case "open-report": requireAuth(()=>openModal("report",{type:t.dataset.type, id:t.dataset.id})); break;
+    case "submit-report": submitReport(t.dataset.type, t.dataset.id); break;
+    case "admin-remove-post": adminRemovePost(t.dataset.id); break;
     case "submit-login": submitLogin(); break;
     case "open-edit-profile": openModal("editProfile"); break;
     case "open-profile-library": state.profileLibraryTab=t.dataset.tab||"notes"; go("profileLibrary"); break;
@@ -2732,7 +2897,7 @@ function handleClick(e){
     case "save-visit-note": saveVisitNote(t.dataset.id); break;
     case "submit-edit-profile": submitEditProfile(); break;
     case "submit-find": submitFind(); break;
-    case "sign-out": sb.auth.signOut().then(()=>{ state.user=null; loadMyData().then(()=>go("home")); }); break;
+    case "sign-out": sb.auth.signOut().then(()=>{ state.user=null; state.isAdmin=false; state.events=[]; state.posts=[]; state.comments={}; loadMyData().then(()=>go("home")); }); break;
     case "admin-login": adminLogin(); break;
     case "set-admin-tab": state.adminTab = t.dataset.t; renderList(); break;
     case "admin-add-store": openModal("adminStoreForm", {}); break;
@@ -2808,6 +2973,7 @@ function confirmAddStop(id){
 }
 function saveCurrentRoute(){
   requireAuth(async ()=>{
+    if(!state.user.isMember){ openModal("membership"); return; }
     const r = state.currentRoute;
     const { data, error } = await sb.from("routes").insert({
       user_id: state.user.id, title: r.title, start_neighborhood: r.start,
@@ -2887,7 +3053,7 @@ function submitComment(id){
     const { error } = await sb.from("comments").insert({post_id:id, user_id:state.user.id, text});
     if(error){ toast("Couldn't post that comment — try again."); return; }
     if(!state.comments[id]) state.comments[id]=[];
-    state.comments[id].push({user: state.user.username, text});
+    state.comments[id].push({user: escapeHtml(state.user.username), text: escapeHtml(text)});
     state.openComments = id;
     renderList();
   });
@@ -2895,7 +3061,7 @@ function submitComment(id){
 async function submitForgotPassword(){
   const email = document.getElementById("forgot-email").value.trim().toLowerCase();
   if(!email){ toast("Enter your email first."); return; }
-  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin });
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo: window.location.origin + "/app.html" });
   if(error){ toast("Couldn't send that — try again."); return; }
   closeModal();
   toast("Check your email for a reset link.");
@@ -2923,8 +3089,8 @@ async function submitLogin(){
     if(!username || !email || !password){ toast("Fill in username, email, and password."); return; }
     const pwError = validatePassword(password);
     if(pwError){ toast(pwError); return; }
-    const { data: existing } = await sb.from("profiles").select("id").eq("username", username).maybeSingle();
-    if(existing){ toast("That username is already taken."); return; }
+    const { data: taken } = await sb.rpc("username_taken", { name: username });
+    if(taken){ toast("That username is already taken."); return; }
     const { data, error } = await sb.auth.signUp({ email, password, options:{ data:{ username } } });
     if(error){
       // Supabase's own message ("User already registered", etc.) is
@@ -2933,7 +3099,7 @@ async function submitLogin(){
       return;
     }
     await refreshSessionAndProfile();
-    await loadMyData();
+    await Promise.all([loadMyData(), loadEvents(), loadPosts()]);
     closeModal();
     const pending = state.pendingAction;
     state.pendingAction = null;
@@ -2945,7 +3111,7 @@ async function submitLogin(){
     const { error } = await sb.auth.signInWithPassword({ email, password });
     if(error){ toast("Incorrect email or password."); return; }
     await refreshSessionAndProfile();
-    await loadMyData();
+    await Promise.all([loadMyData(), loadEvents(), loadPosts()]);
     closeModal();
     const pending = state.pendingAction;
     state.pendingAction = null;
@@ -2976,22 +3142,28 @@ function submitFind(){
   const caption = document.getElementById("sf-caption").value.trim();
   if(!item){ toast("Add a short item description first."); return; }
   requireAuth(async ()=>{
+    let photoUrl = null;
+    if(pendingFindPhotoData){
+      const path = `${state.user.id}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.jpg`;
+      const { error: upErr } = await sb.storage.from("post-photos").upload(path, pendingFindPhotoData, { contentType:"image/jpeg" });
+      if(upErr){ console.error("photo upload failed:", upErr.message); toast("Couldn't upload that photo — try again."); return; }
+      photoUrl = sb.storage.from("post-photos").getPublicUrl(path).data.publicUrl;
+    }
     const { data, error } = await sb.from("posts").insert({
       user_id: state.user.id, item, store_id: store||null, price, category: cat, caption,
-      photo_url: pendingFindPhotoData || null
+      photo_url: photoUrl
     }).select().single();
     if(error){ toast("Couldn't post that find — try again."); return; }
     pendingFindPhotoData = null;
-    state.posts.unshift({ id:data.id, user:state.user.username, userId:state.user.id, item, store, price, category:cat, caption, photoDataUrl:data.photo_url, date:(data.created_at||"").slice(0,10) });
+    state.posts.unshift({ id:data.id, user:escapeHtml(state.user.username), userId:state.user.id, item:escapeHtml(item), store, price, category:escapeHtml(cat), caption:escapeHtml(caption), photoDataUrl:safeImageSrc(data.photo_url), date:(data.created_at||"").slice(0,10) });
     closeModal();
     toast("Find posted.");
     go("community");
   });
 }
 function adminLogin(){
-  const val = document.getElementById("admin-pass").value;
-  if(val==="2ndstudio"){ state.isAdmin = true; renderList(); }
-  else toast("That passcode isn't right.");
+  // Admin access now comes from your account being on the admin list.
+  toast("Admin access is tied to your account.");
 }
 function adminDeleteStore(id){
   toast("Store editing isn't wired to Supabase yet — delete it in the Table Editor for now.");
@@ -3006,36 +3178,90 @@ function submitAdminEvent(id){
   toast("Sales/events editing isn't wired to Supabase yet — add rows to the 'events' table directly for now.");
   closeModal();
 }
+let pendingFlyerBlob = null;
+let submittingEvent = false;
+// Shrinks a phone photo to a reasonable size before upload (max 1600px, JPEG).
+function compressImageToBlob(file, maxDim, quality){
+  return new Promise((resolve, reject)=>{
+    const url = URL.createObjectURL(file);
+    const img = new Image();
+    img.onload = ()=>{
+      const scale = Math.min(1, (maxDim||1600) / Math.max(img.width, img.height));
+      const c = document.createElement("canvas");
+      c.width = Math.round(img.width*scale); c.height = Math.round(img.height*scale);
+      c.getContext("2d").drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      c.toBlob(b=> b ? resolve(b) : reject(new Error("compress failed")), "image/jpeg", quality||0.82);
+    };
+    img.onerror = ()=>{ URL.revokeObjectURL(url); reject(new Error("bad image")); };
+    img.src = url;
+  });
+}
 async function submitEventPreview(){
   if(!state.user){ requireAuth(()=>openModal("eventSubmission")); return; }
+  if(submittingEvent) return;
   const val = id => (document.getElementById(id)?.value || "").trim();
   const title = val("es-title");
   const startDate = val("es-start");
-  const endDate = val("es-end") || startDate;
+  const endDate = val("es-end");
+  const startTime = val("es-start-time");
+  const endTime = val("es-end-time");
+  const venue = val("es-venue");
+  const address = val("es-address") || val("es-address-fallback");
+  const price = val("es-price");
+  let link = val("es-url");
+  const details = val("es-details");
+  const role = val("es-role");
   const email = val("es-email");
-  if(!title || !startDate){ toast("Add the event name and start date first."); return; }
+  const missing = [];
+  if(!title) missing.push("event name");
+  if(!startDate) missing.push("start date");
+  if(!endDate) missing.push("end date");
+  if(!startTime) missing.push("start time");
+  if(!endTime) missing.push("end time");
+  if(!venue) missing.push("venue");
+  if(!address) missing.push("address (pick it from the list)");
+  if(!price) missing.push("cost");
+  if(!link) missing.push("event link");
+  if(!details) missing.push("details");
+  if(!role) missing.push("how you're connected");
+  if(!email) missing.push("email");
+  if(missing.length){ toast("Please add: " + missing.join(", ") + "."); return; }
   if(endDate < startDate){ toast("The end date can't be before the start date."); return; }
-  if(email && !/^\S+@\S+\.\S+$/.test(email)){ toast("Enter a valid email address."); return; }
-  const isAdmin = !!state.user.isAdmin;
-  const row = {
-    title, start_date:startDate, end_date:endDate,
-    start_time: val("es-start-time") || null, end_time: val("es-end-time") || null,
-    event_type: val("es-type") || null, venue: val("es-venue") || null,
-    address: val("es-address") || null, source_url: val("es-url") || null,
-    description: val("es-details") || null,
-    submitter_email: email || state.user.email || null,
-    submitted_by: state.user.id, is_sample: false,
-    status: isAdmin ? "published" : "pending"
-  };
-  const { error } = await sb.from("events").insert(row);
-  if(error){ console.error("submitEvent failed:", error.message); toast("Couldn't submit that event — try again."); return; }
-  closeModal();
-  if(isAdmin){
-    await loadEvents();
-    renderList();
-    toast("Event published.");
-  } else {
-    toast("Thanks! Your event was sent for review.");
+  if(!/^https?:\/\//i.test(link)) link = "https://" + link;
+  if(!/^https?:\/\/[^\s.]+\.[^\s]+$/i.test(link)){ toast("That link doesn't look right. Paste the full web address."); return; }
+  if(!/^\S+@\S+\.\S+$/.test(email)){ toast("Enter a valid email address."); return; }
+  submittingEvent = true;
+  try{
+    let flyerUrl = null;
+    if(pendingFlyerBlob){
+      const path = `${state.user.id}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.jpg`;
+      const { error: upErr } = await sb.storage.from("event-flyers").upload(path, pendingFlyerBlob, { contentType:"image/jpeg" });
+      if(upErr){ console.error("flyer upload failed:", upErr.message); toast("Couldn't upload the flyer — try again, or remove it."); return; }
+      flyerUrl = sb.storage.from("event-flyers").getPublicUrl(path).data.publicUrl;
+    }
+    const isAdmin = !!state.user.isAdmin;
+    const row = {
+      title, start_date:startDate, end_date:endDate, start_time:startTime, end_time:endTime,
+      event_type: val("es-type") || "Other", venue, address, price_label: price,
+      source_url: link, description: details, flyer_url: flyerUrl,
+      submitter_role: role, submitter_email: email,
+      submitted_by: state.user.id, is_sample: false,
+      status: isAdmin ? "published" : "pending"
+    };
+    const { error } = await sb.from("events").insert(row);
+    if(error){ console.error("submitEvent failed:", error.message); toast("Couldn't submit that event — try again."); return; }
+    pendingFlyerBlob = null;
+    closeModal();
+    if(isAdmin){
+      await loadEvents();
+      renderList();
+      toast("Event published.");
+    } else {
+      toast("Thanks! Your event was sent for review.");
+    }
+  } finally {
+    submittingEvent = false;
   }
 }
 function saveVisitNote(id){
@@ -3058,30 +3284,49 @@ function submitAdminStore(id){
 document.body.addEventListener("click", handleClick);
 
 function attachModalHandlers(){
-  const photoInput = document.getElementById("sf-photo");
-  if(photoInput){
-    photoInput.addEventListener("change", e=>{
+  const flyerInput = document.getElementById("es-flyer");
+  if(flyerInput){
+    flyerInput.addEventListener("change", async e=>{
       const file = e.target.files[0];
       if(!file) return;
-      const reader = new FileReader();
-      reader.onload = ev=>{
-        pendingFindPhotoData = ev.target.result;
-        document.getElementById("sf-preview").innerHTML = `<div class="photo-preview"><img src="${ev.target.result}"></div>`;
-      };
-      reader.readAsDataURL(file);
+      try{
+        pendingFlyerBlob = await compressImageToBlob(file, 1600, 0.82);
+        const previewUrl = URL.createObjectURL(pendingFlyerBlob);
+        document.getElementById("es-flyer-preview").innerHTML = `<img src="${previewUrl}" alt="Flyer preview" style="width:100%;max-height:320px;object-fit:contain;border-radius:16px;display:block;margin-bottom:10px;background:var(--cream-card)">`;
+      }catch(err){
+        pendingFlyerBlob = null;
+        toast("Couldn't read that image — try a different one.");
+      }
+    });
+  }
+  const photoInput = document.getElementById("sf-photo");
+  if(photoInput){
+    photoInput.addEventListener("change", async e=>{
+      const file = e.target.files[0];
+      if(!file) return;
+      try{
+        // Re-draws the photo as a fresh, smaller JPEG, which also strips
+        // hidden data like the GPS location of where it was taken.
+        pendingFindPhotoData = await compressImageToBlob(file, 1600, 0.82);
+        document.getElementById("sf-preview").innerHTML = `<div class="photo-preview"><img src="${URL.createObjectURL(pendingFindPhotoData)}"></div>`;
+      }catch(err){
+        pendingFindPhotoData = null;
+        toast("Couldn't read that image — try a different one.");
+      }
     });
   }
   const avatarInput = document.getElementById("ep-avatar");
   if(avatarInput){
-    avatarInput.addEventListener("change", e=>{
+    avatarInput.addEventListener("change", async e=>{
       const file = e.target.files[0];
       if(!file) return;
-      const reader = new FileReader();
-      reader.onload = ev=>{
-        pendingAvatarData = ev.target.result;
+      let small;
+      try{ small = await blobToDataURL(await compressImageToBlob(file, 400, 0.85)); }
+      catch(err){ toast("Couldn't read that image — try a different one."); return; }
+      {
+        pendingAvatarData = small;
         document.getElementById("ep-avatar-preview").innerHTML = `<div style="width:84px;height:84px;border-radius:50%;overflow:hidden;margin:0 auto"><img src="${pendingAvatarData}" style="width:100%;height:100%;object-fit:cover"></div>`;
-      };
-      reader.readAsDataURL(file);
+      }
     });
   }
   document.querySelectorAll('[data-comment-input]').forEach(inp=>{
