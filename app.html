@@ -1016,7 +1016,8 @@ const DEFAULT_STATE = {
   currentRoute:null,
   savedTab:"stores",
   communityFilter:"All",
-  pendingAction:null
+  pendingAction:null,
+  blockedIds:[]
 };
 
 // Supabase is now the real source of truth. localStorage only remembers a
@@ -1081,6 +1082,11 @@ async function loadEvents(){
   }));
 }
 async function loadPosts(){
+  state.blockedIds = [];
+  if(state.user){
+    const { data: blockRows } = await sb.from("blocks").select("blocked_id");
+    state.blockedIds = (blockRows||[]).map(r=>r.blocked_id);
+  }
   const { data, error } = await sb.from("posts").select("*, profiles!posts_user_id_fkey(username)").order("created_at",{ascending:false});
   if(error){ console.error("loadPosts failed:", error.message); state.posts = []; return; }
   // Posts are written by members, so their text is made HTML-safe here,
@@ -1089,13 +1095,13 @@ async function loadPosts(){
     id:p.id, user:escapeHtml(p.profiles?.username||"unknown"), userId:p.user_id, item:escapeHtml(p.item), store:p.store_id,
     price:Number(p.price)||0, category:escapeHtml(p.category), caption:p.caption?escapeHtml(p.caption):"", photoDataUrl:safeImageSrc(p.photo_url),
     date:(p.created_at||"").slice(0,10)
-  }));
+  })).filter(p=>!state.blockedIds.includes(p.userId));
   const { data: likeRows } = await sb.from("post_likes").select("post_id,user_id");
   state.likes = {};
   (likeRows||[]).forEach(r=>{ (state.likes[r.post_id] = state.likes[r.post_id]||[]).push(r.user_id); });
   const { data: commentRows } = await sb.from("comments").select("*, profiles!comments_user_id_fkey(username)").order("created_at",{ascending:true});
   state.comments = {};
-  (commentRows||[]).forEach(c=>{ (state.comments[c.post_id] = state.comments[c.post_id]||[]).push({user:escapeHtml(c.profiles?.username||"unknown"), text:escapeHtml(c.text)}); });
+  (commentRows||[]).filter(c=>!state.blockedIds.includes(c.user_id)).forEach(c=>{ (state.comments[c.post_id] = state.comments[c.post_id]||[]).push({user:escapeHtml(c.profiles?.username||"unknown"), userId:c.user_id, text:escapeHtml(c.text)}); });
 }
 async function loadMyData(){
   // Vote and follow counts are public — everyone browsing should see them,
@@ -2225,7 +2231,7 @@ function postCard(p){
         <button data-action="toggle-comments" data-id="${p.id}">${ICONS.comment}${comments.length}</button>
         <button class="${savedT?'saved-t':''}" data-action="save-post" data-id="${p.id}">${ICONS.bookmark}</button>
         <button data-action="share-post" data-id="${p.id}">${ICONS.share}</button>
-        <button data-action="open-report" data-type="post" data-id="${p.id}" style="margin-left:auto;font-size:12px;color:var(--ink-soft)">Report</button>
+        ${state.user && p.userId===state.user.id ? "" : `<button data-action="open-report" data-type="post" data-id="${p.id}" data-uid="${p.userId||""}" data-uname="${p.user}" style="margin-left:auto;font-size:12px;color:var(--ink-soft)">Report</button>`}
         ${state.isAdmin ? `<button data-action="admin-remove-post" data-id="${p.id}" style="font-size:12px;color:var(--danger)">Remove</button>` : ""}
       </div>
       <div class="comments-box" id="comments-${p.id}" style="display:${state.openComments===p.id?'block':'none'}">
@@ -2345,6 +2351,9 @@ function viewProfile(){
     </button>` : ""}
     <button class="settings-row" style="width:100%;background:none;border:none;text-align:left;color:var(--danger)" data-action="sign-out">
       <span class="sr-left" style="color:var(--danger)">Sign out</span>
+    </button>
+    <button class="settings-row" style="width:100%;background:none;border:none;text-align:left" data-action="open-blocked">
+      <span class="sr-left">Blocked accounts</span>${ICONS.chevronR}
     </button>
     <button class="settings-row" style="width:100%;background:none;border:none;text-align:left" data-action="open-delete-account">
       <span class="sr-left" style="color:var(--ink-soft);font-size:13px">Delete account</span>
@@ -2496,6 +2505,7 @@ function renderModal(){
   else if(name==="eventSubmission") html = eventSubmissionModal();
   else if(name==="verifyEmail") html = verifyEmailModal();
   else if(name==="deleteAccount") html = deleteAccountModal();
+  else if(name==="blocked") html = blockedModal();
   else if(name==="membership") html = membershipModal();
   else if(name==="report") html = reportModal(params);
   else if(name==="visitNote") html = visitNoteModal(params);
@@ -2610,9 +2620,56 @@ function reportModal(params){
       <div class="form-group"><label>What's wrong?</label><select id="rp-reason"><option value="" selected disabled>Choose one</option>${REPORT_REASONS[type].map(r=>`<option>${r}</option>`).join("")}</select></div>
       <div class="form-group"><label>Details (optional)</label><textarea id="rp-details" maxlength="1000" placeholder="Anything that would help us fix it"></textarea></div>
       <button class="btn btn-royal btn-block" data-action="submit-report" data-type="${type}" data-id="${escapeHtml(params.id||"")}">Send report</button>
+      ${type==="post" && params.uid && (!state.user || params.uid!==state.user.id) ? `<div class="hairline" style="margin:16px 0"></div>
+      <button class="btn btn-ghost btn-block" style="color:var(--danger)" data-action="block-user" data-uid="${escapeHtml(params.uid)}" data-uname="${escapeHtml(params.uname||"")}">Block @${escapeHtml(params.uname||"this user")}</button>
+      <div style="font-size:12px;color:var(--ink-soft);text-align:center;margin-top:6px">You won't see their posts or comments. They won't be notified.</div>` : ""}
       <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
     </div>
   </div>`;
+}
+async function blockUser(uid, uname){
+  if(!state.user || !uid || uid===state.user.id) return;
+  if(!confirm(`Block @${uname||"this user"}? You won't see their posts or comments.`)) return;
+  const { error } = await sb.from("blocks").insert({ blocked_id: uid });
+  if(error && !/duplicate/i.test(error.message)){ console.error("block failed:", error.message); toast("Couldn't block — try again."); return; }
+  if(!state.blockedIds.includes(uid)) state.blockedIds.push(uid);
+  state.posts = state.posts.filter(p=>p.userId!==uid);
+  Object.keys(state.comments).forEach(k=>{ state.comments[k] = state.comments[k].filter(c=>c.userId!==uid); });
+  closeModal();
+  toast(`@${uname||"User"} is blocked.`);
+  renderList();
+}
+async function unblockUser(uid){
+  if(!state.user || !uid) return;
+  const { error } = await sb.from("blocks").delete().eq("blocker_id", state.user.id).eq("blocked_id", uid);
+  if(error){ toast("Couldn't unblock — try again."); return; }
+  await loadPosts();
+  toast("Unblocked.");
+  openModal("blocked");
+  renderList();
+}
+function blockedModal(){
+  setTimeout(loadBlockedNames, 0);
+  return `<div class="modal-overlay">
+    <div class="modal-sheet center">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Blocked accounts</div>
+      <div class="modal-sub">People you've blocked can't appear in your feed. They aren't notified when you block or unblock them.</div>
+      <div id="blocked-list" style="margin-bottom:12px">${(state.blockedIds||[]).length ? "Loading…" : `<div style="font-size:13.5px;color:var(--ink-soft)">You haven't blocked anyone.</div>`}</div>
+      <button class="btn btn-ghost btn-block" data-action="close-modal">Done</button>
+    </div>
+  </div>`;
+}
+async function loadBlockedNames(){
+  const box = document.getElementById("blocked-list");
+  const ids = state.blockedIds||[];
+  if(!box || !ids.length) return;
+  const { data } = await sb.from("profiles").select("id,username").in("id", ids);
+  const names = {}; (data||[]).forEach(r=>{ names[r.id] = r.username; });
+  box.innerHTML = ids.map(id=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line)">
+    <span style="font-size:14px">@${escapeHtml(names[id]||"deleted account")}</span>
+    <button class="btn btn-ghost btn-sm" data-action="unblock-user" data-uid="${escapeHtml(id)}">Unblock</button>
+  </div>`).join("");
 }
 async function submitReport(type, id){
   if(!state.user){ requireAuth(()=>openModal("report",{type,id})); return; }
@@ -2920,7 +2977,10 @@ function handleClick(e){
     case "submit-verify-code": submitVerifyCode(); break;
     case "resend-verify-code": if(state.verifyEmail){ sendSignupCode(state.verifyEmail).then(ok=>{ if(ok) toast("New code sent."); }); } break;
     case "verify-use-different-email": state.verifyEmail=null; openModal("login"); state.authMode="signup"; renderModal(); break;
-    case "open-report": requireAuth(()=>openModal("report",{type:t.dataset.type, id:t.dataset.id})); break;
+    case "open-report": requireAuth(()=>openModal("report",{type:t.dataset.type, id:t.dataset.id, uid:t.dataset.uid, uname:t.dataset.uname})); break;
+    case "block-user": blockUser(t.dataset.uid, t.dataset.uname); break;
+    case "unblock-user": unblockUser(t.dataset.uid); break;
+    case "open-blocked": openModal("blocked"); break;
     case "submit-report": submitReport(t.dataset.type, t.dataset.id); break;
     case "admin-remove-post": adminRemovePost(t.dataset.id); break;
     case "submit-login": submitLogin(); break;
