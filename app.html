@@ -1059,6 +1059,7 @@ async function refreshSessionAndProfile(){
   const [{ data: adminFlag }, { data: memberFlag }] = await Promise.all([sb.rpc("is_admin"), sb.rpc("is_member")]);
   state.user.isAdmin = !!adminFlag;
   state.user.isMember = !!memberFlag || !!adminFlag;
+  state.user.termsVersion = user.user_metadata?.terms_version || null;
   state.isAdmin = state.user.isAdmin;
 }
 async function loadStores(){
@@ -1323,6 +1324,9 @@ function closeModal(){
 function iconEl(name, cls){ return `<span class="${cls||''}" style="display:inline-flex">${ICONS[name]||''}</span>`; }
 
 function render(){
+  if(!hasAcceptedTerms() && (!activeModal || activeModal.name !== "termsGate")){
+    activeModal = {name:"termsGate", params:{}};
+  }
   const app = document.getElementById("app");
   app.innerHTML = `
     <div class="topbar">
@@ -2352,6 +2356,15 @@ function viewProfile(){
     <button class="settings-row" style="width:100%;background:none;border:none;text-align:left;color:var(--danger)" data-action="sign-out">
       <span class="sr-left" style="color:var(--danger)">Sign out</span>
     </button>
+    <a class="settings-row" style="width:100%;text-decoration:none;color:inherit;display:flex" href="/support.html" target="_blank" rel="noopener">
+      <span class="sr-left">Help &amp; support</span>${ICONS.chevronR}
+    </a>
+    <a class="settings-row" style="width:100%;text-decoration:none;color:inherit;display:flex" href="/privacy.html" target="_blank" rel="noopener">
+      <span class="sr-left">Privacy policy</span>${ICONS.chevronR}
+    </a>
+    <a class="settings-row" style="width:100%;text-decoration:none;color:inherit;display:flex" href="/terms.html" target="_blank" rel="noopener">
+      <span class="sr-left">Terms of service</span>${ICONS.chevronR}
+    </a>
     <button class="settings-row" style="width:100%;background:none;border:none;text-align:left" data-action="open-blocked">
       <span class="sr-left">Blocked accounts</span>${ICONS.chevronR}
     </button>
@@ -2506,6 +2519,7 @@ function renderModal(){
   else if(name==="verifyEmail") html = verifyEmailModal();
   else if(name==="deleteAccount") html = deleteAccountModal();
   else if(name==="blocked") html = blockedModal();
+  else if(name==="termsGate") html = termsGateModal();
   else if(name==="membership") html = membershipModal();
   else if(name==="report") html = reportModal(params);
   else if(name==="visitNote") html = visitNoteModal(params);
@@ -2736,7 +2750,12 @@ function loginModal(){
       ${mode==='signup' ? `<div class="form-group"><label>Username</label><input type="text" id="login-username" placeholder="yourusername" autocapitalize="none" autocomplete="username" maxlength="20"><div id="login-username-hint" style="font-size:12px;margin-top:6px;min-height:16px;color:var(--ink-soft)">3–20 characters: letters, numbers, periods, or underscores.</div></div>` : ''}
       <div class="form-group"><label>Email</label><input type="email" id="login-email" placeholder="you@email.com"></div>
       <div class="form-group"><label>Password</label><input type="password" id="login-password" placeholder="••••••••"></div>
+      ${mode==='signup' ? `<label style="display:flex;gap:10px;align-items:flex-start;font-size:12.5px;line-height:1.45;color:var(--body-text);margin:4px 0 14px;cursor:pointer">
+        <input type="checkbox" id="signup-agree" style="width:18px;height:18px;flex:none;margin-top:1px;accent-color:var(--royal)">
+        <span>I'm 16 or older, and I agree to the <a href="/terms.html" target="_blank" rel="noopener" style="color:var(--royal);font-weight:600">Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener" style="color:var(--royal);font-weight:600">Privacy Policy</a>.</span>
+      </label>` : ''}
       <button class="btn btn-royal btn-block" data-action="submit-login">${mode==='signup' ? 'Create account' : 'Sign in'}</button>
+
       ${mode==='signin' ? `<button class="link-btn" style="display:block;margin:10px auto 0" data-action="open-forgot-password">Forgot password?</button>` : ''}
       <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="toggle-auth-mode">${mode==='signup' ? 'Already have an account? Sign in' : "New here? Create an account"}</button>
       <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
@@ -2890,7 +2909,7 @@ function renderList(){
 function handleClick(e){
   const t = e.target.closest("[data-action]");
   if(!t){
-    if(e.target.closest(".modal-overlay") && e.target.classList.contains("modal-overlay")){ closeModal(); }
+    if(e.target.closest(".modal-overlay") && e.target.classList.contains("modal-overlay") && !(activeModal && activeModal.name==="termsGate")){ closeModal(); }
     return;
   }
   const action = t.dataset.action;
@@ -2970,7 +2989,8 @@ function handleClick(e){
     case "submit-new-password": submitNewPassword(); break;
     case "open-signup": openModal("login"); state.authMode = "signup"; renderModal(); break;
     case "toggle-auth-mode": state.authMode = (state.authMode==="signup"?"signin":"signup"); renderModal(); break;
-    case "close-modal": case "close-modal-bg": closeModal(); break;
+    case "close-modal": case "close-modal-bg": if(activeModal && activeModal.name==="termsGate") break; closeModal(); break;
+    case "accept-terms": acceptTerms(); break;
     case "open-membership": openModal("membership"); break;
     case "open-delete-account": openModal("deleteAccount"); break;
     case "confirm-delete-account": deleteMyAccount(); break;
@@ -3174,6 +3194,41 @@ async function submitNewPassword(){
   render();
 }
 const USERNAME_RULE = /^[a-z0-9._]{3,20}$/;
+// Bump this date whenever the Terms or Privacy Policy change, so everyone
+// is asked to agree to the new version.
+const TERMS_VERSION = "2026-10-04";
+function hasAcceptedTerms(){
+  if(state.user && state.user.termsVersion === TERMS_VERSION) return true;
+  try{ return localStorage.getItem("atlThrift_terms_version") === TERMS_VERSION; }catch(e){ return false; }
+}
+function termsGateModal(){
+  return `<div class="modal-overlay">
+    <div class="modal-sheet center">
+      <div style="display:flex;align-items:center;margin-bottom:18px">
+        <span class="brand-monogram">ATG</span><span class="brand-rule" aria-hidden="true"></span><span class="brand-name">Atlanta Thrift Guide</span>
+      </div>
+      <div class="modal-title">Before you start</div>
+      <div class="modal-sub">ATL Thrift Guide is for people 16 and older. Please review and agree to our <a href="/terms.html" target="_blank" rel="noopener" style="color:var(--royal);font-weight:600">Terms of Service</a> and <a href="/privacy.html" target="_blank" rel="noopener" style="color:var(--royal);font-weight:600">Privacy Policy</a> to continue.</div>
+      <div style="font-size:12.5px;line-height:1.55;color:var(--body-text);background:var(--cream-card);border-radius:14px;padding:12px 14px;margin-bottom:16px">Highlights: store and event info can change, so confirm before you go; disputes are handled through individual arbitration (you can opt out within 30 days); and we never sell your information.</div>
+      <label style="display:flex;gap:10px;align-items:flex-start;font-size:13.5px;line-height:1.45;color:var(--ink);margin-bottom:16px;cursor:pointer">
+        <input type="checkbox" id="gate-agree" style="width:20px;height:20px;flex:none;margin-top:1px;accent-color:var(--royal)">
+        <span>I'm 16 or older, and I agree to the Terms of Service and Privacy Policy.</span>
+      </label>
+      <button class="btn btn-royal btn-block" data-action="accept-terms">Agree and continue</button>
+    </div>
+  </div>`;
+}
+async function acceptTerms(){
+  if(!document.getElementById("gate-agree")?.checked){ toast("Check the box to agree and continue."); return; }
+  const acceptedAt = new Date().toISOString();
+  try{ localStorage.setItem("atlThrift_terms_version", TERMS_VERSION); localStorage.setItem("atlThrift_terms_accepted_at", acceptedAt); }catch(e){}
+  if(state.user){
+    state.user.termsVersion = TERMS_VERSION;
+    try{ await sb.auth.updateUser({ data:{ terms_version: TERMS_VERSION, terms_accepted_at: acceptedAt } }); }catch(e){}
+  }
+  closeModal();
+  render();
+}
 function cleanUsername(raw){ return (raw||"").trim().replace(/\s+/g,"").toLowerCase(); }
 let usernameCheckTimer = null;
 function onUsernameInput(){
@@ -3217,6 +3272,7 @@ async function submitLogin(){
     const username = cleanUsername(document.getElementById("login-username").value);
     if(!username || !email || !password){ toast("Fill in username, email, and password."); return; }
     if(!USERNAME_RULE.test(username)){ toast("Usernames are 3–20 letters, numbers, periods, or underscores."); return; }
+    if(!document.getElementById("signup-agree")?.checked){ toast("Please agree to the Terms of Service and Privacy Policy."); return; }
     if(!/^\S+@\S+\.\S+$/.test(email)){ toast("Enter a valid email address."); return; }
     const pwError = validatePassword(password);
     if(pwError){ toast(pwError); return; }
@@ -3232,7 +3288,7 @@ async function submitLogin(){
       toast("An account with this email already exists. Sign in instead.");
       return;
     }
-    const { data, error } = await sb.auth.signUp({ email, password, options:{ data:{ username } } });
+    const { data, error } = await sb.auth.signUp({ email, password, options:{ data:{ username, terms_version: TERMS_VERSION, terms_accepted_at: new Date().toISOString() } } });
     if(error){ toast(error.message); return; }
     // Supabase quietly "succeeds" for an email that already has an account
     // (it returns a user with no identities). Tell them and switch to sign in.
