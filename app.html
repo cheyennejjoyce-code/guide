@@ -446,13 +446,13 @@ main.view{padding:0 20px 116px;}
 .detail-title-row{margin-bottom:8px;}
 .detail-title-row h1{font-size:30px;line-height:1.03;letter-spacing:-.03em;}
 .rating-badge{background:var(--gold);color:#221D24;font-family:var(--font-mono);font-size:10.5px;font-weight:500;letter-spacing:.12em;border-radius:999px;padding:7px 10px;}
-.detail-meta-line{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:18px;}
-.detail-cta-row{gap:8px;margin-bottom:24px;}
+.detail-meta-line{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;margin-bottom:14px;}
+.detail-cta-row{gap:8px;margin-bottom:18px;}
 .detail-cta-row .btn{padding:16px 10px;font-size:14px;}
-.detail-editorial{border-top:2px solid var(--ink);padding-top:15px;margin-bottom:22px;}
+.detail-editorial{border-top:2px solid var(--ink);padding-top:14px;margin-bottom:16px;}
 .detail-editorial .label{font-family:var(--font-mono);font-size:10.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--royal);margin-bottom:10px;}
 .detail-editorial p{font-family:var(--font-display);font-size:17px;line-height:1.5;color:var(--ink);letter-spacing:-.005em;}
-.design-info-list{margin-bottom:24px;}
+.design-info-list{margin-bottom:18px;}
 .design-info-row{display:flex;gap:12px;font-size:13.5px;padding:11px 0;border-bottom:1px solid var(--line);}
 .design-info-row .label{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);min-width:84px;flex:none;padding-top:2px;}
 .design-info-row .value{color:var(--ink);font-weight:500;min-width:0;}
@@ -1926,8 +1926,6 @@ function viewStoreDetail(id){
     </div>
     <div class="design-info-list">
       <div class="design-info-row"><span class="label">Hours</span><span class="value">${s.hours}</span></div>
-      <div class="design-info-row"><span class="label">Prices</span><span class="value">${priceStr(s.priceLevel)}</span></div>
-      <div class="design-info-row"><span class="label">Neighborhood</span><span class="value">${s.neighborhood}</span></div>
       <div class="design-info-row"><span class="label">Good for</span><span class="value">${s.bestFor.join(" · ")}</span></div>
     </div>
 
@@ -1939,22 +1937,11 @@ function viewStoreDetail(id){
       </div>
     </div>
 
-    <div class="follow-block">
-      ${(()=>{
-        const pref = getFollowPref(s.id);
-        const count = followerCount(s.id);
-        const freqOptions = [["instant","Every post"],["daily","Daily digest"],["weekly","Weekly digest"]];
-        return `
-        <div class="follow-head">
-          <div><div class="fh-text">Follow this store's updates</div><div class="fh-sub">${count} following · new arrivals, sales, and posts</div></div>
-          <button class="follow-btn ${pref?'active':''}" data-action="toggle-follow-store" data-id="${s.id}">${ICONS.plus}${pref?'Following':'Follow'}</button>
-        </div>
-        ${pref ? `<div class="freq-row">${freqOptions.map(([key,label])=>`<button class="freq-chip ${pref===key?'active':''}" data-action="set-follow-freq" data-id="${s.id}" data-freq="${key}">${label}</button>`).join("")}</div>` : ''}`;
-      })()}
-    </div>
 
-    <button class="btn ${visited?'btn-primary':'btn-outline'} btn-block" style="margin-bottom:8px" data-action="toggle-visited" data-id="${s.id}">${ICONS.check}${visited?"You've been here":'Mark as visited'}</button>
-    <button class="btn btn-ghost btn-block" style="margin-bottom:22px" data-action="open-visit-note" data-store="${s.id}">${ICONS.edit}${state.visitNotes.some(n=>n.storeId===s.id)?'View or add a visit note':'Add a visit note'}</button>
+    <div style="display:flex;gap:8px;margin-bottom:18px">
+    <button class="btn ${visited?'btn-primary':'btn-outline'}" style="flex:1;padding:12px 10px;font-size:13px" data-action="toggle-visited" data-id="${s.id}">${ICONS.check}${visited?"You've been here":'Mark as visited'}</button>
+    <button class="btn btn-outline" style="flex:1;padding:12px 10px;font-size:13px" data-action="open-visit-note" data-store="${s.id}">${ICONS.edit}${state.visitNotes.some(n=>n.storeId===s.id)?'View or add a visit note':'Add a visit note'}</button>
+    </div>
 
     <div class="info-block">
       <h3>Before you go</h3>
@@ -2058,9 +2045,15 @@ function viewRouteBuilder(){
         </button>`).join("")}
       </div>`;
   }
+  const manual = (c.manualStores||[]).map(id=>getStoreById(id)).filter(Boolean);
+  const manualHtml = manual.length ? `<div style="margin-bottom:14px">
+      <div style="font-family:var(--font-mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--royal);margin-bottom:8px">Stops you've added · always included</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${manual.map(st=>`<span style="display:inline-flex;align-items:center;gap:6px;background:var(--ink);color:var(--cream);border-radius:99px;padding:7px 8px 7px 12px;font-size:12.5px;font-weight:600">${st.name}<button data-action="remove-manual-stop" data-id="${st.id}" aria-label="Remove ${st.name}" style="background:rgba(255,255,255,.18);border:none;color:var(--cream);width:20px;height:20px;border-radius:50%;cursor:pointer;line-height:1;font-size:13px">×</button></span>`).join("")}</div>
+    </div>` : "";
   return `
     <div style="margin-top:8px">
       <div class="wizard-progress">${[0,1,2,3].map(i=>`<span class="${i<=step?'done':''}"></span>`).join("")}</div>
+      ${manualHtml}
       <div class="wizard-card">
         ${body}
         <div class="wizard-nav">
@@ -2084,7 +2077,10 @@ function generateRoute(){
   candidates = candidates.filter(s=>s.distance<=maxMi);
   candidates.sort((a,b)=>a.distance-b.distance);
   const count = c.time==="2 hours"?2 : c.time==="Half day"?4 : 6;
-  let picked = candidates.slice(0, count);
+  // Stops the person added by hand come first and are never dropped.
+  const manual = (c.manualStores||[]).map(id=>getStoreById(id)).filter(Boolean).map(s=>Object.assign({}, s, {distance: dist(c.start, s.neighborhood)}));
+  candidates = candidates.filter(s=>!(c.manualStores||[]).includes(s.id));
+  let picked = manual.concat(candidates.slice(0, Math.max(0, count - manual.length)));
   if(picked.length===0) picked = state.stores.slice(0,2);
   let ordered;
   const destPos = c.destination && NEIGHBORHOODS[c.destination];
@@ -2369,29 +2365,28 @@ function viewProfile(){
         <span class="sr-left">${ICONS.edit}Edit profile</span>${ICONS.chevronR}
       </button>
     ${state.isAdmin ? `<button class="settings-row" style="width:100%;background:none;border:none;text-align:left" data-action="nav" data-view="admin">
-      <span class="sr-left">${ICONS.shield}2nd Studio admin</span>${ICONS.chevronR}
-    </button>` : ""}
-    <button class="settings-row" style="width:100%;background:none;border:none;text-align:left;color:var(--danger)" data-action="sign-out">
-      <span class="sr-left" style="color:var(--danger)">Sign out</span>
+      <span class="sr-left">${ICONS.shield}Admin tools</span>${ICONS.chevronR}
     </button>
-    <button class="settings-row" style="width:100%;background:none;border:none;text-align:left" data-action="nav" data-view="messages">
+    <button class="settings-row" style="width:100%;background:none;border:none;text-align:left" data-action="admin-preview-tours">
+      <span class="sr-left">Preview welcome tours</span>${ICONS.chevronR}
+    </button>` : `<button class="settings-row" style="width:100%;background:none;border:none;text-align:left" data-action="nav" data-view="messages">
       <span class="sr-left">Message the team${state.unreadFromTeam ? `<span style="margin-left:8px;background:var(--royal);color:#fff;border-radius:99px;font-family:var(--font-mono);font-size:9px;padding:3px 7px">${state.unreadFromTeam}</span>` : ""}</span>${ICONS.chevronR}
     </button>
     <button class="settings-row" style="width:100%;background:none;border:none;text-align:left" data-action="open-feedback">
       <span class="sr-left">Send feedback</span>${ICONS.chevronR}
     </button>
-    <button class="settings-row" style="width:100%;background:none;border:none;text-align:left" data-action="replay-member-tour">
-      <span class="sr-left">Replay the tour</span>${ICONS.chevronR}
-    </button>
-    ${state.isAdmin ? `<button class="settings-row" style="width:100%;background:none;border:none;text-align:left" data-action="admin-preview-insider">
-      <span class="sr-left">Preview Insider welcome <span style="font-family:var(--font-mono);font-size:9px;letter-spacing:.1em;color:var(--royal);margin-left:6px">ADMIN</span></span>${ICONS.chevronR}
-    </button>` : ""}
     <button class="settings-row" style="width:100%;background:none;border:none;text-align:left" data-action="open-blocked">
       <span class="sr-left">Blocked accounts</span>${ICONS.chevronR}
+    </button>`}
+    ${state.isAdmin ? "" : `<button class="settings-row" style="width:100%;background:none;border:none;text-align:left" data-action="replay-member-tour">
+      <span class="sr-left">Replay the tour</span>${ICONS.chevronR}
+    </button>`}
+    <button class="settings-row" style="width:100%;background:none;border:none;text-align:left;color:var(--danger)" data-action="sign-out">
+      <span class="sr-left" style="color:var(--danger)">Sign out</span>
     </button>
-    <button class="settings-row" style="width:100%;background:none;border:none;text-align:left" data-action="open-delete-account">
+    ${state.isAdmin ? "" : `<button class="settings-row" style="width:100%;background:none;border:none;text-align:left" data-action="open-delete-account">
       <span class="sr-left" style="color:var(--ink-soft);font-size:13px">Delete account</span>
-    </button>
+    </button>`}
     <div style="display:flex;gap:8px;margin-top:18px">
       <a href="/support.html" target="_blank" rel="noopener" style="flex:1;text-align:center;text-decoration:none;font-size:12.5px;font-weight:600;color:var(--ink);border:1.5px solid var(--line-strong);border-radius:99px;padding:10px 6px">Support</a>
       <a href="/privacy.html" target="_blank" rel="noopener" style="flex:1;text-align:center;text-decoration:none;font-size:12.5px;font-weight:600;color:var(--ink);border:1.5px solid var(--line-strong);border-radius:99px;padding:10px 6px">Privacy</a>
@@ -2517,6 +2512,18 @@ function externalLinkModal(params){
     </div>
   </div>`;
 }
+function previewToursModal(){
+  return `<div class="modal-overlay">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Preview welcome tours</div>
+      <div class="modal-sub">See what new people see. Members get the first tour after creating an account; Insiders get the second after subscribing.</div>
+      <button class="btn btn-outline btn-block" data-action="preview-tour" data-tour="member">Member welcome (5 slides)</button>
+      <button class="btn btn-outline btn-block" style="margin-top:8px" data-action="preview-tour" data-tour="insider">Insider welcome (7 slides)</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
+    </div>
+  </div>`;
+}
 function feedbackModal(){
   return `<div class="modal-overlay">
     <div class="modal-sheet">
@@ -2562,6 +2569,77 @@ function viewMessages(){
       <textarea id="msg-input" maxlength="2000" placeholder="${isAdminView ? "Write a reply…" : "Write a message…"}" style="flex:1;min-height:48px;max-height:140px;border:1px solid var(--line-strong);background:var(--cream-card);border-radius:18px;padding:12px 14px;font-size:14.5px;color:var(--ink);resize:vertical"></textarea>
       <button class="btn btn-royal" style="padding:13px 18px" data-action="send-message">Send</button>
     </div>`;
+}
+// ---- Admin: scan Google for stores we don't have yet ----------------------
+const SCAN_TYPES = ["thrift store","vintage clothing store","consignment shop","antique store"];
+const SCAN_AREAS = ["Decatur","Kirkwood","East Atlanta","Little Five Points","Old Fourth Ward","Midtown","Buckhead","West Midtown","Virginia-Highland","Grant Park","College Park","Marietta","Chamblee","Tucker","Smyrna","Sandy Springs"];
+function scanHiddenIds(){ try{ return JSON.parse(localStorage.getItem("atlThrift_scan_hidden")||"[]"); }catch(e){ return []; } }
+function normName(n){ return String(n||"").toLowerCase().replace(/[^a-z0-9]+/g," ").replace(/\b(the|store|shop|llc|inc)\b/g,"").trim(); }
+async function adminScanStores(){
+  if(!state.isAdmin) return;
+  state.admin = state.admin || {};
+  if(state.admin.scan && state.admin.scan.running) return;
+  const scan = state.admin.scan = { running:true, done:0, total:SCAN_TYPES.length*SCAN_AREAS.length, results:[], error:null };
+  renderList();
+  const havePlace = new Set(state.stores.map(s=>s.googlePlaceId).filter(Boolean));
+  const haveName = new Set(state.stores.map(s=>normName(s.name)));
+  const hidden = new Set(scanHiddenIds());
+  const seen = new Map();
+  const jobs = []; SCAN_TYPES.forEach(t=>SCAN_AREAS.forEach(a=>jobs.push({t,a})));
+  const run = async (job)=>{
+    try{
+      const r = await fetch("https://places.googleapis.com/v1/places:searchText", { method:"POST",
+        headers:{ "Content-Type":"application/json", "X-Goog-Api-Key":GOOGLE_MAPS_JS_KEY,
+          "X-Goog-FieldMask":"places.id,places.displayName,places.formattedAddress,places.rating,places.userRatingCount,places.location,places.nationalPhoneNumber,places.websiteUri,places.regularOpeningHours.weekdayDescriptions,places.photos,places.businessStatus,places.primaryTypeDisplayName" },
+        body: JSON.stringify({ textQuery:`${job.t} in ${job.a}, GA`, maxResultCount:20, locationBias:{ rectangle:{ low:{latitude:33.45,longitude:-84.9}, high:{latitude:34.35,longitude:-83.85} } } }) });
+      if(!r.ok){ if(!scan.error) scan.error = `Google returned ${r.status}`; return; }
+      const j = await r.json();
+      (j.places||[]).forEach(pl=>{
+        if(!pl.id || seen.has(pl.id)) return;
+        if(pl.businessStatus && pl.businessStatus !== "OPERATIONAL") return;
+        const name = pl.displayName && pl.displayName.text || "";
+        if(havePlace.has(pl.id) || haveName.has(normName(name)) || hidden.has(pl.id)) return;
+        seen.set(pl.id, { id:pl.id, name, address:pl.formattedAddress||"", rating:pl.rating||null, reviews:pl.userRatingCount||0,
+          lat:pl.location && pl.location.latitude, lng:pl.location && pl.location.longitude, phone:pl.nationalPhoneNumber||"", website:pl.websiteUri||"",
+          hours:(pl.regularOpeningHours && pl.regularOpeningHours.weekdayDescriptions || []).join(" · "), photo:(pl.photos && pl.photos[0] && pl.photos[0].name)||"",
+          kind:(pl.primaryTypeDisplayName && pl.primaryTypeDisplayName.text)||job.t, area:job.a });
+      });
+    }catch(e){ if(!scan.error) scan.error = "Couldn't reach Google — check the connection and the Maps key."; }
+    finally{ scan.done++; if(scan.done % 4 === 0) renderList(); }
+  };
+  // four searches at a time
+  for(let i=0;i<jobs.length;i+=4){ await Promise.all(jobs.slice(i,i+4).map(run)); }
+  scan.results = [...seen.values()].sort((a,b)=>((b.rating||0)*Math.log10((b.reviews||0)+10)) - ((a.rating||0)*Math.log10((a.reviews||0)+10)));
+  scan.running = false; renderList();
+}
+function adminScanHtml(){
+  const sc = state.admin && state.admin.scan; if(!sc) return "";
+  if(sc.running) return `<div class="card" style="background:var(--cream-card);border-radius:18px;padding:14px 16px;margin-bottom:12px"><div style="font-weight:700;color:var(--ink)">Scanning Google…</div><div class="ar-sub">${sc.done} of ${sc.total} searches done</div></div>`;
+  const rows = sc.results;
+  return `<div style="background:var(--cream-card);border-radius:18px;padding:14px 16px;margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;align-items:center;gap:8px"><div style="font-weight:700;color:var(--ink)">${rows.length} ${rows.length===1?"store":"stores"} not in the guide yet</div><button class="btn btn-ghost btn-sm" data-action="admin-scan-clear">Clear</button></div>
+    ${sc.error ? `<div class="ar-sub" style="color:var(--danger)">${escapeHtml(sc.error)}</div>` : ""}
+    <div class="ar-sub" style="margin-bottom:8px">Add opens the store form already filled in from Google. Hide keeps a place off future scans.</div>
+    ${rows.slice(0,60).map(r=>`<div class="admin-list-row" style="background:var(--cream);align-items:flex-start">
+      <div style="flex:1;min-width:0"><div class="ar-name">${escapeHtml(r.name)}${r.rating?` <span style="font-family:var(--font-mono);font-size:10px;color:var(--ink-soft)">★ ${r.rating} (${r.reviews})</span>`:""}</div><div class="ar-sub">${escapeHtml(r.kind)} · found near ${escapeHtml(r.area)}</div><div class="ar-sub">${escapeHtml(r.address)}</div></div>
+      <div class="ar-actions" style="flex-direction:column;gap:6px"><button class="btn btn-royal btn-sm" data-action="admin-scan-add" data-pid="${escapeHtml(r.id)}">Add</button><button class="btn btn-ghost btn-sm" data-action="admin-scan-hide" data-pid="${escapeHtml(r.id)}">Hide</button></div>
+    </div>`).join("")}
+    ${rows.length>60 ? `<div class="ar-sub">Showing the top 60.</div>` : ""}
+  </div>`;
+}
+function adminScanAdd(pid){
+  const r = state.admin && state.admin.scan && state.admin.scan.results.find(x=>x.id===pid); if(!r) return;
+  const hood = Object.keys(NEIGHBORHOODS).includes(r.area) ? r.area : Object.keys(NEIGHBORHOODS)[0];
+  const k = r.kind.toLowerCase();
+  const type = /antique/.test(k) ? "Antique Store" : /vintage/.test(k) ? "Vintage Boutique" : /consign/.test(k) ? "Consignment" : "Thrift Store";
+  openModal("adminStoreForm", { prefill:{ name:r.name, address:r.address, neighborhood:hood, type, phone:r.phone, website:String(r.website||"").replace(/^https?:\/\//,"").replace(/\/$/,""), hours:r.hours,
+    googlePlaceId:r.id, lat:r.lat, lng:r.lng, rating:r.rating, reviewCount:r.reviews, photoName:r.photo, categories:[], tags:[], bestFor:[], description:"", tips:"", priceLevel:1, color:"royal", chain:false } });
+}
+function adminScanHide(pid){
+  const ids = scanHiddenIds(); if(!ids.includes(pid)) ids.push(pid);
+  try{ localStorage.setItem("atlThrift_scan_hidden", JSON.stringify(ids)); }catch(e){}
+  if(state.admin && state.admin.scan) state.admin.scan.results = state.admin.scan.results.filter(x=>x.id!==pid);
+  renderList();
 }
 // ---- Admin review: pending events, store suggestions, reports, sign-ups ----
 async function loadAdminData(){
@@ -2672,8 +2750,13 @@ function viewAdmin(){
     body = adminReviewHtml();
   } else if(tab==="stores"){
     body = `
-      <button class="btn btn-royal btn-block" style="margin-bottom:14px" data-action="admin-add-store">${ICONS.plus}Add a store</button>
-      ${state.stores.map(s=>`
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button class="btn btn-royal" style="flex:1" data-action="admin-add-store">${ICONS.plus}Add a store</button>
+        <button class="btn btn-outline" style="flex:1" data-action="admin-scan-stores" ${state.admin && state.admin.scan && state.admin.scan.running ? "disabled" : ""}>${ICONS.search}Scan for new stores</button>
+      </div>
+      ${adminScanHtml()}
+      <input type="search" id="admin-store-search" placeholder="Search stores by name, neighborhood, or category" value="${escapeHtml(state.adminStoreQuery||"")}" style="width:100%;margin-bottom:12px;border:1px solid var(--line-strong);border-radius:99px;padding:12px 16px;font-size:14px;background:var(--cream-card);color:var(--ink)">
+      ${(()=>{ const q=(state.adminStoreQuery||"").toLowerCase().trim(); const list = q ? state.stores.filter(s=>[s.name,s.neighborhood,s.type,(s.categories||[]).join(" "),s.address].join(" ").toLowerCase().includes(q)) : state.stores; return `<div class="ar-sub" style="margin-bottom:8px">${list.length} of ${state.stores.length} stores</div>` + (list.length ? "" : `<div class="empty-state"><p>No stores match "${escapeHtml(state.adminStoreQuery||"")}".</p></div>`) + list.map(s=>`
         <div class="admin-list-row">
           <div><div class="ar-name">${s.name}${s.featured?'<span class="badge-featured">Featured</span>':''}</div><div class="ar-sub">${s.neighborhood} · ${s.categories.join(", ")}</div></div>
           <div class="ar-actions">
@@ -2681,7 +2764,7 @@ function viewAdmin(){
             <button data-action="admin-edit-store" data-id="${s.id}" aria-label="Edit">${ICONS.edit}</button>
             <button data-action="admin-delete-store" data-id="${s.id}" aria-label="Delete">${ICONS.trash}</button>
           </div>
-        </div>`).join("")}
+        </div>`).join(""); })()}
     `;
   } else if(tab==="routes"){
     body = `<p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">Curated routes shown on the home screen (edit store data to reflect in real time).</p>
@@ -2716,7 +2799,7 @@ function viewAdmin(){
   return `
     <div style="margin-top:16px">
       <button class="btn btn-ghost btn-sm" data-action="go-back" style="margin-bottom:14px">${ICONS.back}Back</button>
-      <h2 style="font-size:22px;margin-bottom:14px">2nd Studio admin</h2>
+      <h2 style="font-size:22px;margin-bottom:14px">Admin tools</h2>
       <div class="tab-row">
         <button class="${tab==='review'?'active':''}" data-action="set-admin-tab" data-t="review">Review</button>
         <button class="${tab==='stores'?'active':''}" data-action="set-admin-tab" data-t="stores">Stores</button>
@@ -2748,6 +2831,7 @@ function renderModal(){
   else if(name==="suggestStore") html = suggestStoreModal();
   else if(name==="adminEditEvent") html = adminEditEventModal(params);
   else if(name==="feedback") html = feedbackModal();
+  else if(name==="previewTours") html = previewToursModal();
   else if(name==="externalLink") html = externalLinkModal(params);
   else if(name==="blocked") html = blockedModal();
   else if(name==="termsGate") html = termsGateModal();
@@ -3089,14 +3173,14 @@ function addStopModal(){
 
 function adminStoreFormModal(params){
   const editing = params.id ? getStoreById(params.id) : null;
-  const s = editing || {name:"",neighborhood:Object.keys(NEIGHBORHOODS)[0],address:"",type:"Thrift Store",priceLevel:1,categories:[],hours:"",rating:4.5,tags:[],description:"",phone:"",website:"",bestFor:[],tips:"",color:"royal"};
+  const s = editing || params.prefill || {name:"",neighborhood:Object.keys(NEIGHBORHOODS)[0],address:"",type:"Thrift Store",priceLevel:1,categories:[],hours:"",rating:4.5,tags:[],description:"",phone:"",website:"",bestFor:[],tips:"",color:"royal"};
   return `<div class="modal-overlay">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
       <div class="modal-title">${editing?'Edit store':'Add a store'}</div>
       <div class="form-group"><label>Find the business on Google</label><div style="font-size:12px;color:var(--ink-soft);margin:-2px 0 8px;line-height:1.45">${editing && s.googlePlaceId ? "Linked to Google. Pick it again to refresh the address, hours, rating, and photo." : "Start typing the store name; picking it fills in the address, phone, website, hours, rating, map pin, and photo."}</div><div id="as-google-container" style="width:100%;overflow:visible"><input type="text" id="as-google-fallback" placeholder="Search Google for the store" disabled></div></div>
       <input type="hidden" id="as-place" value="${escapeHtml(s.googlePlaceId||"")}"><input type="hidden" id="as-lat" value="${s.lat??""}"><input type="hidden" id="as-lng" value="${s.lng??""}"><input type="hidden" id="as-rating" value="${s.rating??""}"><input type="hidden" id="as-reviews" value="${s.reviewCount??""}"><input type="hidden" id="as-photo" value="${escapeHtml(s.photoName||"")}">
-      <div id="as-google-status" style="font-size:12px;color:var(--royal);margin:-4px 0 10px">${s.googlePlaceId ? "✓ Linked to Google" : ""}</div>
+      <div id="as-google-status" style="font-size:12px;color:var(--royal);margin:-4px 0 10px">${s.googlePlaceId ? (params.prefill ? "✓ Filled in from Google — add the 2nd Studio details below" : "✓ Linked to Google") : ""}</div>
       <div class="form-group"><label>Store name</label><input type="text" id="as-name" value="${escapeHtml(s.name||"")}"></div>
       <div class="form-group"><label>Neighborhood</label><select id="as-n">${Object.keys(NEIGHBORHOODS).map(n=>`<option ${s.neighborhood===n?'selected':''}>${n}</option>`).join("")}</select></div>
       <div class="form-group"><label>Address</label><input type="text" id="as-addr" value="${escapeHtml(s.address||"")}"></div>
@@ -3179,6 +3263,8 @@ function handleClick(e){
     case "quiz-share": shareStyleResult(); break;
     case "send-message": sendMessage(); break;
     case "open-feedback": requireAuth(()=>openModal("feedback")); break;
+    case "admin-preview-tours": openModal("previewTours"); break;
+    case "preview-tour": closeModal(); if(t.dataset.tour==="insider") showInsiderWelcome(); else startTour("member"); break;
     case "open-external": openModal("externalLink", {href:t.dataset.href}); break;
     case "submit-feedback": submitFeedback(); break;
     case "open-thread": go("messages", {userId:t.dataset.uid}); break;
@@ -3213,7 +3299,8 @@ function handleClick(e){
     }
     case "share-route": doShareRaw(buildRouteShareText(state.currentRoute)); break;
     case "add-to-route": addStoreToBuilder(t.dataset.id); break;
-    case "get-directions": toast("Opening directions isn't available in this prototype yet."); break;
+    case "remove-manual-stop": state.builderChoice.manualStores = state.builderChoice.manualStores.filter(x=>x!==t.dataset.id); renderList(); break;
+    case "get-directions": openDirections(t.dataset.id); break;
     case "filter-neighborhood":
       state.discoverFilters = [t.dataset.n];
       state.searchQuery = "";
@@ -3299,6 +3386,10 @@ function handleClick(e){
     case "admin-login": adminLogin(); break;
     case "set-admin-tab": state.adminTab = t.dataset.t; if(t.dataset.t==="review") loadAdminData(); renderList(); break;
     case "admin-add-store": openModal("adminStoreForm", {}); break;
+    case "admin-scan-stores": adminScanStores(); break;
+    case "admin-scan-clear": if(state.admin) state.admin.scan = null; renderList(); break;
+    case "admin-scan-add": adminScanAdd(t.dataset.pid); break;
+    case "admin-scan-hide": adminScanHide(t.dataset.pid); break;
     case "admin-edit-store": openModal("adminStoreForm", {id:t.dataset.id}); break;
     case "admin-delete-store": adminDeleteStore(t.dataset.id); break;
     case "admin-toggle-featured": adminToggleFeatured(t.dataset.id); break;
@@ -3332,8 +3423,18 @@ function toggleBuilderCategory(c){
   renderList();
 }
 function addStoreToBuilder(id){
-  toast("Added to your route builder — finish building to see it placed in order.");
   if(!state.builderChoice.manualStores.includes(id)) state.builderChoice.manualStores.push(id);
+  const n = state.builderChoice.manualStores.length;
+  toast(`Added to your route (${n} stop${n===1?"":"s"}). Opening the route builder…`);
+  go("route");
+}
+// Driving directions in Google Maps (opens the app when it's installed, the website otherwise).
+function openDirections(id){
+  const s = getStoreById(id); if(!s) return;
+  const dest = (s.lat && s.lng) ? `${s.lat},${s.lng}` : (s.address || s.name);
+  let url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}&travelmode=driving`;
+  if(s.googlePlaceId) url += `&destination_place_id=${encodeURIComponent(s.googlePlaceId)}`;
+  window.open(url, "_blank", "noopener");
 }
 function loadCuratedRoute(id){
   const r = CURATED_ROUTES.find(x=>x.id===id);
@@ -4637,11 +4738,21 @@ async function submitAdminStore(id){
   else { row.id = "s" + Date.now().toString(36); row.featured = false; ({ error } = await sb.from("stores").insert(row)); }
   if(error){ console.error("store save failed:", error.message); toast("Couldn't save that store — check the fields and try again."); return; }
   closeModal();
+  if(!id && placeId && state.admin && state.admin.scan) state.admin.scan.results = state.admin.scan.results.filter(x=>x.id!==placeId);
   await loadStores(); toast(id ? "Store updated." : "Store added."); renderList();
 }
 
 document.body.addEventListener("click", handleClick);
 
+document.addEventListener("input", (e)=>{
+  if(e.target && e.target.id === "admin-store-search"){
+    state.adminStoreQuery = e.target.value;
+    const pos = e.target.selectionStart;
+    renderList();
+    const box = document.getElementById("admin-store-search");
+    if(box){ box.focus(); try{ box.setSelectionRange(pos,pos); }catch(err){} }
+  }
+});
 function attachModalHandlers(){
   renderTurnstile();
   const unameInput = document.getElementById("login-username");
