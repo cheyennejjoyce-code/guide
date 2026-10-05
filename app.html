@@ -1597,7 +1597,8 @@ function eventTimeRange(ev){
 }
 function eventLocation(ev){
   const store = ev.linkedStoreId ? getStoreById(ev.linkedStoreId) : null;
-  return ev.venue || (store ? store.name : "Atlanta");
+  const venue = ev.venue && ev.address && ev.address.toLowerCase().startsWith(ev.venue.toLowerCase()) ? "" : ev.venue;
+  return venue || (store ? store.name : "Atlanta");
 }
 function getUpcomingEvents(){
   const today = new Date(); today.setHours(0,0,0,0);
@@ -1968,7 +1969,7 @@ function viewStoreDetail(id){
       ${storePosts.length ? storePosts.map(p=>postCard(p)).join("") : `<div class="empty-state" style="padding:24px 10px"><p>No finds shared from here yet.</p></div>`}
     </div>
     <button class="btn btn-ghost btn-block" data-action="share-store" data-id="${s.id}">${ICONS.share}Share this store</button>
-    <button class="btn btn-ghost btn-block" style="margin-top:6px;font-size:13px;color:var(--ink-soft)" data-action="open-report" data-type="store" data-id="${s.id}">Report an issue with this store</button>
+    ${state.isAdmin ? "" : `<button class="btn btn-ghost btn-block" style="margin-top:6px;font-size:13px;color:var(--ink-soft)" data-action="open-report" data-type="store" data-id="${s.id}">Report an issue with this store</button>`}
   `;
 }
 
@@ -2251,7 +2252,7 @@ function postCard(p){
         <button data-action="toggle-comments" data-id="${p.id}">${ICONS.comment}${comments.length}</button>
         <button class="${savedT?'saved-t':''}" data-action="save-post" data-id="${p.id}">${ICONS.bookmark}</button>
         <button data-action="share-post" data-id="${p.id}">${ICONS.share}</button>
-        ${state.user && p.userId===state.user.id ? "" : `<button data-action="open-report" data-type="post" data-id="${p.id}" data-uid="${p.userId||""}" data-uname="${p.user}" style="margin-left:auto;font-size:12px;color:var(--ink-soft)">Report</button>`}
+        ${state.isAdmin || (state.user && p.userId===state.user.id) ? "" : `<button data-action="open-report" data-type="post" data-id="${p.id}" data-uid="${p.userId||""}" data-uname="${p.user}" style="margin-left:auto;font-size:12px;color:var(--ink-soft)">Report</button>`}
         ${state.isAdmin ? `<button data-action="admin-remove-post" data-id="${p.id}" style="font-size:12px;color:var(--danger)">Remove</button>` : ""}
       </div>
       <div class="comments-box" id="comments-${p.id}" style="display:${state.openComments===p.id?'block':'none'}">
@@ -2500,6 +2501,22 @@ async function sendMessage(){
     const list = document.getElementById("msg-list"); if(list) list.scrollTop = list.scrollHeight;
   } finally { sendingMessage = false; }
 }
+// A short notice before any link that leaves the app, showing the real destination.
+function externalLinkModal(params){
+  const raw = String(params.href||"");
+  const url = /^https?:\/\/[^\s"'<>]+$/i.test(raw) ? raw : "";
+  let host = ""; try{ host = new URL(url).hostname.replace(/^www\./,""); }catch(e){}
+  if(!url) return `<div class="modal-overlay"><div class="modal-sheet"><div class="modal-handle"></div><div class="modal-title">Link unavailable</div><button class="btn btn-ghost btn-block" data-action="close-modal">Close</button></div></div>`;
+  return `<div class="modal-overlay">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">You're leaving ATL Thrift Guide</div>
+      <div class="modal-sub">This link opens <b style="color:var(--ink)">${escapeHtml(host)}</b>, an outside website. ATL Thrift Guide does not operate it and is not responsible for its content, accuracy, or security.</div>
+      <a class="btn btn-royal btn-block" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" data-action="close-modal">Continue</a>
+      <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
+    </div>
+  </div>`;
+}
 function feedbackModal(){
   return `<div class="modal-overlay">
     <div class="modal-sheet">
@@ -2604,7 +2621,7 @@ function adminReviewHtml(){
     </button>`).join("") : empty("No messages yet.");
   return `${a.loaded||a.loading ? "" : `<button class="btn btn-ghost btn-sm" data-action="set-admin-tab" data-t="review">Refresh</button>`}
     ${section("Messages", unreadTotal, msgsHtml)}
-    ${section("Events to review", pending.length, eventsHtml)}
+    ${section("Events to review", pending.length, (pending.length ? `<div class="ar-sub" style="margin-bottom:8px">Open the event link before publishing; decline anything that doesn't lead to a real event page.</div>` : "") + eventsHtml)}
     ${section("Store suggestions", (a.storeSubs||[]).length, subsHtml)}
     ${section("Open reports", (a.reports||[]).length, repsHtml)}
     ${section("New sign-ups", su.length, signupsHtml)}`;
@@ -2731,6 +2748,7 @@ function renderModal(){
   else if(name==="suggestStore") html = suggestStoreModal();
   else if(name==="adminEditEvent") html = adminEditEventModal(params);
   else if(name==="feedback") html = feedbackModal();
+  else if(name==="externalLink") html = externalLinkModal(params);
   else if(name==="blocked") html = blockedModal();
   else if(name==="termsGate") html = termsGateModal();
   else if(name==="tour") html = tourModal(params);
@@ -2782,10 +2800,10 @@ function eventDetailModal(params){
       </div>
       ${ev.flyerUrl?`<img src="${ev.flyerUrl}" alt="Event flyer" style="width:100%;border-radius:16px;display:block;margin-bottom:16px">`:""}
       <p style="font-size:14px;line-height:1.6;color:var(--body-text);margin-bottom:18px">${ev.description||"More details will be added soon."}</p>
-      ${ev.sourceUrl?`<a class="btn btn-royal btn-block" href="${ev.sourceUrl}" target="_blank" rel="noopener">View event link</a>`:""}
+      ${ev.sourceUrl?`<button class="btn btn-royal btn-block" data-action="open-external" data-href="${ev.sourceUrl}">View event link</button>`:""}
       ${store?`<button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="open-store" data-id="${store.id}">View ${store.name}</button>`:""}
       ${state.user && (state.isAdmin || (ev.submittedBy && ev.submittedBy===state.user.id)) ? `<button class="btn btn-ghost btn-block" style="margin-top:8px;font-size:13px;color:var(--danger)" data-action="delete-own-event" data-id="${ev.id}">Delete this event</button>` : ""}
-      <button class="btn btn-ghost btn-block" style="margin-top:8px;font-size:13px;color:var(--ink-soft)" data-action="open-report" data-type="event" data-id="${ev.id}">Report this event</button>
+      ${state.isAdmin ? "" : `<button class="btn btn-ghost btn-block" style="margin-top:8px;font-size:13px;color:var(--ink-soft)" data-action="open-report" data-type="event" data-id="${ev.id}">Report this event</button>`}
       <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Close</button>
     </div>
   </div>`;
@@ -3161,6 +3179,7 @@ function handleClick(e){
     case "quiz-share": shareStyleResult(); break;
     case "send-message": sendMessage(); break;
     case "open-feedback": requireAuth(()=>openModal("feedback")); break;
+    case "open-external": openModal("externalLink", {href:t.dataset.href}); break;
     case "submit-feedback": submitFeedback(); break;
     case "open-thread": go("messages", {userId:t.dataset.uid}); break;
     case "style-feedback": sendStyleFeedback(t.dataset.verdict); break;
@@ -3499,7 +3518,7 @@ const USERNAME_RULE = /^[a-z0-9._]{3,20}$/;
 const RESERVED_USERNAME = /(admin|atlthriftguide|atlguide|2ndstudio|secondstudio|official|support|moderator)/i;
 // Bump this date whenever the Terms or Privacy Policy change, so everyone
 // is asked to agree to the new version.
-const TERMS_VERSION = "2026-10-04";
+const TERMS_VERSION = "2026-10-05";
 function hasAcceptedTerms(){
   if(state.user && state.user.termsVersion === TERMS_VERSION) return true;
   try{ return localStorage.getItem("atlThrift_terms_version") === TERMS_VERSION; }catch(e){ return false; }
@@ -3611,11 +3630,11 @@ const HOME_QUESTIONS = [
   {q:"Pick a word for your home.", options:[["Serene",{wabisabi:2,japandi:1,minimalist:1,quietlux:1}],["Glamorous",{deco:2,harlem:1,moorish:1}],["Playful",{maximalist:2,y2k:2,postmodern:1}],["Cozy",{farmhouse:1,english:1,boho:1,americana:1}],["Refined",{quietlux:2,mcm:1,victorian:1}],["Soulful",{african:1,harlem:1,latin:1,tropical:1,boho:1}]]}
 ];
 const FASHION_QUESTIONS = [
-  {q:"Your Saturday thrift-run outfit.", options:[["Vintage tee, broken-in jeans, clean sneakers",{casual:3,streetwear:1,workwear:1}],["A matching knit set and retro runners",{sportluxe:3,streetwear:1}],["A slip dress or a white tee with a perfect trench",{min90s:2,parisian:2,quietlux:1}],["Flares, a suede jacket, and layered necklaces",{boheme70s:3,disco:1}],["Flannel, a band tee, and combat boots",{grunge:3,punk:1}],["A tailored blazer, pocket square, and great shoes",{dandy:2,power:1,southernprep:1,academia:1}]]},
+  {q:"Your Saturday thrift-run outfit.", options:[["Vintage tee, broken-in jeans, clean sneakers",{casual:3,streetwear:1,workwear:1}],["A matching knit set and retro runners",{sportluxe:3,streetwear:1}],["A white tee with a perfect trench",{min90s:2,parisian:2,quietlux:1}],["Flares, a suede jacket, and layered necklaces",{boheme70s:3,disco:1}],["Flannel, a band tee, and combat boots",{grunge:3,punk:1}],["A tailored blazer, pocket square, and great shoes",{dandy:2,power:1,southernprep:1,academia:1}]]},
   {q:"The piece you'd splurge on.", options:[["A designer bag or grail sneakers",{luxstreet:3,quietlux:1}],["A sculptural piece from an avant-garde designer",{avantgarde:3}],["A cashmere coat with no logo anywhere",{quietlux:3,min90s:1}],["A sequin or metallic showstopper",{disco:3,power:1,y2k:1}],["A hand-embroidered or wax-print statement piece",{african:2,latin:2,romantic:1}],["Vintage Western boots",{workwear:3,boheme70s:1}]]},
   {q:"Your color story.", options:[["Black, white, and gray",{min90s:2,avantgarde:2,punk:1}],["Camel, cream, and navy",{quietlux:2,parisian:2,academia:1,casual:1}],["Pastels and gingham",{southernprep:3,newlook:1,romantic:1}],["Saturated brights",{latin:2,african:2,mod:1,y2k:1}],["Earthy rust and olive",{boheme70s:2,workwear:2,grunge:1}],["Bold, head-to-toe color",{dandy:2,power:1,disco:1,mod:1}]]},
   {q:"Pick a decade.", options:[["The 1950s",{newlook:3,romantic:1}],["The 1960s",{mod:3}],["The 1970s",{boheme70s:2,disco:2}],["The 1980s",{power:3,punk:1}],["The 1990s",{min90s:2,grunge:2,streetwear:2}],["The 2000s",{y2k:3,luxstreet:1}]]},
-  {q:"Your go-to shoe.", options:[["Loafers or boat shoes",{southernprep:2,academia:1,parisian:1,dandy:1}],["Classic sneakers, kept fresh",{streetwear:3,casual:1}],["Retro running shoes, styled with intention",{sportluxe:3}],["Platforms or go-go boots",{mod:1,disco:1,y2k:1,punk:1}],["Mary Janes or kitten heels",{newlook:2,romantic:2,parisian:1}],["Boots that have seen things",{workwear:2,punk:2,grunge:1}]]},
+  {q:"Your go-to shoe.", options:[["Loafers or boat shoes",{southernprep:2,academia:1,parisian:1,dandy:1}],["Classic sneakers, kept fresh",{streetwear:3,casual:1}],["Retro running shoes, styled with intention",{sportluxe:3}],["Platforms or go-go boots",{mod:1,disco:1,y2k:1,punk:1}],["Polished vintage dress shoes",{newlook:2,romantic:2,parisian:1}],["Boots that have seen things",{workwear:2,punk:2,grunge:1}]]},
   {q:"Whose closet would you raid?", options:[["A Harlem Renaissance gentleman's",{dandy:3}],["A Lagos street-style star's",{african:3}],["A Mexico City gallerist's",{latin:3}],["A Tokyo designer's, all in black",{avantgarde:2,min90s:1}],["A Parisian on a bicycle's",{parisian:3}],["A rock star's at a basement show",{punk:2,grunge:1}]]},
   {q:"The fabric you reach for.", options:[["Crisp cotton poplin and seersucker",{southernprep:2,casual:1,newlook:1}],["Tweed and wool",{academia:3,quietlux:1}],["Lace and silk ruffles",{romantic:3,newlook:1}],["Denim and canvas",{workwear:2,casual:1,streetwear:1}],["Technical knits and nylon",{sportluxe:2,streetwear:1,y2k:1}],["Leather and studs",{punk:2,grunge:1,luxstreet:1}]]},
   {q:"Pick a word for your style.", options:[["Effortless",{casual:2,parisian:1,min90s:1}],["Sharp",{power:2,dandy:1,mod:1}],["Comfortable",{streetwear:2,sportluxe:1,casual:1,grunge:1}],["Dramatic",{avantgarde:1,disco:1,romantic:1}],["Iconic",{luxstreet:3,y2k:1,mod:1}],["Proper",{southernprep:2,academia:1,newlook:1,quietlux:1}]]}
