@@ -1183,6 +1183,7 @@ function loadOutdoorTemperature(){
 
 function go(view, params){
   if(view==="styleQuiz") state.quiz = null;
+  if(view==="admin" && state.isAdmin && (!state.adminTab || state.adminTab==="review")) setTimeout(loadAdminData, 0);
   state.view = view;
   state.params = params || {};
   window.scrollTo(0,0);
@@ -1718,7 +1719,11 @@ function viewDiscover(){
       </div>
       ${state.discoverMode==='map' ? discoverMap(list) : ''}
       ${list.length===0 ? `<div class="empty-state"><h3>No stores match yet</h3><p>Clear a filter or search a different neighborhood.</p></div>` : `<div class="grid-stack">${list.map(s=>storeGridCard(s)).join("")}</div>`}
-
+      <div class="events-submit-card" style="margin-top:24px">
+        <h3>Know a store we're missing?</h3>
+        <p>Suggest an independent thrift, vintage, consignment, or antique store. Our team checks every suggestion.</p>
+        <button class="btn" data-action="open-suggest-store">Suggest a store</button>
+      </div>
     </div>
   `;
 }
@@ -1746,7 +1751,7 @@ function loadGoogleMapsScript(){
     if(el) el.outerHTML = fallbackStylizedMap(__pendingMapStores || []);
     return;
   }
-  window.__onGoogleMapsReady = function(){ renderGoogleMapIfNeeded(); initDestinationAutocomplete(); initEventAddressAutocomplete(); };
+  window.__onGoogleMapsReady = function(){ renderGoogleMapIfNeeded(); initDestinationAutocomplete(); initEventAddressAutocomplete(); initSuggestAddressAutocomplete(); };
   // Google's official hook for exactly the "key exists but won't
   // authenticate" case — bad restriction, API not enabled, billing not
   // active, etc. Without this, Google silently overwrites our map div with
@@ -2449,13 +2454,92 @@ function viewProfileLibrary(){
   </div>`;
 }
 
+// ---- Admin review: pending events, store suggestions, reports, sign-ups ----
+async function loadAdminData(){
+  if(!state.isAdmin) return;
+  state.admin = state.admin || {};
+  state.admin.loading = true; renderList();
+  const [subs, reps, signups] = await Promise.all([
+    sb.from("store_submissions").select("*").eq("status","pending").order("created_at",{ascending:false}),
+    sb.from("reports").select("*").eq("status","open").order("created_at",{ascending:false}),
+    sb.rpc("admin_recent_signups", { days: 30 })
+  ]);
+  state.admin.storeSubs = subs.data || [];
+  state.admin.reports = reps.data || [];
+  state.admin.signups = signups.data || [];
+  state.admin.loading = false; state.admin.loaded = true;
+  renderList();
+}
+function adminTargetLabel(r){
+  if(r.target_type==="store"){ const s = getStoreById(r.target_id); return s ? s.name : "Store " + r.target_id; }
+  if(r.target_type==="post"){ const p = state.posts.find(x=>x.id===r.target_id); return p ? `Post: ${p.item} (@${p.user})` : "Post " + r.target_id.slice(0,8); }
+  if(r.target_type==="event"){ const e = state.events.find(x=>x.id===r.target_id); return e ? `Event: ${e.title}` : "Event " + r.target_id.slice(0,8); }
+  return r.target_type + " " + String(r.target_id).slice(0,8);
+}
+function adminReviewHtml(){
+  const a = state.admin || {};
+  const pending = state.events.filter(e=>e.status==="pending");
+  const section = (title, count, inner) => `<div style="margin:18px 0 6px;display:flex;align-items:center;justify-content:space-between"><h3 style="font-size:16px;margin:0">${title}</h3><span style="font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;color:var(--royal)">${count}</span></div>${inner}`;
+  const empty = t => `<div style="font-size:13px;color:var(--ink-soft);padding:6px 0 10px">${t}</div>`;
+  const eventsHtml = pending.length ? pending.map(ev=>`
+    <div class="admin-list-row" style="align-items:flex-start">
+      <div style="flex:1;min-width:0"><div class="ar-name">${ev.title}</div><div class="ar-sub">${ev.startDate||""}${ev.startTime?" · "+ev.startTime:""} · ${ev.venue||""}</div><div class="ar-sub">${ev.address||""}</div>${ev.sourceUrl?`<a class="ar-sub" href="${ev.sourceUrl}" target="_blank" rel="noopener" style="color:var(--royal)">Event link</a>`:""}<div class="ar-sub" style="margin-top:4px;white-space:normal">${ev.description||""}</div></div>
+      <div class="ar-actions" style="flex-direction:column;gap:6px"><button class="btn btn-royal btn-sm" data-action="admin-approve-event" data-id="${ev.id}">Publish</button><button class="btn btn-ghost btn-sm" data-action="admin-decline-event" data-id="${ev.id}">Decline</button></div>
+    </div>`).join("") : empty("No events waiting for review.");
+  const subsHtml = a.loading ? empty("Loading…") : (a.storeSubs||[]).length ? a.storeSubs.map(st=>`
+    <div class="admin-list-row" style="align-items:flex-start">
+      <div style="flex:1;min-width:0"><div class="ar-name">${escapeHtml(st.name)}</div><div class="ar-sub">${escapeHtml(st.store_type||"")} · ${escapeHtml(st.neighborhood||"")}</div><div class="ar-sub">${escapeHtml(st.address||"")}</div><div class="ar-sub">${escapeHtml(st.categories||"")}</div>${st.link && /^https?:\/\//i.test(st.link)?`<a class="ar-sub" href="${escapeHtml(st.link)}" target="_blank" rel="noopener" style="color:var(--royal)">Link</a>`:""}<div class="ar-sub" style="margin-top:4px;white-space:normal">${escapeHtml(st.why||"")}</div><div class="ar-sub">From ${escapeHtml(st.submitter_email||"a member")}</div></div>
+      <div class="ar-actions" style="flex-direction:column;gap:6px"><button class="btn btn-royal btn-sm" data-action="admin-store-sub" data-id="${st.id}" data-status="added">Added</button><button class="btn btn-ghost btn-sm" data-action="admin-store-sub" data-id="${st.id}" data-status="declined">Decline</button></div>
+    </div>`).join("") : empty("No store suggestions waiting.");
+  const repsHtml = a.loading ? empty("Loading…") : (a.reports||[]).length ? a.reports.map(r=>`
+    <div class="admin-list-row" style="align-items:flex-start">
+      <div style="flex:1;min-width:0"><div class="ar-name">${escapeHtml(r.reason)}</div><div class="ar-sub">${escapeHtml(adminTargetLabel(r))}</div>${r.details?`<div class="ar-sub" style="margin-top:4px;white-space:normal">${escapeHtml(r.details)}</div>`:""}<div class="ar-sub">${timeAgo((r.created_at||"").slice(0,10))}</div></div>
+      <div class="ar-actions"><button class="btn btn-ghost btn-sm" data-action="admin-resolve-report" data-id="${r.id}">Resolve</button></div>
+    </div>`).join("") : empty("No open reports.");
+  const su = a.signups||[];
+  const week = su.filter(x=>Date.now()-new Date(x.created_at).getTime() < 7*864e5).length;
+  const signupsHtml = a.loading ? empty("Loading…") : `<div class="ar-sub" style="margin-bottom:8px">${su.length} in the last 30 days · ${week} this week</div>` + (su.length ? su.slice(0,25).map(x=>`<div class="admin-list-row"><div><div class="ar-name">@${escapeHtml(x.username||"—")}</div><div class="ar-sub">${escapeHtml(x.email||"")} · ${timeAgo((x.created_at||"").slice(0,10))}${x.confirmed?"":" · unconfirmed"}</div></div></div>`).join("") : empty("No sign-ups yet."));
+  return `${a.loaded||a.loading ? "" : `<button class="btn btn-ghost btn-sm" data-action="set-admin-tab" data-t="review">Refresh</button>`}
+    ${section("Events to review", pending.length, eventsHtml)}
+    ${section("Store suggestions", (a.storeSubs||[]).length, subsHtml)}
+    ${section("Open reports", (a.reports||[]).length, repsHtml)}
+    ${section("New sign-ups", su.length, signupsHtml)}`;
+}
+async function adminSetEventStatus(id, status){
+  if(!state.isAdmin) return;
+  const { error } = await sb.from("events").update({ status }).eq("id", id);
+  if(error){ toast("Couldn't update that event."); return; }
+  await loadEvents(); toast(status==="published" ? "Event published." : "Event declined."); renderList();
+}
+async function adminDeleteEvent(id){
+  if(!state.isAdmin || !confirm("Delete this event for everyone?")) return;
+  const { error } = await sb.from("events").delete().eq("id", id);
+  if(error){ toast("Couldn't delete that event."); return; }
+  await loadEvents(); toast("Event deleted."); renderList();
+}
+async function adminSetStoreSub(id, status){
+  if(!state.isAdmin) return;
+  const { error } = await sb.from("store_submissions").update({ status }).eq("id", id);
+  if(error){ toast("Couldn't update that suggestion."); return; }
+  state.admin.storeSubs = (state.admin.storeSubs||[]).filter(x=>x.id!==id);
+  toast(status==="added" ? "Marked as added." : "Suggestion declined."); renderList();
+}
+async function adminResolveReport(id){
+  if(!state.isAdmin) return;
+  const { error } = await sb.from("reports").update({ status:"resolved" }).eq("id", id);
+  if(error){ toast("Couldn't resolve that report."); return; }
+  state.admin.reports = (state.admin.reports||[]).filter(x=>x.id!==id);
+  toast("Report resolved."); renderList();
+}
 function viewAdmin(){
   if(!state.isAdmin){
     return `<div class="empty-state" style="margin-top:60px"><h3>Admins only</h3><p>This area is for the 2nd Studio team.</p><button class="btn btn-ghost" style="margin-top:12px" data-action="go-back">Back</button></div>`;
   }
-  const tab = state.adminTab || "stores";
+  const tab = state.adminTab || "review";
   let body = "";
-  if(tab==="stores"){
+  if(tab==="review"){
+    body = adminReviewHtml();
+  } else if(tab==="stores"){
     body = `
       <button class="btn btn-royal btn-block" style="margin-bottom:14px" data-action="admin-add-store">${ICONS.plus}Add a store</button>
       ${state.stores.map(s=>`
@@ -2503,6 +2587,7 @@ function viewAdmin(){
       <button class="btn btn-ghost btn-sm" data-action="go-back" style="margin-bottom:14px">${ICONS.back}Back</button>
       <h2 style="font-size:22px;margin-bottom:14px">2nd Studio admin</h2>
       <div class="tab-row">
+        <button class="${tab==='review'?'active':''}" data-action="set-admin-tab" data-t="review">Review</button>
         <button class="${tab==='stores'?'active':''}" data-action="set-admin-tab" data-t="stores">Stores</button>
         <button class="${tab==='routes'?'active':''}" data-action="set-admin-tab" data-t="routes">Routes</button>
         <button class="${tab==='sales'?'active':''}" data-action="set-admin-tab" data-t="sales">Sales</button>
@@ -2529,6 +2614,7 @@ function renderModal(){
   else if(name==="eventSubmission") html = eventSubmissionModal();
   else if(name==="verifyEmail") html = verifyEmailModal();
   else if(name==="deleteAccount") html = deleteAccountModal();
+  else if(name==="suggestStore") html = suggestStoreModal();
   else if(name==="blocked") html = blockedModal();
   else if(name==="termsGate") html = termsGateModal();
   else if(name==="tour") html = tourModal(params);
@@ -2540,6 +2626,7 @@ function renderModal(){
   root.innerHTML = html;
   attachModalHandlers();
   initEventAddressAutocomplete();
+  initSuggestAddressAutocomplete();
 }
 
 function visitNoteModal(params){
@@ -3022,6 +3109,12 @@ function handleClick(e){
     case "replay-member-tour": startTour(state.user && state.user.isMember ? "insider" : "member"); break;
     case "admin-preview-insider": showInsiderWelcome(); break;
     case "open-membership": openModal("membership"); break;
+    case "open-suggest-store": requireAuth(()=>openModal("suggestStore")); break;
+    case "submit-suggest-store": submitSuggestStore(); break;
+    case "admin-approve-event": adminSetEventStatus(t.dataset.id, "published"); break;
+    case "admin-decline-event": adminSetEventStatus(t.dataset.id, "declined"); break;
+    case "admin-store-sub": adminSetStoreSub(t.dataset.id, t.dataset.status); break;
+    case "admin-resolve-report": adminResolveReport(t.dataset.id); break;
     case "open-delete-account": openModal("deleteAccount"); break;
     case "confirm-delete-account": deleteMyAccount(); break;
     case "submit-verify-code": submitVerifyCode(); break;
@@ -3044,7 +3137,7 @@ function handleClick(e){
     case "submit-find": submitFind(); break;
     case "sign-out": sb.auth.signOut().then(()=>{ state.user=null; state.isAdmin=false; state.events=[]; state.posts=[]; state.comments={}; loadMyData().then(()=>go("home")); }); break;
     case "admin-login": adminLogin(); break;
-    case "set-admin-tab": state.adminTab = t.dataset.t; renderList(); break;
+    case "set-admin-tab": state.adminTab = t.dataset.t; if(t.dataset.t==="review") loadAdminData(); renderList(); break;
     case "admin-add-store": openModal("adminStoreForm", {}); break;
     case "admin-edit-store": openModal("adminStoreForm", {id:t.dataset.id}); break;
     case "admin-delete-store": adminDeleteStore(t.dataset.id); break;
@@ -3052,7 +3145,7 @@ function handleClick(e){
     case "admin-delete-post": adminDeletePost(t.dataset.id); break;
     case "admin-add-event": openModal("adminEventForm", {}); break;
     case "admin-edit-event": openModal("adminEventForm", {id:t.dataset.id}); break;
-    case "admin-delete-event": toast("Sales/events editing isn't wired to Supabase yet — delete rows in the Table Editor for now."); break;
+    case "admin-delete-event": adminDeleteEvent(t.dataset.id); break;
     case "submit-admin-event": submitAdminEvent(t.dataset.id); break;
     case "submit-admin-store": submitAdminStore(t.dataset.id); break;
   }
@@ -3319,61 +3412,37 @@ const SHOPPER_ARCHETYPES = {
 const HOME_ARCH_QUESTIONS = [
   {"q": "You walk into a thrift store. First move?", "options": [["Head straight for what fits my vision", "curator"], ["Check tags, labels, and stamps", "archivist"], ["Start at one end and dig through everything", "forager"], ["Look for pieces that just need a little love", "restorer"], ["Scan for the best-made thing in the room", "connoisseur"]]}, 
   {"q": "You find something amazing, but it's $150.", "options": [["Buy it if it completes the look", "curator"], ["Research it first: is it the real thing?", "archivist"], ["Pass. The thrill is the $5 find.", "forager"], ["Point out the wobbly leg and ask for a deal", "restorer"], ["Worth it. Quality lasts.", "connoisseur"]]}, 
-  {"q": "Your proudest find?", "options": [["A piece that tied everything together", "curator"], ["A signed or labeled piece from a specific era", "archivist"], ["Something incredible for almost nothing", "forager"], ["Something I fixed or transformed", "restorer"], ["An heirloom-quality piece that'll last forever", "connoisseur"]]}, 
-  {"q": "What makes you walk away from something?", "options": [["It doesn't fit my vision", "curator"], ["It's a reproduction", "archivist"], ["The price", "forager"], ["It's beyond saving", "restorer"], ["It's poorly made", "connoisseur"]]}, 
-  {"q": "Your favorite place to shop.", "options": [["A well-edited vintage shop", "curator"], ["An antique mall or estate sale", "archivist"], ["A big warehouse with bins", "forager"], ["A flea market full of fixer-uppers", "restorer"], ["A high-end consignment shop", "connoisseur"]]}, 
-  {"q": "The first thing you do when you get a find home.", "options": [["Find its perfect place or outfit", "curator"], ["Look up its history", "archivist"], ["Tell everyone what I paid", "forager"], ["Get out my tools, or take it to the tailor", "restorer"], ["Clean and care for it properly", "connoisseur"]]}, 
-  {"q": "A dresser you love has a deep scratch across the top.", "options": [["Pass; it won't work in my space", "curator"], ["Check the drawers for a maker's stamp first", "archivist"], ["Ask for a discount", "forager"], ["Buy it; I can refinish that", "restorer"], ["Pass; I only buy pieces in great condition", "connoisseur"]]}];
+  {"q": "Your proudest find?", "options": [["A piece that tied everything together", "curator"], ["A signed or labeled piece from a specific era", "archivist"], ["Something incredible for almost nothing", "forager"], ["Something I fixed or transformed", "restorer"], ["An heirloom-quality piece that'll last forever", "connoisseur"]]}];
 const FASHION_ARCH_QUESTIONS = [
   {"q": "You walk into a thrift store. First move?", "options": [["Head straight for what fits my vision", "curator"], ["Check tags, labels, and stamps", "archivist"], ["Start at one end and dig through everything", "forager"], ["Look for pieces that just need a little love", "restorer"], ["Scan for the best-made thing in the room", "connoisseur"]]}, 
   {"q": "You find something amazing, but it's $150.", "options": [["Buy it if it completes the look", "curator"], ["Research it first: is it the real thing?", "archivist"], ["Pass. The thrill is the $5 find.", "forager"], ["Point out the wobbly leg and ask for a deal", "restorer"], ["Worth it. Quality lasts.", "connoisseur"]]}, 
-  {"q": "Your proudest find?", "options": [["A piece that tied everything together", "curator"], ["A signed or labeled piece from a specific era", "archivist"], ["Something incredible for almost nothing", "forager"], ["Something I fixed or transformed", "restorer"], ["An heirloom-quality piece that'll last forever", "connoisseur"]]}, 
-  {"q": "What makes you walk away from something?", "options": [["It doesn't fit my vision", "curator"], ["It's a reproduction", "archivist"], ["The price", "forager"], ["It's beyond saving", "restorer"], ["It's poorly made", "connoisseur"]]}, 
-  {"q": "Your favorite place to shop.", "options": [["A well-edited vintage shop", "curator"], ["An antique mall or estate sale", "archivist"], ["A big warehouse with bins", "forager"], ["A flea market full of fixer-uppers", "restorer"], ["A high-end consignment shop", "connoisseur"]]}, 
-  {"q": "The first thing you do when you get a find home.", "options": [["Find its perfect place or outfit", "curator"], ["Look up its history", "archivist"], ["Tell everyone what I paid", "forager"], ["Get out my tools, or take it to the tailor", "restorer"], ["Clean and care for it properly", "connoisseur"]]}, 
-  {"q": "A jacket you love is missing a button.", "options": [["Pass; it won't work with my wardrobe", "curator"], ["Check the label and lining first", "archivist"], ["Ask for a discount", "forager"], ["Buy it; that's an easy fix", "restorer"], ["Pass; I only buy pieces in great condition", "connoisseur"]]}, 
-  {"q": "What you check first on a piece of clothing.", "options": [["How it'll work with what I own", "curator"], ["The tag", "archivist"], ["The price", "forager"], ["The seams and buttons", "restorer"], ["The fabric", "connoisseur"]]}];
+  {"q": "Your proudest find?", "options": [["A piece that tied everything together", "curator"], ["A signed or labeled piece from a specific era", "archivist"], ["Something incredible for almost nothing", "forager"], ["Something I fixed or transformed", "restorer"], ["An heirloom-quality piece that'll last forever", "connoisseur"]]}];
 function archQs(kind){ return kind==="home" ? HOME_ARCH_QUESTIONS : FASHION_ARCH_QUESTIONS; }
 const HOME_QUESTIONS = [
   {"q": "Pick a room to walk into.", "options": [["A sunny loft with exposed brick and steel windows", {"industrial": 3}], ["A living room with a low teak credenza and a sculptural lamp", {"mcm": 3, "japandi": 1, "latin": 1}], ["A parlor with velvet, gilt mirrors, and a curio cabinet", {"victorian": 3, "english": 1, "academia": 1}], ["A courtyard with tile, arches, and iron lanterns", {"spanish": 3, "moorish": 2, "latin": 1}], ["A plant-filled room with rattan and layered rugs", {"boho": 3, "tropical": 2, "african": 1}], ["A calm space with linen, clay, and natural wood", {"japandi": 3, "wabisabi": 2, "minimalist": 1}]], "w": 2}, 
   {"q": "Your design philosophy, in a phrase.", "options": [["Less, but better", {"minimalist": 2, "japandi": 1, "quietlux": 1}], ["Collected, not decorated", {"english": 2, "boho": 1, "maximalist": 1, "academia": 1}], ["Comfort is the point", {"farmhouse": 2, "americana": 1, "boho": 1}], ["Every room should tell a story", {"harlem": 2, "african": 1, "victorian": 1, "spanish": 1}], ["Rules are for breaking", {"postmodern": 2, "y2k": 1, "maximalist": 1}], ["Let the materials speak", {"wabisabi": 2, "industrial": 1, "mcm": 1, "japandi": 1}]], "w": 1}, 
   {"q": "Choose a material.", "options": [["Brass and lacquer", {"deco": 3, "harlem": 1, "moorish": 1, "victorian": 1}], ["Reclaimed wood and raw steel", {"industrial": 3, "farmhouse": 1, "americana": 1}], ["Hand-thrown ceramics and raw linen", {"wabisabi": 3, "japandi": 1}], ["Chrome and translucent acrylic", {"y2k": 3, "postmodern": 1}], ["Carved hardwood and handwoven textiles", {"african": 3, "latin": 1, "tropical": 1}], ["Cashmere throws and travertine", {"quietlux": 3, "minimalist": 1}]], "w": 2}, 
   {"q": "Your color palette.", "options": [["Warm neutrals: cream, oat, and stone", {"minimalist": 3, "quietlux": 2, "japandi": 1, "wabisabi": 1}, ["#F4F1EC", "#E3D9C6", "#C8B8A2", "#A8A39A"]], ["Jewel tones: emerald, sapphire, and gold", {"deco": 2, "maximalist": 2, "moorish": 1, "harlem": 1}, ["#0B6E4F", "#1F4E79", "#C9A227", "#7A1E2C"]], ["Primary brights and candy pastels", {"postmodern": 3, "y2k": 1}, ["#E63946", "#F4D35E", "#1D4ED8", "#FF6EC7"]], ["Earth tones: terracotta, ochre, and olive", {"african": 2, "boho": 2, "spanish": 1, "latin": 1, "mcm": 1}, ["#B85C38", "#D4A017", "#6B8E23", "#8E5B3E"]], ["Moody: oxblood, forest green, and walnut", {"academia": 3, "victorian": 1, "english": 1}, ["#5B2333", "#2F3E2E", "#6B4226", "#1C1C1C"]], ["Washed blue, barn red, and white", {"americana": 3, "farmhouse": 2}, ["#6E8CA8", "#A63D40", "#F5F1E8", "#2B4C7E"]], ["Concrete, charcoal, and rust", {"industrial": 3, "minimalist": 1}, ["#8A8D8F", "#3A3A3A", "#B5562F", "#D6D2CB"]]], "w": 2}, 
-  {"q": "The chair you'd claim at a friend's house.", "w": 2, "options": [["A worn leather club chair", {"academia": 3, "victorian": 1, "harlem": 1}], ["A low teak lounge chair", {"mcm": 3}], ["A rattan peacock chair", {"boho": 2, "tropical": 2}], ["A clear acrylic chair", {"y2k": 2, "postmodern": 1}], ["A hand-carved wooden stool", {"african": 3, "wabisabi": 1, "spanish": 1}], ["A deep, slipcovered linen sofa", {"quietlux": 2, "farmhouse": 1, "english": 1}]]}, 
   {"q": "The floor you want under bare feet.", "w": 2, "options": [["Wide-plank reclaimed wood", {"farmhouse": 2, "americana": 1}], ["Polished concrete", {"industrial": 2, "minimalist": 2}], ["Patterned tile", {"spanish": 2, "moorish": 2}], ["Herringbone parquet", {"quietlux": 1, "deco": 1, "english": 1, "harlem": 1, "academia": 1}], ["Warm cork or bamboo", {"japandi": 2, "wabisabi": 1, "tropical": 2}], ["Layered rugs, wall to wall", {"boho": 2, "postmodern": 1, "maximalist": 2}]]}, 
-  {"q": "Where your eye goes first.", "options": [["The light", {"japandi": 1, "tropical": 1, "minimalist": 1, "wabisabi": 1}], ["The art", {"harlem": 2, "african": 2}], ["The architecture", {"industrial": 1, "spanish": 1, "deco": 1, "moorish": 1, "mcm": 1}], ["The color", {"latin": 2, "y2k": 2, "postmodern": 1, "maximalist": 1}], ["The objects on display", {"maximalist": 1, "academia": 1}], ["The view", {"tropical": 1, "minimalist": 1, "quietlux": 1}]], "w": 1}, 
+  {"q": "How do you feel about pattern?", "options": [["None needed; texture says it all", {"minimalist": 3, "japandi": 1, "wabisabi": 1, "quietlux": 1}], ["Florals on florals, please", {"maximalist": 3, "english": 2}], ["Bold geometry", {"postmodern": 2, "latin": 2, "deco": 1, "african": 1}], ["Palm and botanical prints", {"tropical": 3, "boho": 1}], ["Plaid and quilts", {"americana": 3, "farmhouse": 1, "academia": 1}], ["Intricate tile and arabesque", {"moorish": 2, "spanish": 2, "victorian": 1}]], "w": 2}, 
   {"q": "The first thing you'd hang on an empty wall.", "w": 2, "options": [["A large abstract canvas", {"latin": 2, "mcm": 2, "minimalist": 1}], ["Family photos in mismatched frames", {"americana": 2, "maximalist": 1, "english": 1, "african": 1}], ["A woven textile or mudcloth", {"african": 3, "boho": 1}], ["A gilded mirror", {"victorian": 2, "deco": 1, "harlem": 2}], ["A neon sign or bold graphic poster", {"y2k": 2, "postmodern": 2}], ["Nothing yet; the wall is the art", {"minimalist": 2, "wabisabi": 1, "japandi": 1}], ["A framed portrait of someone who inspires you", {"harlem": 3, "academia": 1}]]}, 
-  {"q": "How do you feel about pattern?", "options": [["None needed; texture says it all", {"minimalist": 3, "japandi": 1, "wabisabi": 1, "quietlux": 1}], ["Florals on florals, please", {"maximalist": 3, "english": 2}], ["Bold geometry", {"postmodern": 2, "latin": 2, "deco": 1, "african": 1}], ["Palm and botanical prints", {"tropical": 3, "boho": 1}], ["Plaid and quilts", {"americana": 3, "farmhouse": 1, "academia": 1}], ["Intricate tile and arabesque", {"moorish": 2, "spanish": 2, "victorian": 1}]], "w": 1.5}, 
-  {"q": "Your lighting at 9 p.m.", "w": 2, "options": [["Candles everywhere", {"boho": 2, "moorish": 1, "wabisabi": 1}], ["One perfect lamp and darkness", {"academia": 3, "harlem": 2, "quietlux": 1}], ["Paper lanterns or string lights", {"japandi": 2, "tropical": 2}], ["Bright, clean, everything on", {"y2k": 2, "postmodern": 1}], ["A chandelier doing the work", {"english": 2, "victorian": 1, "deco": 1}], ["Exposed bulbs and metal shades", {"industrial": 3, "farmhouse": 1}]]}, 
-  {"q": "Pick a light fixture.", "options": [["A bare Edison bulb in a metal cage", {"industrial": 2, "farmhouse": 1}], ["A crystal chandelier", {"english": 2, "victorian": 2, "deco": 1, "harlem": 1}], ["A paper lantern", {"japandi": 3, "wabisabi": 1}], ["A Sputnik or globe pendant", {"mcm": 3, "y2k": 1}], ["A pierced brass lantern", {"moorish": 3, "boho": 1}], ["A neon or acrylic lamp", {"y2k": 3, "postmodern": 1}]], "w": 2}, 
-  {"q": "Your dream kitchen counter.", "w": 2, "options": [["Butcher block", {"farmhouse": 2, "americana": 2}], ["Marble", {"quietlux": 2, "english": 1, "deco": 1}], ["Stainless steel", {"industrial": 2, "minimalist": 1}], ["Colorful tile", {"spanish": 2, "latin": 2, "moorish": 1}], ["Concrete", {"wabisabi": 2, "industrial": 1}], ["Lacquered in a bold color", {"postmodern": 2, "y2k": 1, "maximalist": 2}]]}, 
-  {"q": "How you'd set the table for guests.", "options": [["Mismatched vintage china", {"english": 1, "maximalist": 1, "boho": 1}], ["Crisp white everything", {"quietlux": 2, "minimalist": 1}], ["Handmade pottery", {"wabisabi": 1, "japandi": 1, "african": 1}], ["Crystal and polished silver", {"deco": 1, "victorian": 1, "harlem": 1}], ["Colorful woven runners and painted dishes", {"latin": 2, "spanish": 1, "moorish": 1}], ["Enamelware and mason jars", {"farmhouse": 2, "americana": 1}]], "w": 1.5}, 
-  {"q": "The room you'd spend an entire Sunday in.", "options": [["The kitchen", {"farmhouse": 2, "spanish": 2, "latin": 1}], ["The library", {"academia": 3, "victorian": 1}], ["The porch or garden", {"tropical": 2, "americana": 1, "farmhouse": 1, "spanish": 1}], ["The living room", {"deco": 2, "mcm": 1, "quietlux": 1}], ["The bedroom", {"english": 1, "moorish": 1, "quietlux": 1}], ["The studio or workshop", {"industrial": 1, "wabisabi": 1, "african": 1}]], "w": 1}, 
+  {"q": "Your lighting at 9 p.m.", "w": 2, "options": [["Candles everywhere", {"boho": 2, "moorish": 1, "wabisabi": 1}], ["One perfect lamp and darkness", {"academia": 3, "harlem": 2, "quietlux": 1}], ["Paper lanterns or string lights", {"japandi": 2, "tropical": 2}], ["Bright, clean, everything on", {"y2k": 3, "postmodern": 1}], ["A chandelier doing the work", {"english": 2, "victorian": 1, "deco": 1}], ["Exposed bulbs and metal shades", {"industrial": 3, "farmhouse": 1}]]}, 
+  {"q": "How you'd set the table for guests.", "options": [["Mismatched vintage china", {"english": 1, "maximalist": 1, "boho": 1}], ["Crisp white everything", {"quietlux": 2, "minimalist": 1}], ["Handmade pottery", {"wabisabi": 1, "japandi": 1, "african": 1}], ["Crystal and polished silver", {"deco": 1, "victorian": 1, "harlem": 1}], ["Colorful woven runners and painted dishes", {"latin": 2, "spanish": 1, "moorish": 1}], ["Enamelware and mason jars", {"farmhouse": 2, "americana": 1}]], "w": 2}, 
   {"q": "The one plant in your home.", "w": 2, "options": [["A towering monstera", {"tropical": 2, "boho": 1, "mcm": 1}], ["A single branch in a vase", {"japandi": 2, "wabisabi": 1, "minimalist": 1}], ["Fresh-cut garden roses", {"english": 2, "victorian": 1, "quietlux": 1}], ["Herbs on the windowsill", {"farmhouse": 2, "spanish": 1}], ["A cactus or snake plant", {"latin": 2, "mcm": 2, "industrial": 1}], ["Fake plants, honestly", {"y2k": 2, "postmodern": 1, "maximalist": 2}]]}, 
-  {"q": "The window you'd want to sit beside.", "options": [["Arched, with iron grilles", {"spanish": 2, "moorish": 1}], ["Tall factory panes", {"industrial": 2}], ["A bay window with a cushion", {"english": 1, "academia": 1}], ["Floor-to-ceiling glass", {"mcm": 1, "minimalist": 1, "tropical": 1, "japandi": 1}], ["Shutters open to the garden", {"tropical": 1, "latin": 1, "spanish": 1}], ["Stained glass", {"victorian": 2, "deco": 1}]], "w": 2}, 
-  {"q": "Pick a rug.", "options": [["Persian or Oriental", {"victorian": 2, "english": 1, "academia": 1, "moorish": 1}], ["Berber or kilim", {"moorish": 2, "boho": 1, "african": 1}], ["A bold geometric shag", {"postmodern": 2, "mcm": 1, "maximalist": 1, "y2k": 1}], ["Jute or sisal", {"tropical": 2, "farmhouse": 1, "japandi": 1, "wabisabi": 1}], ["Hand-loomed in a bright pattern", {"latin": 3, "spanish": 2, "african": 1}], ["A hide or solid neutral wool", {"quietlux": 3, "minimalist": 1, "americana": 1}]], "w": 2}, 
-  {"q": "What's on your nightstand.", "w": 2, "options": [["A stack of hardcovers", {"academia": 3}], ["One cup and one book", {"japandi": 2, "wabisabi": 1}], ["A brass lamp and a crystal dish", {"deco": 1, "victorian": 1, "english": 1, "harlem": 1}], ["A candle, crystals, and a journal", {"boho": 2, "moorish": 1}], ["A chrome clock radio", {"y2k": 3}], ["Nothing but a lamp", {"minimalist": 2}], ["A squiggle lamp and a stack of design magazines", {"postmodern": 3}]]}, 
-  {"q": "The detail you miss most from a grandparent's or relative's house.", "options": [["The good china in the cabinet", {"victorian": 2, "english": 1, "harlem": 1}], ["Plastic on the good couch", {"latin": 2, "harlem": 1, "maximalist": 1}], ["The record collection", {"harlem": 2, "mcm": 1}], ["The porch swing", {"farmhouse": 2, "americana": 1}], ["A quilt on every bed", {"americana": 2, "farmhouse": 1, "african": 1}], ["A giant plant in the corner", {"tropical": 2, "boho": 1}], ["The workshop or garage full of tools", {"industrial": 2, "americana": 1}]], "w": 1}, 
+  {"q": "Pick a rug.", "options": [["Persian or Oriental", {"victorian": 2, "english": 1, "academia": 1, "moorish": 1}], ["Berber or kilim", {"moorish": 2, "boho": 1, "african": 1}], ["A bold geometric shag", {"postmodern": 2, "mcm": 1, "maximalist": 1, "y2k": 2}], ["Jute or sisal", {"tropical": 2, "farmhouse": 1, "japandi": 1, "wabisabi": 1}], ["Hand-loomed in a bright pattern", {"latin": 3, "spanish": 2, "african": 1}], ["A hide or solid neutral wool", {"quietlux": 3, "minimalist": 1, "americana": 1}]], "w": 2}, 
   {"q": "This or that?", "sub": "Go with your gut.", "w": 1.5, "tot": [[["Polished", {"deco": 1, "quietlux": 1, "victorian": 1, "harlem": 1}], ["Raw", {"industrial": 1, "wabisabi": 1, "farmhouse": 1, "americana": 1}]], [["Symmetry", {"deco": 1, "english": 1, "minimalist": 1, "mcm": 1}], ["Asymmetry", {"postmodern": 1, "wabisabi": 1, "maximalist": 1, "japandi": 1}]], [["Old", {"victorian": 1, "americana": 1, "academia": 1, "english": 1, "harlem": 1, "spanish": 1}], ["New", {"y2k": 1, "minimalist": 1, "postmodern": 1, "quietlux": 1, "mcm": 1}]], [["Quiet", {"japandi": 1, "minimalist": 1, "wabisabi": 1, "quietlux": 1}], ["Loud", {"maximalist": 1, "postmodern": 1, "y2k": 1, "latin": 1, "african": 1}]], [["Formal", {"deco": 1, "victorian": 1, "harlem": 1, "quietlux": 1, "academia": 1}], ["Relaxed", {"boho": 1, "farmhouse": 1, "tropical": 1, "americana": 1}]], [["Collected", {"boho": 1, "english": 1, "maximalist": 1, "african": 1, "moorish": 1, "academia": 1}], ["Edited", {"minimalist": 1, "mcm": 1, "industrial": 1}]]]}];
 const FASHION_QUESTIONS = [
-  {"q": "Your Saturday thrift-run outfit.", "options": [["Vintage tee, broken-in jeans, clean sneakers", {"casual": 3, "workwear": 1, "streetwear": 1}], ["A matching knit set and retro runners", {"sportluxe": 3, "streetwear": 1}], ["A white tee and a perfect trench", {"min90s": 2, "parisian": 2, "quietlux": 1, "academia": 1}], ["Flares, a suede jacket, and layered necklaces", {"boheme70s": 3, "disco": 1, "latin": 1}], ["Flannel, a band tee, and combat boots", {"grunge": 3, "punk": 1}], ["A tailored blazer, pocket square, and great shoes", {"dandy": 2, "power": 1, "southernprep": 1, "academia": 1}]], "w": 2}, 
+  {"q": "Your Saturday thrift-run outfit.", "options": [["Vintage tee, broken-in jeans, clean sneakers", {"casual": 3, "workwear": 1, "streetwear": 1}], ["A matching knit set and retro runners", {"sportluxe": 3, "streetwear": 1}], ["A white tee and a perfect trench", {"min90s": 2, "parisian": 2, "quietlux": 1, "academia": 1}], ["Flares, a suede jacket, and layered necklaces", {"boheme70s": 3, "disco": 1, "latin": 1}], ["Flannel, a band tee, and combat boots", {"grunge": 3, "punk": 1}], ["A tailored blazer, pocket square, and great shoes", {"dandy": 2, "power": 2, "southernprep": 1, "academia": 1}]], "w": 2}, 
   {"q": "How you want to feel when you walk into a room.", "options": [["Commanding", {"power": 2, "dandy": 1, "luxstreet": 1}], ["At ease", {"casual": 2, "sportluxe": 1, "streetwear": 1}], ["Impeccable", {"newlook": 2, "quietlux": 1, "southernprep": 1}], ["Free", {"boheme70s": 2, "latin": 2, "romantic": 1, "african": 1}], ["Unforgettable", {"disco": 2, "african": 1, "mod": 1}], ["Like no one else", {"avantgarde": 2, "y2k": 2, "punk": 1}]], "w": 1}, 
   {"q": "Your color story.", "options": [["Black, white, and gray", {"min90s": 2, "avantgarde": 2}, ["#111111", "#F5F5F5", "#9E9E9E", "#3C3C3C"]], ["Camel, cream, and navy", {"quietlux": 2, "parisian": 2, "academia": 1, "casual": 1}, ["#C19A6B", "#F3EDE4", "#1F2A44", "#8C7B6B"]], ["Pastels and gingham", {"southernprep": 3, "newlook": 1, "romantic": 1}, ["#9ECAE1", "#F7C6C7", "#FFFFFF", "#7FB77E"]], ["Saturated brights", {"latin": 2, "african": 2, "mod": 1, "y2k": 1}, ["#E4572E", "#FFB400", "#2A9D8F", "#8F2D56"]], ["Earthy rust and olive", {"boheme70s": 2, "workwear": 2, "grunge": 1}, ["#A0522D", "#6B8E23", "#D2A35B", "#5C4033"]], ["Bold, head-to-toe color", {"dandy": 2, "power": 1, "disco": 1, "mod": 1}, ["#5B2333", "#2E8B57", "#D4AF37", "#1F3A5F"]]], "w": 2}, 
   {"q": "The shirt you'd buy five of.", "w": 2, "options": [["A crisp white oxford", {"southernprep": 2, "academia": 1, "parisian": 1}], ["A black fitted turtleneck", {"min90s": 2, "avantgarde": 2}], ["A vintage band tee", {"grunge": 2, "punk": 1, "streetwear": 1}], ["A silk camp-collar shirt", {"disco": 2, "boheme70s": 1, "dandy": 1, "latin": 1}], ["A heavyweight blank tee", {"casual": 2, "workwear": 1}], ["A printed statement shirt", {"african": 2, "latin": 2, "mod": 2}]]}, 
-  {"q": "Your denim.", "w": 2, "options": [["Straight and raw", {"workwear": 2, "casual": 1}], ["Baggy and low", {"y2k": 2, "streetwear": 2, "luxstreet": 1}], ["Flared", {"boheme70s": 3}], ["Black and skinny", {"punk": 2, "grunge": 1}], ["Wide-leg and tailored", {"min90s": 2, "quietlux": 1, "avantgarde": 1}], ["I don't really do denim", {"dandy": 1, "power": 2, "newlook": 2, "southernprep": 1}]]}, 
-  {"q": "The fabric you reach for.", "options": [["Crisp cotton poplin and seersucker", {"southernprep": 2, "casual": 1, "newlook": 1}], ["Tweed and wool", {"academia": 3, "quietlux": 1}], ["Lace and silk ruffles", {"romantic": 3, "newlook": 1}], ["Denim and canvas", {"workwear": 2, "casual": 1, "boheme70s": 1}], ["Technical knits and nylon", {"sportluxe": 2, "streetwear": 1}], ["Leather and studs", {"punk": 2, "grunge": 1, "luxstreet": 1}]], "w": 2}, 
-  {"q": "Your style philosophy, in a phrase.", "options": [["Less, but better", {"parisian": 2, "min90s": 2}], ["Dress for the life you want", {"power": 2, "luxstreet": 1, "dandy": 1}], ["Comfort is couture", {"sportluxe": 2, "casual": 1, "streetwear": 1}], ["Always one statement", {"mod": 2, "disco": 1, "y2k": 1}], ["Rules are for breaking", {"avantgarde": 2, "punk": 1, "grunge": 1}], ["Heritage, worn new", {"dandy": 1, "african": 1, "latin": 1, "workwear": 1, "southernprep": 1}]], "w": 1}, 
-  {"q": "The piece you'd splurge on.", "options": [["A designer bag or grail sneakers", {"luxstreet": 3}], ["A sculptural piece from an avant-garde designer", {"avantgarde": 3}], ["A cashmere coat with no logo anywhere", {"quietlux": 3, "min90s": 1}], ["A sequin or metallic showstopper", {"disco": 3, "power": 1, "y2k": 1}], ["A hand-embroidered or wax-print statement piece", {"african": 2, "latin": 2, "romantic": 1}], ["Vintage Western boots", {"workwear": 3, "boheme70s": 1}]], "w": 2}, 
-  {"q": "The piece you've owned longest and still wear.", "options": [["A leather jacket", {"punk": 2, "grunge": 1}], ["A pair of jeans", {"casual": 1, "workwear": 1, "min90s": 1}], ["Inherited jewelry", {"romantic": 1, "newlook": 1, "african": 1, "dandy": 1, "latin": 1}], ["A great coat", {"parisian": 2, "academia": 2, "quietlux": 1, "avantgarde": 1}], ["A vintage tee", {"grunge": 2, "streetwear": 1, "y2k": 1}], ["Boots", {"workwear": 1, "boheme70s": 1, "punk": 1}]], "w": 1.5}, 
-  {"q": "Your go-to shoe.", "options": [["Loafers or boat shoes", {"southernprep": 2, "academia": 1, "parisian": 1, "dandy": 1}], ["Classic sneakers, kept fresh", {"streetwear": 3, "casual": 1}], ["Retro running shoes, styled with intention", {"sportluxe": 3}], ["Platforms or go-go boots", {"mod": 1, "disco": 1, "y2k": 1, "punk": 1}], ["Polished vintage dress shoes", {"newlook": 2, "romantic": 2, "parisian": 2, "mod": 1}], ["Boots that have seen things", {"workwear": 2, "punk": 2, "grunge": 1, "avantgarde": 1, "academia": 1}]], "w": 2}, 
+  {"q": "The piece you've owned longest and still wear.", "options": [["A leather jacket", {"punk": 2, "grunge": 1}], ["A pair of jeans", {"casual": 1, "workwear": 1, "min90s": 1}], ["Inherited jewelry", {"romantic": 1, "newlook": 1, "african": 1, "dandy": 1, "latin": 1}], ["A great coat", {"parisian": 2, "academia": 2, "quietlux": 1, "avantgarde": 1}], ["A vintage tee", {"grunge": 2, "streetwear": 1, "y2k": 1}], ["Boots", {"workwear": 1, "boheme70s": 1, "punk": 1}]], "w": 2}, 
+  {"q": "Your go-to shoe.", "options": [["Loafers or boat shoes", {"southernprep": 2, "academia": 1, "parisian": 1, "dandy": 1}], ["Classic sneakers, kept fresh", {"streetwear": 3, "casual": 1}], ["Retro running shoes, styled with intention", {"sportluxe": 3}], ["Platforms or go-go boots", {"mod": 1, "disco": 1, "y2k": 1, "punk": 1}], ["Polished vintage dress shoes", {"newlook": 3, "romantic": 2, "parisian": 2, "mod": 1}], ["Boots that have seen things", {"workwear": 2, "punk": 2, "grunge": 1, "avantgarde": 1, "academia": 1}]], "w": 2}, 
   {"q": "Your sunglasses.", "w": 2, "options": [["Thin wire frames", {"min90s": 1, "parisian": 1, "academia": 1}], ["Oversized black", {"luxstreet": 2, "quietlux": 1, "power": 2}], ["Tinted colored lenses", {"y2k": 2, "disco": 2}], ["Round retro frames", {"boheme70s": 2, "mod": 2}], ["Sport wraparounds", {"sportluxe": 2, "streetwear": 1}], ["Bold vintage cat-eye or square frames", {"newlook": 2, "romantic": 2, "punk": 1, "avantgarde": 1, "mod": 1}]]}, 
-  {"q": "The hat you'd actually wear.", "w": 2, "options": [["A fitted cap", {"streetwear": 2, "sportluxe": 1}], ["A wide-brim felt hat", {"boheme70s": 2, "dandy": 1}], ["A bucket hat", {"y2k": 1, "sportluxe": 1}], ["A beret", {"parisian": 2, "academia": 1}], ["A sharp fedora or church hat", {"dandy": 3}], ["I don't wear hats", {"quietlux": 1, "min90s": 1}]]}, 
   {"q": "Your signature accessory.", "options": [["Gold chains and a statement watch", {"luxstreet": 2, "streetwear": 1, "dandy": 1, "disco": 1}], ["A silk scarf", {"parisian": 2, "newlook": 1, "quietlux": 1, "min90s": 1}], ["A fitted cap", {"streetwear": 2, "sportluxe": 1}], ["Pearls or a monogram", {"southernprep": 2, "newlook": 1, "romantic": 1}], ["Layered beaded or artisan jewelry", {"african": 2, "latin": 1, "boheme70s": 1}], ["A studded belt and chains", {"punk": 2, "grunge": 1, "y2k": 1}]], "w": 2}, 
-  {"q": "Getting dressed, you begin with…", "options": [["The shoes", {"luxstreet": 1, "sportluxe": 1}], ["One statement piece", {"latin": 2, "disco": 1, "mod": 1}], ["The jewelry", {"boheme70s": 1, "romantic": 1, "african": 1, "latin": 1}], ["The fit", {"min90s": 1, "power": 1, "dandy": 1, "newlook": 1, "avantgarde": 1}], ["Whatever feels right", {"grunge": 2, "boheme70s": 1}]], "w": 1}, 
-  {"q": "What's on your wrist.", "w": 2, "options": [["A vintage gold watch", {"dandy": 1, "quietlux": 1, "luxstreet": 2, "power": 1}], ["A smartwatch", {"sportluxe": 2, "casual": 1}], ["Stacked bracelets", {"african": 2, "latin": 2, "disco": 1}], ["One thin silver bangle", {"min90s": 2}], ["Beads and cords", {"african": 2, "grunge": 1}], ["Nothing", {"avantgarde": 1, "punk": 1}]]}, 
+  {"q": "What's on your wrist.", "w": 2, "options": [["A vintage gold watch", {"dandy": 1, "quietlux": 1, "luxstreet": 2, "power": 2}], ["A smartwatch", {"sportluxe": 2, "casual": 1}], ["Stacked bracelets", {"african": 2, "latin": 2, "disco": 1}], ["One thin silver bangle", {"min90s": 2}], ["Beads and cords", {"african": 2, "grunge": 1}], ["Nothing", {"avantgarde": 1, "punk": 1}]]}, 
   {"q": "Pick a print.", "options": [["Houndstooth or plaid", {"academia": 3, "punk": 1, "power": 1}], ["Florals and paisley", {"boheme70s": 2, "latin": 2, "romantic": 1}], ["Op-art and color-blocking", {"mod": 3}], ["Logos and monograms", {"y2k": 2, "luxstreet": 1}], ["Wax print and kente", {"african": 3}], ["Solid, always", {"casual": 2, "min90s": 2, "sportluxe": 1, "workwear": 1, "quietlux": 1, "avantgarde": 1}]], "w": 2}, 
-  {"q": "A coat you'd buy on the spot.", "options": [["A camel overcoat", {"quietlux": 2, "parisian": 1, "min90s": 1}], ["A leather biker jacket", {"punk": 2, "grunge": 1}], ["A vintage varsity jacket", {"streetwear": 1, "southernprep": 1, "y2k": 1}], ["Faux fur", {"disco": 2, "luxstreet": 1, "boheme70s": 1}], ["A denim jacket", {"workwear": 2, "casual": 1}], ["A trench", {"parisian": 2, "academia": 1, "avantgarde": 1}]], "w": 2}, 
-  {"q": "Where you invest.", "options": [["Shoes", {"luxstreet": 1, "sportluxe": 1}], ["Outerwear", {"quietlux": 1, "parisian": 1, "academia": 1, "avantgarde": 1}], ["Jewelry", {"african": 1, "latin": 1, "romantic": 1, "disco": 1}], ["Tailoring", {"dandy": 2, "power": 1}], ["Bags", {"y2k": 2, "newlook": 1, "luxstreet": 1, "min90s": 1, "power": 1}], ["Nowhere; the hunt is the point", {"grunge": 1, "boheme70s": 1, "mod": 1, "casual": 1}]], "w": 1}, 
+  {"q": "A coat you'd buy on the spot.", "options": [["A camel overcoat", {"quietlux": 2, "parisian": 1, "min90s": 1, "power": 1}], ["A leather biker jacket", {"punk": 2, "grunge": 1}], ["A vintage varsity jacket", {"streetwear": 1, "southernprep": 1, "y2k": 1}], ["Faux fur", {"disco": 2, "luxstreet": 1, "boheme70s": 1}], ["A denim jacket", {"workwear": 2, "casual": 1}], ["A trench", {"parisian": 2, "academia": 1, "avantgarde": 1}]], "w": 2}, 
   {"q": "This or that?", "sub": "Go with your gut.", "w": 1.5, "tot": [[["Polished", {"quietlux": 1, "dandy": 1, "power": 1, "southernprep": 1, "parisian": 1}], ["Worn-in", {"grunge": 1, "workwear": 1, "punk": 1, "boheme70s": 1}]], [["Fitted", {"newlook": 1, "power": 1, "mod": 1, "parisian": 1, "romantic": 1}], ["Oversized", {"streetwear": 1, "grunge": 1, "avantgarde": 1, "sportluxe": 1, "casual": 1}]], [["Logos", {"luxstreet": 1, "y2k": 1, "streetwear": 1, "sportluxe": 1}], ["No logos", {"quietlux": 1, "min90s": 1, "academia": 1, "romantic": 1}]], [["Neutrals", {"min90s": 1, "parisian": 1, "casual": 1, "avantgarde": 1, "workwear": 1}], ["Color", {"latin": 1, "african": 1, "dandy": 1, "mod": 1, "disco": 1, "southernprep": 1}]], [["Classic", {"southernprep": 1, "newlook": 1, "academia": 1, "quietlux": 1, "romantic": 1}], ["Rule-breaking", {"punk": 1, "avantgarde": 1, "y2k": 1, "grunge": 1}]], [["Dressed up", {"dandy": 1, "disco": 1, "power": 1, "newlook": 1, "luxstreet": 1, "romantic": 1}], ["Dressed down", {"casual": 1, "sportluxe": 1, "streetwear": 1, "workwear": 1}]]]}];
 
 // Extra result details: essence (for the blended write-up), signature notes,
@@ -3469,9 +3538,9 @@ function scoreStyle(kind, picks){
   const ranked = keys.slice().sort((a,b)=> sc[b]-sc[a] || (prefers(a,b) ? -1 : prefers(b,a) ? 1 : 0));
   const top = ranked.slice(0,3).filter(k=>sc[k]>0);
   const sum = top.reduce((t,k)=>t+sc[k],0) || 1;
-  const dna = top.map(k=>[k, Math.round(sc[k]/sum*100)]);
-  const drift = 100 - dna.reduce((t,d)=>t+d[1],0);
-  if(dna.length) dna[0][1] += drift;
+  // Percentages: the winner takes whatever rounding leaves over, so it always shows highest.
+  const dna = top.map((k,i)=>[k, i===0 ? 0 : Math.floor(sc[k]/sum*100)]);
+  if(dna.length) dna[0][1] = 100 - dna.slice(1).reduce((t,d)=>t+d[1],0);
   return { best: ranked[0], dna };
 }
 function scoreArchetype(answers){
@@ -3742,7 +3811,7 @@ function viewStyleQuiz(){
     return `${head}
       <div class="design-eyebrow" style="color:var(--royal);margin-bottom:9px">Style quiz</div>
       <h1 style="font-family:var(--font-display);font-size:36px;line-height:1.04;letter-spacing:-.02em;margin:0 0 10px">What's your thrift style?</h1>
-      <p style="font-size:14.5px;line-height:1.6;color:var(--body-text);margin:0 0 22px">Twenty-seven quick taps, about five minutes. Get your style DNA, your palette, the kind of shopper you are, and your Atlanta neighborhood soulmate.</p>
+      <p style="font-size:14.5px;line-height:1.6;color:var(--body-text);margin:0 0 22px">Fifteen quick taps, about three minutes. Get your style DNA, your palette, the kind of shopper you are, and your Atlanta neighborhood soulmate.</p>
       <div style="display:flex;flex-direction:column;gap:12px">
         <button class="option-tile" data-action="${savedStyleResult('home')?'quiz-open-saved':'quiz-start'}" data-kind="home"><span class="oi">${ICONS.home}</span><span class="ot-text"><span class="ot-title">Home style</span><span style="font-size:13px;color:var(--ink-soft)">Furniture, decor, and how you live</span>${mine("home")}</span></button>
         <button class="option-tile" data-action="${savedStyleResult('fashion')?'quiz-open-saved':'quiz-start'}" data-kind="fashion"><span class="oi">${ICONS.clothing||ICONS.tag}</span><span class="ot-text"><span class="ot-title">Fashion style</span><span style="font-size:13px;color:var(--ink-soft)">Clothing, shoes, and accessories</span>${mine("fashion")}</span></button>
@@ -4002,6 +4071,71 @@ async function deleteMyAccount(){
   } finally {
     deletingAccount = false;
   }
+}
+const STORE_CATEGORY_OPTIONS = ["Clothing","Accessories","Furniture","Home Decor","Vintage","Designer","Books","Records"];
+function suggestStoreModal(){
+  const hint = t => `<div style="font-size:12px;color:var(--ink-soft);margin:-2px 0 8px;line-height:1.45">${t}</div>`;
+  const hoods = Object.keys(NEIGHBORHOODS).sort();
+  return `<div class="modal-overlay">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Suggest a store</div>
+      <div class="modal-sub">Tell us about a store that belongs in the guide. We review every suggestion before adding it.</div>
+      <div class="form-group"><label>Store name</label><input type="text" id="ss-name" maxlength="120" placeholder="Name of the store"></div>
+      <div class="form-group"><label>Address</label>${hint("Start typing, then pick it from the list.")}<div id="ss-address-container" style="width:100%;overflow:visible"><input type="text" id="ss-address-fallback" placeholder="Store address"></div><input type="hidden" id="ss-address"></div>
+      <div class="form-group"><label>Neighborhood</label><select id="ss-hood"><option value="" selected disabled>Choose one</option>${hoods.map(h=>`<option>${h}</option>`).join("")}<option>Other / outside the city</option></select></div>
+      <div class="form-group"><label>Kind of store</label><select id="ss-type"><option value="" selected disabled>Choose one</option><option>Thrift store</option><option>Vintage boutique</option><option>Consignment</option><option>Antique store or mall</option><option>Estate sale company</option><option>Other</option></select></div>
+      <div class="form-group"><label>What do they sell?</label><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">${STORE_CATEGORY_OPTIONS.map(c=>`<label style="display:inline-flex;align-items:center;gap:6px;font-size:13px;border:1.5px solid var(--line-strong);border-radius:99px;padding:7px 12px;cursor:pointer"><input type="checkbox" class="ss-cat" value="${c}" style="accent-color:var(--royal)">${c}</label>`).join("")}</div></div>
+      <div class="form-group"><label>Website or Instagram (optional)</label><input type="url" id="ss-link" placeholder="https://"></div>
+      <div class="form-group"><label>Why should it be in the guide?</label><textarea id="ss-why" maxlength="600" placeholder="What makes it worth the trip?"></textarea></div>
+      <button class="btn btn-royal btn-block" data-action="submit-suggest-store">Send suggestion</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
+    </div>
+  </div>`;
+}
+let submittingStore = false;
+async function submitSuggestStore(){
+  if(!state.user){ requireAuth(()=>openModal("suggestStore")); return; }
+  if(submittingStore) return;
+  const val = id => (document.getElementById(id)?.value || "").trim();
+  const name = val("ss-name"), address = val("ss-address") || val("ss-address-fallback"), hood = val("ss-hood"), type = val("ss-type"), why = val("ss-why");
+  let link = val("ss-link");
+  const cats = [...document.querySelectorAll(".ss-cat:checked")].map(c=>c.value);
+  const missing = [];
+  if(!name) missing.push("store name");
+  if(!address) missing.push("address");
+  if(!hood) missing.push("neighborhood");
+  if(!type) missing.push("kind of store");
+  if(!cats.length) missing.push("what they sell");
+  if(!why) missing.push("why it belongs");
+  if(missing.length){ toast("Please add: " + missing.join(", ") + "."); return; }
+  if(link && !/^https?:\/\//i.test(link)) link = "https://" + link;
+  if(link && !/^https?:\/\/[^\s.]+\.[^\s]+$/i.test(link)){ toast("That link doesn't look right."); return; }
+  submittingStore = true;
+  try{
+    const { error } = await sb.from("store_submissions").insert({ name, address, neighborhood:hood, store_type:type, categories:cats.join(", "), link: link||null, why, submitted_by: state.user.id, submitter_email: state.user.email||null });
+    if(error){ console.error("suggest store failed:", error.message); toast("Couldn't send that — try again."); return; }
+    closeModal();
+    toast("Thanks! We'll check it out.");
+  } finally { submittingStore = false; }
+}
+// Same Google address search, for the store suggestion form.
+async function initSuggestAddressAutocomplete(){
+  const container = document.getElementById("ss-address-container");
+  if(!container || container.dataset.ready) return;
+  if(!(window.google && window.google.maps)){ loadGoogleMapsScript(); return; }
+  let PlaceAutocompleteElement;
+  try{ PlaceAutocompleteElement = (google.maps.places && google.maps.places.PlaceAutocompleteElement) || (await google.maps.importLibrary("places")).PlaceAutocompleteElement; }catch(e){ return; }
+  const ac = new PlaceAutocompleteElement({ locationBias: {north:34.25, south:33.55, east:-83.95, west:-84.75}, includedRegionCodes: ["us"] });
+  ac.style.width = "100%"; ac.style.border = "1px solid var(--line-strong)"; ac.style.borderRadius = "99px"; ac.style.boxSizing = "border-box";
+  container.dataset.ready = "1"; container.innerHTML = ""; container.appendChild(ac);
+  ac.addEventListener("gmp-select", async ({placePrediction})=>{
+    const place = placePrediction.toPlace();
+    await place.fetchFields({fields: ["displayName","formattedAddress"]});
+    const hidden = document.getElementById("ss-address"); if(hidden) hidden.value = place.formattedAddress || "";
+    const nameField = document.getElementById("ss-name");
+    if(nameField && !nameField.value.trim() && place.displayName && place.displayName !== place.formattedAddress) nameField.value = place.displayName;
+  });
 }
 function verifyEmailModal(){
   const email = escapeHtml(state.verifyEmail||"");
