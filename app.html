@@ -1084,7 +1084,7 @@ async function loadEvents(){
     startDate:e.start_date, endDate:e.end_date, startTime:e.start_time, endTime:e.end_time,
     venue:safe(e.venue), address:safe(e.address), sourceUrl:safeUrl(e.source_url), eventType:safe(e.event_type),
     priceLabel:safe(e.price_label), status:e.status, description:safe(e.description), isSample:e.is_sample,
-    flyerUrl:safeUrl(e.flyer_url), submitterRole:e.submitter_role
+    flyerUrl:safeUrl(e.flyer_url), submitterRole:e.submitter_role, submittedBy:e.submitted_by, parking:safe(e.parking), submitterEmail:e.submitter_email
   }));
 }
 async function loadPosts(){
@@ -1157,6 +1157,7 @@ async function boot(){
   render();
   maybeStartMemberTour();
   loadOutdoorTemperature();
+  checkUnreadFromTeam().then(()=>{ if(state.unreadFromTeam) renderList(); });
   if(!("geolocation" in navigator)) state.geoAttempted = true;
 }
 
@@ -1184,6 +1185,7 @@ function loadOutdoorTemperature(){
 
 function go(view, params){
   if(view==="styleQuiz") state.quiz = null;
+  if(view==="messages"){ state.thread = null; setTimeout(()=>loadThread((params||{}).userId || null), 0); }
   if(view==="admin" && state.isAdmin && (!state.adminTab || state.adminTab==="review")) setTimeout(loadAdminData, 0);
   state.view = view;
   state.params = params || {};
@@ -1396,6 +1398,7 @@ function renderView(){
   switch(state.view){
     case "home": return viewHome();
     case "styleQuiz": return viewStyleQuiz();
+    case "messages": return viewMessages();
     case "discover": return viewDiscover();
     case "events": return viewEvents();
     case "storeDetail": return viewStoreDetail(state.params.id);
@@ -1751,7 +1754,7 @@ function loadGoogleMapsScript(){
     if(el) el.outerHTML = fallbackStylizedMap(__pendingMapStores || []);
     return;
   }
-  window.__onGoogleMapsReady = function(){ renderGoogleMapIfNeeded(); initDestinationAutocomplete(); initEventAddressAutocomplete(); initSuggestAddressAutocomplete(); };
+  window.__onGoogleMapsReady = function(){ renderGoogleMapIfNeeded(); initDestinationAutocomplete(); initEventAddressAutocomplete(); initSuggestAddressAutocomplete(); initAdminStoreAutocomplete(); };
   // Google's official hook for exactly the "key exists but won't
   // authenticate" case — bad restriction, API not enabled, billing not
   // active, etc. Without this, Google silently overwrites our map div with
@@ -2370,6 +2373,12 @@ function viewProfile(){
     <button class="settings-row" style="width:100%;background:none;border:none;text-align:left;color:var(--danger)" data-action="sign-out">
       <span class="sr-left" style="color:var(--danger)">Sign out</span>
     </button>
+    <button class="settings-row" style="width:100%;background:none;border:none;text-align:left" data-action="nav" data-view="messages">
+      <span class="sr-left">Message the team${state.unreadFromTeam ? `<span style="margin-left:8px;background:var(--royal);color:#fff;border-radius:99px;font-family:var(--font-mono);font-size:9px;padding:3px 7px">${state.unreadFromTeam}</span>` : ""}</span>${ICONS.chevronR}
+    </button>
+    <button class="settings-row" style="width:100%;background:none;border:none;text-align:left" data-action="open-feedback">
+      <span class="sr-left">Send feedback</span>${ICONS.chevronR}
+    </button>
     <button class="settings-row" style="width:100%;background:none;border:none;text-align:left" data-action="replay-member-tour">
       <span class="sr-left">Replay the tour</span>${ICONS.chevronR}
     </button>
@@ -2454,16 +2463,103 @@ function viewProfileLibrary(){
   </div>`;
 }
 
+// ---- Messages: members chat with the team inside the app ----------------
+async function checkUnreadFromTeam(){
+  if(!state.user){ state.unreadFromTeam = 0; return; }
+  const { data } = await sb.from("support_messages").select("id").eq("user_id", state.user.id).eq("sender","admin").eq("read_by_member", false);
+  state.unreadFromTeam = (data||[]).length;
+}
+async function loadThread(userId){
+  if(!state.user) return;
+  const uid = userId || state.user.id;
+  if(uid !== state.user.id && !state.isAdmin) return;
+  const { data, error } = await sb.from("support_messages").select("*").eq("user_id", uid).order("created_at",{ascending:true}).limit(300);
+  if(error){ console.error("thread failed:", error.message); state.thread = { userId:uid, messages:[], error:true }; renderList(); return; }
+  let name = null;
+  if(uid !== state.user.id){ const { data: prof } = await sb.from("profiles").select("username").eq("id", uid).maybeSingle(); name = prof && prof.username; }
+  state.thread = { userId:uid, name, messages:(data||[]).map(m=>({ id:m.id, sender:m.sender, kind:m.kind||"message", body:escapeHtml(m.body), at:m.created_at })) };
+  // mark what we just read
+  if(state.isAdmin && uid !== state.user.id) sb.from("support_messages").update({ read_by_admin:true }).eq("user_id", uid).eq("sender","member").eq("read_by_admin",false).then(()=>{});
+  else { sb.from("support_messages").update({ read_by_member:true }).eq("user_id", uid).eq("sender","admin").eq("read_by_member",false).then(()=>{}); state.unreadFromTeam = 0; }
+  renderList();
+}
+let sendingMessage = false;
+async function sendMessage(){
+  const t = state.thread; if(!t || !state.user || sendingMessage) return;
+  const box = document.getElementById("msg-input");
+  const body = (box?.value||"").trim();
+  if(!body){ toast("Type a message first."); return; }
+  if(body.length > 2000){ toast("Keep it under 2,000 characters."); return; }
+  sendingMessage = true;
+  try{
+    const asAdmin = state.isAdmin && t.userId !== state.user.id;
+    const { error } = await sb.from("support_messages").insert({ user_id:t.userId, sender: asAdmin ? "admin" : "member", body });
+    if(error){ console.error("send failed:", error.message); toast("Couldn't send — try again."); return; }
+    box.value = "";
+    await loadThread(t.userId);
+    const list = document.getElementById("msg-list"); if(list) list.scrollTop = list.scrollHeight;
+  } finally { sendingMessage = false; }
+}
+function feedbackModal(){
+  return `<div class="modal-overlay">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Send feedback</div>
+      <div class="modal-sub">What's working, what's not, and what you wish the app did. It goes straight to the 2nd Studio team, and we'll reply in your messages if we have questions.</div>
+      <div class="form-group"><label>Your feedback</label><textarea id="fb-body" maxlength="2000" placeholder="Tell us anything…" style="min-height:120px"></textarea></div>
+      <button class="btn btn-royal btn-block" data-action="submit-feedback">Send feedback</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
+    </div>
+  </div>`;
+}
+let sendingFeedback = false;
+async function submitFeedback(){
+  if(!state.user){ requireAuth(()=>openModal("feedback")); return; }
+  if(sendingFeedback) return;
+  const body = (document.getElementById("fb-body")?.value||"").trim();
+  if(!body){ toast("Write something first."); return; }
+  sendingFeedback = true;
+  try{
+    const { error } = await sb.from("support_messages").insert({ user_id:state.user.id, sender:"member", kind:"feedback", body });
+    if(error){ console.error("feedback failed:", error.message); toast("Couldn't send — try again."); return; }
+    closeModal();
+    toast("Thank you! Your feedback was sent.");
+  } finally { sendingFeedback = false; }
+}
+function viewMessages(){
+  const t = state.thread;
+  const isAdminView = state.isAdmin && t && t.userId !== state.user.id;
+  const head = `<button class="btn btn-ghost btn-sm" data-action="${isAdminView ? "nav" : "nav"}" data-view="${isAdminView ? "admin" : "profile"}" style="margin-bottom:14px">${ICONS.back}${isAdminView ? "Review" : "Profile"}</button>`;
+  if(!t) return head + `<div class="empty-state"><p>Loading…</p></div>`;
+  const title = isAdminView ? `@${escapeHtml(t.name||"member")}` : "Message the team";
+  const sub = isAdminView ? "You're replying as the 2nd Studio team." : "Questions, problems, ideas — we read everything and reply here. Usually within a day.";
+  const bubbles = t.messages.length ? t.messages.map(m=>{
+    const mine = isAdminView ? m.sender==="admin" : m.sender==="member";
+    return `<div style="display:flex;justify-content:${mine?'flex-end':'flex-start'};margin-bottom:8px"><div style="max-width:82%;padding:10px 14px;border-radius:${mine?'18px 18px 4px 18px':'18px 18px 18px 4px'};background:${mine?'var(--ink)':'var(--cream-card)'};color:${mine?'var(--cream)':'var(--ink)'};font-size:14px;line-height:1.5;white-space:pre-wrap">${m.kind==="feedback"?`<div style="font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;color:var(--gold);margin-bottom:4px">FEEDBACK</div>`:""}${m.body}<div style="font-family:var(--font-mono);font-size:9px;letter-spacing:.08em;opacity:.6;margin-top:5px">${m.sender==="admin"?"2ND STUDIO":"YOU"} · ${timeAgo((m.at||"").slice(0,10))}</div></div></div>`;
+  }).join("") : `<div style="text-align:center;color:var(--ink-soft);font-size:13.5px;padding:30px 10px">${isAdminView ? "No messages yet." : "Start the conversation below."}</div>`;
+  return `${head}
+    <h1 style="font-family:var(--font-display);font-size:28px;line-height:1.05;letter-spacing:-.02em;margin:0 0 6px">${title}</h1>
+    <p style="font-size:13.5px;color:var(--ink-soft);margin:0 0 16px">${sub}</p>
+    <div id="msg-list" style="max-height:52vh;overflow-y:auto;padding:4px 2px 8px">${bubbles}</div>
+    <div style="display:flex;gap:8px;align-items:flex-end;margin-top:10px">
+      <textarea id="msg-input" maxlength="2000" placeholder="${isAdminView ? "Write a reply…" : "Write a message…"}" style="flex:1;min-height:48px;max-height:140px;border:1px solid var(--line-strong);background:var(--cream-card);border-radius:18px;padding:12px 14px;font-size:14.5px;color:var(--ink);resize:vertical"></textarea>
+      <button class="btn btn-royal" style="padding:13px 18px" data-action="send-message">Send</button>
+    </div>`;
+}
 // ---- Admin review: pending events, store suggestions, reports, sign-ups ----
 async function loadAdminData(){
   if(!state.isAdmin) return;
   state.admin = state.admin || {};
   state.admin.loading = true; renderList();
-  const [subs, reps, signups] = await Promise.all([
+  const [subs, reps, signups, msgs] = await Promise.all([
     sb.from("store_submissions").select("*").eq("status","pending").order("created_at",{ascending:false}),
     sb.from("reports").select("*").eq("status","open").order("created_at",{ascending:false}),
-    sb.rpc("admin_recent_signups", { days: 30 })
+    sb.rpc("admin_recent_signups", { days: 30 }),
+    sb.from("support_messages").select("user_id, sender, kind, body, created_at, read_by_admin, profiles!support_messages_user_id_fkey(username)").order("created_at",{ascending:false}).limit(400)
   ]);
+  const convos = {};
+  (msgs.data||[]).forEach(m=>{ const c = convos[m.user_id] || (convos[m.user_id] = { userId:m.user_id, name:m.profiles?.username||"member", last:m.body, at:m.created_at, unread:0, feedback:false }); if(m.sender==="member" && !m.read_by_admin){ c.unread++; if(m.kind==="feedback") c.feedback = true; } });
+  state.admin.convos = Object.values(convos).sort((a,b)=>(b.unread-a.unread) || (b.at>a.at?1:-1));
   state.admin.storeSubs = subs.data || [];
   state.admin.reports = reps.data || [];
   state.admin.signups = signups.data || [];
@@ -2483,8 +2579,8 @@ function adminReviewHtml(){
   const empty = t => `<div style="font-size:13px;color:var(--ink-soft);padding:6px 0 10px">${t}</div>`;
   const eventsHtml = pending.length ? pending.map(ev=>`
     <div class="admin-list-row" style="align-items:flex-start">
-      <div style="flex:1;min-width:0"><div class="ar-name">${ev.title}</div><div class="ar-sub">${ev.startDate||""}${ev.startTime?" · "+ev.startTime:""} · ${ev.venue||""}</div><div class="ar-sub">${ev.address||""}</div>${ev.sourceUrl?`<a class="ar-sub" href="${ev.sourceUrl}" target="_blank" rel="noopener" style="color:var(--royal)">Event link</a>`:""}<div class="ar-sub" style="margin-top:4px;white-space:normal">${ev.description||""}</div></div>
-      <div class="ar-actions" style="flex-direction:column;gap:6px"><button class="btn btn-royal btn-sm" data-action="admin-approve-event" data-id="${ev.id}">Publish</button><button class="btn btn-ghost btn-sm" data-action="admin-decline-event" data-id="${ev.id}">Decline</button></div>
+      <div style="flex:1;min-width:0"><div class="ar-name">${ev.title}</div><div class="ar-sub">${ev.startDate||""}${ev.startTime?" · "+ev.startTime:""} · ${ev.venue||""}</div><div class="ar-sub">${ev.address||""}</div><div class="ar-sub">${[ev.priceLabel, ev.parking].filter(Boolean).join(" · ")}</div>${ev.sourceUrl?`<a class="ar-sub" href="${ev.sourceUrl}" target="_blank" rel="noopener" style="color:var(--royal)">Event link</a>`:""}<div class="ar-sub" style="margin-top:4px;white-space:normal">${ev.description||""}</div></div>
+      <div class="ar-actions" style="flex-direction:column;gap:6px"><button class="btn btn-royal btn-sm" data-action="admin-approve-event" data-id="${ev.id}">Publish</button><button class="btn btn-outline btn-sm" data-action="admin-edit-event" data-id="${ev.id}">Edit</button><button class="btn btn-ghost btn-sm" data-action="admin-decline-event" data-id="${ev.id}">Decline</button></div>
     </div>`).join("") : empty("No events waiting for review.");
   const subsHtml = a.loading ? empty("Loading…") : (a.storeSubs||[]).length ? a.storeSubs.map(st=>`
     <div class="admin-list-row" style="align-items:flex-start">
@@ -2499,7 +2595,15 @@ function adminReviewHtml(){
   const su = a.signups||[];
   const week = su.filter(x=>Date.now()-new Date(x.created_at).getTime() < 7*864e5).length;
   const signupsHtml = a.loading ? empty("Loading…") : `<div class="ar-sub" style="margin-bottom:8px">${su.length} in the last 30 days · ${week} this week</div>` + (su.length ? su.slice(0,25).map(x=>`<div class="admin-list-row"><div><div class="ar-name">@${escapeHtml(x.username||"—")}</div><div class="ar-sub">${escapeHtml(x.email||"")} · ${timeAgo((x.created_at||"").slice(0,10))}${x.confirmed?"":" · unconfirmed"}</div></div></div>`).join("") : empty("No sign-ups yet."));
+  const cv = a.convos||[];
+  const unreadTotal = cv.reduce((t,c)=>t+c.unread,0);
+  const msgsHtml = a.loading ? empty("Loading…") : cv.length ? cv.slice(0,30).map(c=>`
+    <button class="admin-list-row" data-action="open-thread" data-uid="${escapeHtml(c.userId)}" style="width:100%;background:none;border:none;border-bottom:1px solid var(--line);text-align:left;cursor:pointer">
+      <div style="flex:1;min-width:0"><div class="ar-name">@${escapeHtml(c.name)}${c.unread?`<span style="margin-left:8px;background:var(--royal);color:#fff;border-radius:99px;font-family:var(--font-mono);font-size:9px;padding:3px 7px">${c.unread}</span>`:""}${c.feedback?`<span style="margin-left:6px;background:var(--gold);color:#221D24;border-radius:99px;font-family:var(--font-mono);font-size:9px;letter-spacing:.1em;padding:3px 7px">FEEDBACK</span>`:""}</div><div class="ar-sub" style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${escapeHtml(c.last)}</div><div class="ar-sub">${timeAgo((c.at||"").slice(0,10))}</div></div>
+      <div class="ar-actions">${ICONS.chevronR}</div>
+    </button>`).join("") : empty("No messages yet.");
   return `${a.loaded||a.loading ? "" : `<button class="btn btn-ghost btn-sm" data-action="set-admin-tab" data-t="review">Refresh</button>`}
+    ${section("Messages", unreadTotal, msgsHtml)}
     ${section("Events to review", pending.length, eventsHtml)}
     ${section("Store suggestions", (a.storeSubs||[]).length, subsHtml)}
     ${section("Open reports", (a.reports||[]).length, repsHtml)}
@@ -2510,6 +2614,16 @@ async function adminSetEventStatus(id, status){
   const { error } = await sb.from("events").update({ status }).eq("id", id);
   if(error){ toast("Couldn't update that event."); return; }
   await loadEvents(); toast(status==="published" ? "Event published." : "Event declined."); renderList();
+}
+async function deleteOwnEvent(id){
+  const ev = state.events.find(e=>e.id===id);
+  if(!state.user || !ev) return;
+  if(!(state.isAdmin || ev.submittedBy===state.user.id)) return;
+  if(!confirm("Delete this event? This can't be undone.")) return;
+  const { error } = await sb.from("events").delete().eq("id", id);
+  if(error){ toast("Couldn't delete that event."); return; }
+  closeModal();
+  await loadEvents(); toast("Event deleted."); renderList();
 }
 async function adminDeleteEvent(id){
   if(!state.isAdmin || !confirm("Delete this event for everyone?")) return;
@@ -2615,6 +2729,8 @@ function renderModal(){
   else if(name==="verifyEmail") html = verifyEmailModal();
   else if(name==="deleteAccount") html = deleteAccountModal();
   else if(name==="suggestStore") html = suggestStoreModal();
+  else if(name==="adminEditEvent") html = adminEditEventModal(params);
+  else if(name==="feedback") html = feedbackModal();
   else if(name==="blocked") html = blockedModal();
   else if(name==="termsGate") html = termsGateModal();
   else if(name==="tour") html = tourModal(params);
@@ -2627,6 +2743,7 @@ function renderModal(){
   attachModalHandlers();
   initEventAddressAutocomplete();
   initSuggestAddressAutocomplete();
+  initAdminStoreAutocomplete();
 }
 
 function visitNoteModal(params){
@@ -2661,11 +2778,13 @@ function eventDetailModal(params){
         <div><b>Where</b><span>${eventLocation(ev)}${ev.address?`<br>${ev.address}`:""}</span></div>
         <div><b>When</b><span>${formatEventDate(ev)}<br>${eventTimeRange(ev)}</span></div>
         ${ev.priceLabel?`<div><b>Cost</b><span>${ev.priceLabel}</span></div>`:""}
+        ${ev.parking?`<div><b>Parking</b><span>${ev.parking}</span></div>`:""}
       </div>
       ${ev.flyerUrl?`<img src="${ev.flyerUrl}" alt="Event flyer" style="width:100%;border-radius:16px;display:block;margin-bottom:16px">`:""}
       <p style="font-size:14px;line-height:1.6;color:var(--body-text);margin-bottom:18px">${ev.description||"More details will be added soon."}</p>
       ${ev.sourceUrl?`<a class="btn btn-royal btn-block" href="${ev.sourceUrl}" target="_blank" rel="noopener">View event link</a>`:""}
       ${store?`<button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="open-store" data-id="${store.id}">View ${store.name}</button>`:""}
+      ${state.user && (state.isAdmin || (ev.submittedBy && ev.submittedBy===state.user.id)) ? `<button class="btn btn-ghost btn-block" style="margin-top:8px;font-size:13px;color:var(--danger)" data-action="delete-own-event" data-id="${ev.id}">Delete this event</button>` : ""}
       <button class="btn btn-ghost btn-block" style="margin-top:8px;font-size:13px;color:var(--ink-soft)" data-action="open-report" data-type="event" data-id="${ev.id}">Report this event</button>
       <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Close</button>
     </div>
@@ -2824,6 +2943,7 @@ function eventSubmissionModal(){
       <div class="form-group"><label>Venue</label><input type="text" id="es-venue" placeholder="Venue name or neighborhood"></div>
       <div class="form-group"><label>Address</label>${hint("Start typing, then pick the address from the list.")}<div id="es-address-container" style="width:100%;overflow:visible"><input type="text" id="es-address-fallback" placeholder="Event address"></div><input type="hidden" id="es-address"></div>
       <div class="form-group"><label>Cost / admission</label><input type="text" id="es-price" placeholder="Free, $5 entry, prices vary"></div>
+      <div class="form-group"><label>Parking</label><select id="es-parking"><option value="" selected disabled>Choose one</option>${PARKING_OPTIONS.map(o=>`<option>${o}</option>`).join("")}</select></div>
       <div class="form-group"><label>Event link</label>${hint("An official website, ticket page, or social media post (like Instagram or Facebook) all work.")}<input type="url" id="es-url" placeholder="https://"></div>
       <div class="form-group"><label>Details</label><textarea id="es-details" placeholder="What should people know?"></textarea></div>
       <div class="form-group"><label>Flyer (optional)</label>
@@ -2956,15 +3076,30 @@ function adminStoreFormModal(params){
     <div class="modal-sheet">
       <div class="modal-handle"></div>
       <div class="modal-title">${editing?'Edit store':'Add a store'}</div>
-      <div class="form-group"><label>Store name</label><input type="text" id="as-name" value="${s.name}"></div>
+      <div class="form-group"><label>Find the business on Google</label><div style="font-size:12px;color:var(--ink-soft);margin:-2px 0 8px;line-height:1.45">${editing && s.googlePlaceId ? "Linked to Google. Pick it again to refresh the address, hours, rating, and photo." : "Start typing the store name; picking it fills in the address, phone, website, hours, rating, map pin, and photo."}</div><div id="as-google-container" style="width:100%;overflow:visible"><input type="text" id="as-google-fallback" placeholder="Search Google for the store" disabled></div></div>
+      <input type="hidden" id="as-place" value="${escapeHtml(s.googlePlaceId||"")}"><input type="hidden" id="as-lat" value="${s.lat??""}"><input type="hidden" id="as-lng" value="${s.lng??""}"><input type="hidden" id="as-rating" value="${s.rating??""}"><input type="hidden" id="as-reviews" value="${s.reviewCount??""}"><input type="hidden" id="as-photo" value="${escapeHtml(s.photoName||"")}">
+      <div id="as-google-status" style="font-size:12px;color:var(--royal);margin:-4px 0 10px">${s.googlePlaceId ? "✓ Linked to Google" : ""}</div>
+      <div class="form-group"><label>Store name</label><input type="text" id="as-name" value="${escapeHtml(s.name||"")}"></div>
       <div class="form-group"><label>Neighborhood</label><select id="as-n">${Object.keys(NEIGHBORHOODS).map(n=>`<option ${s.neighborhood===n?'selected':''}>${n}</option>`).join("")}</select></div>
-      <div class="form-group"><label>Address</label><input type="text" id="as-addr" value="${s.address}"></div>
-      <div class="form-group"><label>Store type</label><input type="text" id="as-type" value="${s.type}"></div>
+      <div class="form-group"><label>Address</label><input type="text" id="as-addr" value="${escapeHtml(s.address||"")}"></div>
+      <div class="form-group"><label>Store type</label><input type="text" id="as-type" value="${escapeHtml(s.type||"")}"></div>
       <div class="form-group"><label>Price level</label><select id="as-price"><option value="1" ${s.priceLevel==1?'selected':''}>$</option><option value="2" ${s.priceLevel==2?'selected':''}>$$</option><option value="3" ${s.priceLevel==3?'selected':''}>$$$</option></select></div>
-      <div class="form-group"><label>Categories (comma separated)</label><input type="text" id="as-cats" value="${s.categories.join(", ")}"></div>
-      <div class="form-group"><label>Hours</label><input type="text" id="as-hours" value="${s.hours}"></div>
-      <div class="form-group"><label>2nd Studio description</label><textarea id="as-desc">${s.description}</textarea></div>
+      <div class="form-group"><label>Categories (comma separated)</label><input type="text" id="as-cats" value="${escapeHtml((s.categories||[]).join(", "))}"></div>
+      <div class="form-group"><label>Hours</label><input type="text" id="as-hours" value="${escapeHtml(s.hours||"")}"></div>
+      <div class="form-group"><label>2nd Studio description</label><textarea id="as-desc">${escapeHtml(s.description||"")}</textarea></div>
+      <div class="form-group"><label>Tips (optional)</label><textarea id="as-tips">${escapeHtml(s.tips||"")}</textarea></div>
+      <div class="form-group"><label>Best for (comma separated, optional)</label><input type="text" id="as-best" value="${escapeHtml((s.bestFor||[]).join(", "))}"></div>
+      <div class="form-group"><label>Tags (comma separated, optional)</label><input type="text" id="as-tags" value="${escapeHtml((s.tags||[]).join(", "))}" placeholder="Hidden Gem, Best for Cheap Finds"></div>
+      <div class="form-row">
+        <div class="form-group"><label>Website (optional)</label><input type="text" id="as-web" value="${escapeHtml(s.website||"")}"></div>
+        <div class="form-group"><label>Phone (optional)</label><input type="text" id="as-phone" value="${escapeHtml(s.phone||"")}"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Card color</label><select id="as-color">${["royal","gold","cobalt","navy","sage"].map(c=>`<option ${s.color===c?'selected':''}>${c}</option>`).join("")}</select></div>
+        <div class="form-group"><label>Chain store?</label><select id="as-chain"><option value="0" ${!s.chain?'selected':''}>No, independent</option><option value="1" ${s.chain?'selected':''}>Yes, a chain</option></select></div>
+      </div>
       <button class="btn btn-royal btn-block" data-action="submit-admin-store" data-id="${editing?editing.id:''}">${editing?'Save changes':'Add store'}</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
     </div>
   </div>`;
 }
@@ -3024,6 +3159,10 @@ function handleClick(e){
     case "quiz-pick": pickQuizAnswer(Number(t.dataset.i)); break;
     case "quiz-back": quizBack(); break;
     case "quiz-share": shareStyleResult(); break;
+    case "send-message": sendMessage(); break;
+    case "open-feedback": requireAuth(()=>openModal("feedback")); break;
+    case "submit-feedback": submitFeedback(); break;
+    case "open-thread": go("messages", {userId:t.dataset.uid}); break;
     case "style-feedback": sendStyleFeedback(t.dataset.verdict); break;
     case "quiz-tot": pickTot(Number(t.dataset.row), Number(t.dataset.side)); break;
     case "quiz-tot-next": submitTot(); break;
@@ -3146,8 +3285,10 @@ function handleClick(e){
     case "admin-toggle-featured": adminToggleFeatured(t.dataset.id); break;
     case "admin-delete-post": adminDeletePost(t.dataset.id); break;
     case "admin-add-event": openModal("adminEventForm", {}); break;
-    case "admin-edit-event": openModal("adminEventForm", {id:t.dataset.id}); break;
+    case "admin-edit-event": openModal("adminEditEvent", {id:t.dataset.id}); break;
+    case "admin-save-event": adminSaveEvent(t.dataset.id, t.dataset.publish==="1"); break;
     case "admin-delete-event": adminDeleteEvent(t.dataset.id); break;
+    case "delete-own-event": deleteOwnEvent(t.dataset.id); break;
     case "submit-admin-event": submitAdminEvent(t.dataset.id); break;
     case "submit-admin-store": submitAdminStore(t.dataset.id); break;
   }
@@ -3354,6 +3495,8 @@ async function getCaptchaToken(){
   return turnstileToken || undefined;
 }
 const USERNAME_RULE = /^[a-z0-9._]{3,20}$/;
+// Names kept for the 2nd Studio team; the database refuses them too.
+const RESERVED_USERNAME = /(admin|atlthriftguide|atlguide|2ndstudio|secondstudio|official|support|moderator)/i;
 // Bump this date whenever the Terms or Privacy Policy change, so everyone
 // is asked to agree to the new version.
 const TERMS_VERSION = "2026-10-04";
@@ -3973,6 +4116,7 @@ function onUsernameInput(){
   clearTimeout(usernameCheckTimer);
   if(!name){ hint.style.color="var(--ink-soft)"; hint.textContent="3–20 characters: letters, numbers, periods, or underscores."; return; }
   if(!USERNAME_RULE.test(name)){ hint.style.color="var(--danger)"; hint.textContent="Use 3–20 letters, numbers, periods, or underscores."; return; }
+  if(RESERVED_USERNAME.test(name)){ hint.style.color="var(--danger)"; hint.textContent="That name is reserved."; return; }
   hint.style.color="var(--ink-soft)"; hint.textContent="Checking…";
   usernameCheckTimer = setTimeout(async ()=>{
     const { data: taken, error } = await sb.rpc("username_taken", { name });
@@ -3985,7 +4129,7 @@ function onUsernameInput(){
 }
 async function finishAuth(message){
   await refreshSessionAndProfile();
-  await Promise.all([loadMyData(), loadEvents(), loadPosts()]);
+  await Promise.all([loadMyData(), loadEvents(), loadPosts(), checkUnreadFromTeam()]);
   if(readPendingStyle()){ await savePendingStyleIfAny(); if(state.quiz && state.quiz.result) state.quiz.saved = true; }
   closeModal();
   const pending = state.pendingAction;
@@ -4009,6 +4153,7 @@ async function submitLogin(){
     const username = cleanUsername(document.getElementById("login-username").value);
     if(!username || !email || !password){ toast("Fill in username, email, and password."); return; }
     if(!USERNAME_RULE.test(username)){ toast("Usernames are 3–20 letters, numbers, periods, or underscores."); return; }
+    if(RESERVED_USERNAME.test(username)){ toast("That username is reserved — try another."); return; }
     if(!document.getElementById("signup-agree")?.checked){ toast("Please agree to the Terms of Service and Privacy Policy."); return; }
     if(!/^\S+@\S+\.\S+$/.test(email)){ toast("Enter a valid email address."); return; }
     const pwError = validatePassword(password);
@@ -4110,7 +4255,58 @@ async function deleteMyAccount(){
     deletingAccount = false;
   }
 }
+const PARKING_OPTIONS = ["Free parking","Paid parking","Street parking","No parking","Unsure"];
 const STORE_CATEGORY_OPTIONS = ["Clothing","Accessories","Furniture","Home Decor","Vintage","Designer","Books","Records"];
+function adminEditEventModal(params){
+  const ev = state.events.find(e=>e.id===params.id);
+  if(!ev) return `<div class="modal-overlay"><div class="modal-sheet"><div class="modal-handle"></div><div class="modal-title">Event not found</div><button class="btn btn-ghost btn-block" data-action="close-modal">Close</button></div></div>`;
+  const v = x => escapeHtml(x||"");
+  const sel = (id, opts, cur) => `<select id="${id}">${opts.map(o=>`<option ${o===cur?"selected":""}>${o}</option>`).join("")}</select>`;
+  const types = ["Vintage Market","Flea Market","Clothing Swap","Estate Sale","Store Sale","Other"];
+  return `<div class="modal-overlay">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Edit event</div>
+      <div class="modal-sub">${ev.status==="pending" ? "Fill in anything missing, then save or publish." : `Status: ${v(ev.status)}.`}${ev.submitterEmail?` Submitted by ${v(ev.submitterEmail)}.`:""}</div>
+      <div class="form-group"><label>Event name</label><input type="text" id="ae-title" value="${v(ev.title)}"></div>
+      <div class="form-group"><label>Event type</label>${sel("ae-type", types, ev.eventType && types.includes(ev.eventType) ? ev.eventType : "Other")}</div>
+      <div class="form-row">
+        <div class="form-group"><label>Start date</label><input type="date" id="ae-start" value="${v(ev.startDate)}"></div>
+        <div class="form-group"><label>End date</label><input type="date" id="ae-end" value="${v(ev.endDate)}"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Start time</label><input type="time" id="ae-start-time" value="${v(ev.startTime)}"></div>
+        <div class="form-group"><label>End time</label><input type="time" id="ae-end-time" value="${v(ev.endTime)}"></div>
+      </div>
+      <div class="form-group"><label>Venue</label><input type="text" id="ae-venue" value="${v(ev.venue)}"></div>
+      <div class="form-group"><label>Address</label><input type="text" id="ae-address" value="${v(ev.address)}"></div>
+      <div class="form-group"><label>Cost / admission</label><input type="text" id="ae-price" value="${v(ev.priceLabel)}"></div>
+      <div class="form-group"><label>Parking</label>${sel("ae-parking", ["Unsure",...PARKING_OPTIONS.filter(o=>o!=="Unsure")], ev.parking || "Unsure")}</div>
+      <div class="form-group"><label>Event link</label><input type="url" id="ae-url" value="${v(ev.sourceUrl)}"></div>
+      <div class="form-group"><label>Details</label><textarea id="ae-details">${v(ev.description)}</textarea></div>
+      ${ev.flyerUrl?`<div class="form-group"><label>Flyer</label><img src="${ev.flyerUrl}" alt="Flyer" style="width:100%;max-height:220px;object-fit:contain;border-radius:14px;background:var(--cream-card)"></div>`:""}
+      <button class="btn btn-royal btn-block" data-action="admin-save-event" data-id="${ev.id}" data-publish="${ev.status==="pending"?"1":"0"}">${ev.status==="pending" ? "Save and publish" : "Save changes"}</button>
+      ${ev.status==="pending" ? `<button class="btn btn-outline btn-block" style="margin-top:8px" data-action="admin-save-event" data-id="${ev.id}" data-publish="0">Save, keep pending</button>` : ""}
+      <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
+    </div>
+  </div>`;
+}
+async function adminSaveEvent(id, publish){
+  if(!state.isAdmin) return;
+  const val = x => (document.getElementById(x)?.value || "").trim();
+  const title = val("ae-title"), startDate = val("ae-start");
+  if(!title || !startDate){ toast("Add the event name and start date."); return; }
+  let link = val("ae-url");
+  if(link && !/^https?:\/\//i.test(link)) link = "https://" + link;
+  const row = { title, event_type: val("ae-type")||"Other", start_date:startDate, end_date: val("ae-end")||startDate,
+    start_time: val("ae-start-time")||null, end_time: val("ae-end-time")||null, venue: val("ae-venue")||null, address: val("ae-address")||null,
+    price_label: val("ae-price")||null, parking: val("ae-parking")||null, source_url: link||null, description: val("ae-details")||null };
+  if(publish) row.status = "published";
+  const { error } = await sb.from("events").update(row).eq("id", id);
+  if(error){ console.error("save event failed:", error.message); toast("Couldn't save that event."); return; }
+  closeModal();
+  await loadEvents(); toast(publish ? "Event saved and published." : "Event saved."); renderList();
+}
 function suggestStoreModal(){
   const hint = t => `<div style="font-size:12px;color:var(--ink-soft);margin:-2px 0 8px;line-height:1.45">${t}</div>`;
   const hoods = Object.keys(NEIGHBORHOODS).sort();
@@ -4246,15 +4442,22 @@ function adminLogin(){
   // Admin access now comes from your account being on the admin list.
   toast("Admin access is tied to your account.");
 }
-function adminDeleteStore(id){
-  toast("Store editing isn't wired to Supabase yet — delete it in the Table Editor for now.");
+async function adminDeleteStore(id){
+  if(!state.isAdmin) return;
+  const st = getStoreById(id); if(!st) return;
+  if(!confirm(`Delete "${st.name}" from the guide? This can't be undone.`)) return;
+  const { error } = await sb.from("stores").delete().eq("id", id);
+  if(error){ console.error("store delete failed:", error.message); toast("Couldn't delete that store (it may be referenced by posts or saves)."); return; }
+  await loadStores(); toast("Store deleted."); renderList();
 }
-function adminToggleFeatured(id){
-  toast("Store editing isn't wired to Supabase yet — toggle 'featured' in the Table Editor for now.");
+async function adminToggleFeatured(id){
+  if(!state.isAdmin) return;
+  const st = getStoreById(id); if(!st) return;
+  const { error } = await sb.from("stores").update({ featured: !st.featured }).eq("id", id);
+  if(error){ toast("Couldn't update that store."); return; }
+  await loadStores(); toast(st.featured ? "Removed from featured." : "Marked as featured."); renderList();
 }
-function adminDeletePost(id){
-  toast("Moderation isn't wired to Supabase yet — delete the post row in the Table Editor for now.");
-}
+function adminDeletePost(id){ adminRemovePost(id); }
 function submitAdminEvent(id){
   toast("Sales/events editing isn't wired to Supabase yet — add rows to the 'events' table directly for now.");
   closeModal();
@@ -4290,6 +4493,7 @@ async function submitEventPreview(){
   const venue = val("es-venue");
   const address = val("es-address") || val("es-address-fallback");
   const price = val("es-price");
+  const parking = val("es-parking");
   let link = val("es-url");
   const details = val("es-details");
   const role = val("es-role");
@@ -4303,6 +4507,7 @@ async function submitEventPreview(){
   if(!venue) missing.push("venue");
   if(!address) missing.push("address (pick it from the list)");
   if(!price) missing.push("cost");
+  if(!parking) missing.push("parking");
   if(!link) missing.push("event link");
   if(!details) missing.push("details");
   if(!role) missing.push("how you're connected");
@@ -4324,7 +4529,7 @@ async function submitEventPreview(){
     const isAdmin = !!state.user.isAdmin;
     const row = {
       title, start_date:startDate, end_date:endDate, start_time:startTime, end_time:endTime,
-      event_type: val("es-type") || "Other", venue, address, price_label: price,
+      event_type: val("es-type") || "Other", venue, address, price_label: price, parking,
       source_url: link, description: details, flyer_url: flyerUrl,
       submitter_role: role, submitter_email: email,
       submitted_by: state.user.id, is_sample: false,
@@ -4357,9 +4562,63 @@ function saveVisitNote(id){
   renderList();
   toast(existing?"Visit note updated.":"Visit note added for this session.");
 }
-function submitAdminStore(id){
-  toast("Store editing isn't wired to Supabase yet — add or edit rows in the Table Editor for now.");
+async function initAdminStoreAutocomplete(){
+  const container = document.getElementById("as-google-container");
+  if(!container || container.dataset.ready) return;
+  if(!(window.google && window.google.maps)){ loadGoogleMapsScript(); return; }
+  let PlaceAutocompleteElement;
+  try{ PlaceAutocompleteElement = (google.maps.places && google.maps.places.PlaceAutocompleteElement) || (await google.maps.importLibrary("places")).PlaceAutocompleteElement; }catch(e){ return; }
+  const ac = new PlaceAutocompleteElement({ locationBias: {north:34.25, south:33.55, east:-83.95, west:-84.75}, includedRegionCodes: ["us"] });
+  ac.style.width = "100%"; ac.style.border = "1px solid var(--line-strong)"; ac.style.borderRadius = "99px"; ac.style.boxSizing = "border-box";
+  container.dataset.ready = "1"; container.innerHTML = ""; container.appendChild(ac);
+  ac.addEventListener("gmp-select", async ({placePrediction})=>{
+    const status = document.getElementById("as-google-status");
+    try{
+      const place = placePrediction.toPlace();
+      await place.fetchFields({fields: ["id","displayName","formattedAddress","location","rating","userRatingCount","nationalPhoneNumber","websiteURI","regularOpeningHours"]});
+      const set = (id, v)=>{ const el = document.getElementById(id); if(el && v!=null && v!=="") el.value = v; };
+      set("as-name", place.displayName); set("as-addr", place.formattedAddress);
+      set("as-phone", place.nationalPhoneNumber); set("as-web", place.websiteURI ? String(place.websiteURI).replace(/^https?:\/\//,"").replace(/\/$/,"") : null);
+      const hrs = place.regularOpeningHours && place.regularOpeningHours.weekdayDescriptions; if(hrs && hrs.length) set("as-hours", hrs.join(" · "));
+      set("as-place", place.id); if(place.location){ set("as-lat", place.location.lat()); set("as-lng", place.location.lng()); }
+      set("as-rating", place.rating); set("as-reviews", place.userRatingCount);
+      if(status) status.textContent = "✓ Linked to Google — fetching photo…";
+      // Photo names come from Places API (New); the app's photo endpoint serves them.
+      try{
+        const r = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(place.id)}?fields=photos&key=${GOOGLE_MAPS_JS_KEY}`, { headers: { "X-Goog-FieldMask":"photos" } });
+        const j = r.ok ? await r.json() : null;
+        const name = j && j.photos && j.photos[0] && j.photos[0].name;
+        if(name) set("as-photo", name);
+        if(status) status.textContent = name ? "✓ Linked to Google, photo found" : "✓ Linked to Google (no photo available)";
+      }catch(e){ if(status) status.textContent = "✓ Linked to Google (photo lookup failed)"; }
+    }catch(e){ console.error("google lookup failed", e); if(status) status.textContent = "Couldn't read that place — fill the fields by hand."; }
+  });
+}
+async function submitAdminStore(id){
+  if(!state.isAdmin) return;
+  const val = x => (document.getElementById(x)?.value || "").trim();
+  const list = x => val(x).split(",").map(t=>t.trim()).filter(Boolean);
+  const name = val("as-name"), address = val("as-addr"), hood = val("as-n");
+  if(!name || !address){ toast("Add the store name and address."); return; }
+  const row = { name, neighborhood: hood, address, type: val("as-type")||"Thrift Store", price_level: Number(val("as-price"))||1,
+    categories: list("as-cats"), hours: val("as-hours")||null, description: val("as-desc")||null, tips: val("as-tips")||null,
+    best_for: list("as-best"), tags: list("as-tags"), website: val("as-web")||null, phone: val("as-phone")||null,
+    color: val("as-color")||"royal", chain: val("as-chain")==="1" };
+  const placeId = val("as-place");
+  if(placeId){
+    row.google_place_id = placeId;
+    const lat = parseFloat(val("as-lat")), lng = parseFloat(val("as-lng"));
+    if(!isNaN(lat) && !isNaN(lng)){ row.store_lat = lat; row.store_lng = lng; }
+    const rating = parseFloat(val("as-rating")); if(!isNaN(rating)) row.google_rating = rating;
+    const reviews = parseInt(val("as-reviews"),10); if(!isNaN(reviews)) row.google_review_count = reviews;
+    const photo = val("as-photo"); if(photo) row.google_photo_name = photo;
+  }
+  let error;
+  if(id){ ({ error } = await sb.from("stores").update(row).eq("id", id)); }
+  else { row.id = "s" + Date.now().toString(36); row.featured = false; ({ error } = await sb.from("stores").insert(row)); }
+  if(error){ console.error("store save failed:", error.message); toast("Couldn't save that store — check the fields and try again."); return; }
   closeModal();
+  await loadStores(); toast(id ? "Store updated." : "Store added."); renderList();
 }
 
 document.body.addEventListener("click", handleClick);
