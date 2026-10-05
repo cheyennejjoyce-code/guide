@@ -329,10 +329,12 @@ p{margin:0;}
 .photo-preview img{width:100%;height:100%;object-fit:cover;}
 .toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--cream);padding:12px 20px;border-radius:var(--radius-pill);font-size:13px;font-weight:600;z-index:200;box-shadow:none;}
 .route-tag-strip{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
-.admin-list-row{display:flex;justify-content:space-between;align-items:center;background:var(--cream-card);border:1px solid var(--line);border-radius:22px;padding:12px 14px;margin-bottom:9px;}
-.admin-list-row .ar-name{font-weight:700;font-size:14px;}
-.admin-list-row .ar-sub{font-size:11.5px;color:var(--ink-soft);}
-.admin-list-row .ar-actions{display:flex;gap:6px;}
+.admin-list-row{display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--cream-card);border:1px solid var(--line);border-radius:22px;padding:14px 16px;margin-bottom:10px;}
+.admin-list-row > div:first-child{flex:1;min-width:0;}
+.admin-list-row .ar-name{font-weight:700;font-size:14.5px;line-height:1.3;}
+.admin-list-row .ar-name .badge-featured{display:inline-block;vertical-align:middle;}
+.admin-list-row .ar-sub{font-size:12px;line-height:1.45;color:var(--ink-soft);margin-top:3px;}
+.admin-list-row .ar-actions{display:flex;gap:6px;flex:none;}
 .admin-list-row .ar-actions button{width:32px;height:32px;border-radius:9px;border:1px solid var(--line);background:var(--cream);display:flex;align-items:center;justify-content:center;}
 .admin-list-row .ar-actions svg{width:15px;height:15px;}
 .badge-featured{background:var(--gold);color:#5C3A1E;font-size:10px;font-weight:800;padding:3px 8px;border-radius:8px;margin-left:6px;}
@@ -2670,7 +2672,7 @@ function adminTargetLabel(r){
 function adminReviewHtml(){
   const a = state.admin || {};
   const pending = state.events.filter(e=>e.status==="pending");
-  const section = (title, count, inner) => `<div style="margin:18px 0 6px;display:flex;align-items:center;justify-content:space-between"><h3 style="font-size:16px;margin:0">${title}</h3><span style="font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;color:var(--royal)">${count}</span></div>${inner}`;
+  const section = (title, count, inner) => `<div style="margin:22px 0 10px;display:flex;align-items:center;justify-content:space-between"><h3 style="font-size:16px;margin:0">${title}</h3><span style="font-family:var(--font-mono);font-size:10px;letter-spacing:.1em;color:var(--royal)">${count}</span></div>${inner}`;
   const empty = t => `<div style="font-size:13px;color:var(--ink-soft);padding:6px 0 10px">${t}</div>`;
   const eventsHtml = pending.length ? pending.map(ev=>`
     <div class="admin-list-row" style="align-items:flex-start">
@@ -2750,12 +2752,10 @@ function viewAdmin(){
     body = adminReviewHtml();
   } else if(tab==="stores"){
     body = `
-      <div style="display:flex;gap:8px;margin-bottom:10px">
-        <button class="btn btn-royal" style="flex:1" data-action="admin-add-store">${ICONS.plus}Add a store</button>
-        <button class="btn btn-outline" style="flex:1" data-action="admin-scan-stores" ${state.admin && state.admin.scan && state.admin.scan.running ? "disabled" : ""}>${ICONS.search}Scan for new stores</button>
-      </div>
+      <button class="btn btn-royal btn-block" data-action="admin-add-store">${ICONS.plus}Add a store</button>
+      <button class="btn btn-outline btn-block" style="margin:8px 0 14px" data-action="admin-scan-stores" ${state.admin && state.admin.scan && state.admin.scan.running ? "disabled" : ""}>${ICONS.search}Scan Google for new stores</button>
       ${adminScanHtml()}
-      <input type="search" id="admin-store-search" placeholder="Search stores by name, neighborhood, or category" value="${escapeHtml(state.adminStoreQuery||"")}" style="width:100%;margin-bottom:12px;border:1px solid var(--line-strong);border-radius:99px;padding:12px 16px;font-size:14px;background:var(--cream-card);color:var(--ink)">
+      <input type="search" id="admin-store-search" placeholder="Search stores by name, neighborhood, or category" value="${escapeHtml(state.adminStoreQuery||"")}" style="width:100%;margin-bottom:14px;border:1px solid var(--line-strong);border-radius:99px;padding:12px 16px;font-size:14px;background:var(--cream-card);color:var(--ink)">
       ${(()=>{ const q=(state.adminStoreQuery||"").toLowerCase().trim(); const list = q ? state.stores.filter(s=>[s.name,s.neighborhood,s.type,(s.categories||[]).join(" "),s.address].join(" ").toLowerCase().includes(q)) : state.stores; return `<div class="ar-sub" style="margin-bottom:8px">${list.length} of ${state.stores.length} stores</div>` + (list.length ? "" : `<div class="empty-state"><p>No stores match "${escapeHtml(state.adminStoreQuery||"")}".</p></div>`) + list.map(s=>`
         <div class="admin-list-row">
           <div><div class="ar-name">${s.name}${s.featured?'<span class="badge-featured">Featured</span>':''}</div><div class="ar-sub">${s.neighborhood} · ${s.categories.join(", ")}</div></div>
@@ -2799,7 +2799,7 @@ function viewAdmin(){
   return `
     <div style="margin-top:16px">
       <button class="btn btn-ghost btn-sm" data-action="go-back" style="margin-bottom:14px">${ICONS.back}Back</button>
-      <h2 style="font-size:22px;margin-bottom:14px">Admin tools</h2>
+      <h2 style="font-size:24px;margin-bottom:16px">Admin tools</h2>
       <div class="tab-row">
         <button class="${tab==='review'?'active':''}" data-action="set-admin-tab" data-t="review">Review</button>
         <button class="${tab==='stores'?'active':''}" data-action="set-admin-tab" data-t="stores">Stores</button>
