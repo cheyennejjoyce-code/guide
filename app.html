@@ -1717,13 +1717,12 @@ function viewDiscover(){
         <button class="${state.discoverMode==='list'?'active':''}" data-action="set-discover-mode" data-mode="list">List</button>
         <button class="${state.discoverMode==='map'?'active':''}" data-action="set-discover-mode" data-mode="map">Map</button>
       </div>
+      <button data-action="open-suggest-store" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--ink);color:var(--cream);border:none;border-radius:18px;padding:13px 16px;margin:4px 0 16px;cursor:pointer;text-align:left">
+        <span><span style="display:block;font-family:var(--font-display);font-size:16px;font-weight:600;line-height:1.15">Know a store we're missing?</span><span style="display:block;font-size:12.5px;opacity:.8;margin-top:2px">Suggest it and we'll check it out.</span></span>
+        <span style="flex:none;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;border:1.5px solid rgba(255,255,255,.45);border-radius:99px;padding:7px 11px">Suggest</span>
+      </button>
       ${state.discoverMode==='map' ? discoverMap(list) : ''}
       ${list.length===0 ? `<div class="empty-state"><h3>No stores match yet</h3><p>Clear a filter or search a different neighborhood.</p></div>` : `<div class="grid-stack">${list.map(s=>storeGridCard(s)).join("")}</div>`}
-      <div class="events-submit-card" style="margin-top:24px">
-        <h3>Know a store we're missing?</h3>
-        <p>Suggest an independent thrift, vintage, consignment, or antique store. Our team checks every suggestion.</p>
-        <button class="btn" data-action="open-suggest-store">Suggest a store</button>
-      </div>
     </div>
   `;
 }
