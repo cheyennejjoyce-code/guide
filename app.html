@@ -1150,12 +1150,12 @@ async function loadMyData(){
     sb.from("visited_stores").select("store_id").eq("user_id",uid_),
     sb.from("saved_posts").select("post_id").eq("user_id",uid_),
     sb.from("routes").select("*").eq("user_id",uid_),
-    sb.from("visit_notes").select("*").eq("user_id",uid_).order("visited_at",{ascending:false})
+    sb.from("visit_notes").select("*").eq("user_id",uid_).order("visited_at",{ascending:false}).order("created_at",{ascending:false})
   ]);
   state.savedStoreIds = (saved.data||[]).map(r=>r.store_id);
   state.visitedStoreIds = (visited.data||[]).map(r=>r.store_id);
   state.savedPostIds = (savedPosts.data||[]).map(r=>r.post_id);
-  state.visitNotes = (myNotes.data||[]).map(n=>({id:n.id, storeId:n.store_id, visitedAt:n.visited_at, text:n.text}));
+  state.visitNotes = (myNotes.data||[]).map(n=>({id:n.id, storeId:n.store_id, visitedAt:n.visited_at, text:n.note_text}));
   state.userRoutes = (myRoutes.data||[]).map(r=>({
     id:r.id, title:r.title, start:r.start_neighborhood, destination:r.destination_neighborhood,
     stops:r.stops||[], legs:r.legs||[], totalTravel:r.total_travel, totalBrowse:r.total_browse,
@@ -1343,7 +1343,9 @@ function closeModal(){
   activeModal = null;
   const el = document.getElementById("modal-root");
   if(el) el.innerHTML = "";
-  if(state.pendingAction && !(activeModal)){}
+  // Closing a modal abandons whatever action was waiting on sign-in, so a
+  // later, unrelated sign-in can't silently replay it.
+  state.pendingAction = null;
 }
 
 function iconEl(name, cls){ return `<span class="${cls||''}" style="display:inline-flex">${ICONS[name]||''}</span>`; }
@@ -2006,7 +2008,7 @@ function viewStoreDetail(id){
       <p style="margin-bottom:10px">${s.tips}</p>
       <div class="info-row"><span class="lbl" style="min-width:0">${ICONS.pin}</span><span>${s.address}</span></div>
       ${s.phone ? `<div class="info-row"><span class="lbl" style="min-width:0">${ICONS.phone}</span><a href="tel:${s.phone.replace(/[^+\d]/g,'')}" style="color:var(--royal);text-decoration:none;font-weight:600">${s.phone}</a></div>` : ''}
-      ${s.website ? `<div class="info-row"><span class="lbl" style="min-width:0">${ICONS.globe}</span><a href="${/^https?:\/\//.test(s.website)?s.website:'https://'+s.website}" target="_blank" rel="noopener" style="color:var(--royal);text-decoration:none;font-weight:600">${s.website}</a></div>` : ''}
+      ${s.website ? `<div class="info-row"><span class="lbl" style="min-width:0">${ICONS.globe}</span><a href="${/^https?:\/\//.test(s.website)?s.website:'https://'+s.website}" target="_blank" rel="noopener" style="color:var(--royal);text-decoration:none;font-weight:600;min-width:0;overflow-wrap:anywhere">${s.website}</a></div>` : ''}
     </div>
 
     <div class="section">
@@ -2182,9 +2184,9 @@ function generateRoute(){
   let totalTravel = 0;
   const legs = [];
   let prev = c.start;
-  ordered.forEach(s=>{
-    const d = dist(prev, s.neighborhood);
-    const mins = Math.max(4, Math.round(d*2.6));
+  ordered.forEach((s,i)=>{
+    const raw = Math.round(dist(prev, s.neighborhood)*2.6);
+    const mins = (i===0 && raw===0) ? 0 : Math.max(4, raw);
     legs.push(mins);
     totalTravel += mins;
     prev = s.neighborhood;
@@ -3394,7 +3396,7 @@ function handleClick(e){
     case "set-community-filter": state.communityFilter = t.dataset.f; renderList(); break;
     case "open-share-find": openModal("shareFind", {store: t.dataset.store}); break;
     case "set-saved-tab": state.savedTab = t.dataset.t; renderList(); break;
-    case "load-saved-route": state.currentRoute = state.userRoutes.find(r=>r.id===t.dataset.id); go("routeResults"); break;
+    case "load-saved-route": { const r0 = state.userRoutes.find(r=>r.id===t.dataset.id); if(r0){ ensureBrowsePace(r0); const live = r0.stops.filter(sid=>getStoreById(sid)); if(live.length !== r0.stops.length){ r0.stops = live; recomputeRoute(r0); } state.currentRoute = r0; go("routeResults"); } break; }
     case "open-login": openModal("login"); break;
     case "open-forgot-password": openModal("forgotPassword"); break;
     case "submit-forgot-password": submitForgotPassword(); break;
@@ -3530,7 +3532,7 @@ function ensureBrowsePace(r){
   if(r.browseMin) return;
   const t = r.createdFrom && r.createdFrom.time;
   if(t){ r.browseMin = t==="2 hours"?40 : t==="Half day"?35 : 30; return; }
-  const n = r.stops.filter(sid=>getStoreById(sid)).length;
+  const n = r.stops.length;
   r.browseMin = (n && r.totalBrowse) ? Math.round(r.totalBrowse/n) : 35;
 }
 function recomputeRoute(r){
@@ -3613,7 +3615,13 @@ function saveCurrentRoute(){
     renderList();
   });
 }
-function doShare(text){
+// Prefer the phone's own share sheet (Messages, Mail, Instagram…); fall
+// back to copying when the browser doesn't offer one.
+async function doShare(text){
+  if(navigator.share){
+    try{ await navigator.share({text, url: window.location.href}); return; }
+    catch(e){ if(e && e.name==="AbortError") return; }
+  }
   try{
     navigator.clipboard.writeText(text + " " + window.location.href).then(()=>toast("Copied to clipboard."), ()=>toast("Couldn't copy — try again."));
   }catch(e){ toast("Sharing isn't available here."); }
@@ -3622,7 +3630,11 @@ function doShare(text){
 // route shares, which already have a real Google Maps link embedded in
 // them. Two links in one message confuses the preview card some apps
 // (iMessage included) generate, and grabs the wrong one.
-function doShareRaw(text){
+async function doShareRaw(text){
+  if(navigator.share){
+    try{ await navigator.share({text}); return; }
+    catch(e){ if(e && e.name==="AbortError") return; }
+  }
   try{
     navigator.clipboard.writeText(text).then(()=>toast("Copied to clipboard."), ()=>toast("Couldn't copy — try again."));
   }catch(e){ toast("Sharing isn't available here."); }
@@ -3630,11 +3642,12 @@ function doShareRaw(text){
 function buildGoogleMapsUrl(r){
   const stores = r.stops.map(id=>getStoreById(id)).filter(Boolean);
   if(!stores.length) return null;
-  // Coordinates everywhere possible — nothing text-based for a Google→Apple
-  // Maps hand-off to fail to decode. Falls back to the text address only
-  // for a store that hasn't been geocoded yet (sync-google-data.js not run,
-  // or Google had no match for that specific place).
-  const point = s => (s.lat!=null && s.lng!=null) ? `${s.lat},${s.lng}` : encodeURIComponent(s.address);
+  // Name + street address for every stop, so Google Maps labels each slot
+  // with the store instead of "Dropped pin". Coordinates only as a last
+  // resort for a store with no address on file.
+  const point = s => s.address ? encodeURIComponent(`${s.name}, ${s.address}`)
+    : s.name ? encodeURIComponent(`${s.name}, Atlanta, GA`)
+    : `${s.lat},${s.lng}`;
   const startPos = NEIGHBORHOODS[r.start];
   // Your exact GPS position, when we have it, beats the neighborhood's
   // center point every time — that center can be a mile or more off from
@@ -3642,23 +3655,39 @@ function buildGoogleMapsUrl(r){
   const origin = r.startCoords ? `${r.startCoords.lat},${r.startCoords.lng}`
     : startPos ? `${startPos.lat},${startPos.lng}`
     : encodeURIComponent(r.start + ", Atlanta, GA");
-  let destination, waypoints;
+  let destination, waypoints, wpStores;
   if(r.destinationCoords){
-    // A real, specific address wins over a neighborhood — exact coordinates,
-    // nothing left for any hand-off to mangle.
-    destination = `${r.destinationCoords.lat},${r.destinationCoords.lng}`;
+    // A searched end address: show its name when we have one, so the last
+    // slot reads "Ponce City Market" instead of a dropped pin.
+    destination = r.destinationAddress
+      ? encodeURIComponent(r.destinationName && r.destinationName!==r.destinationAddress ? `${r.destinationName}, ${r.destinationAddress}` : r.destinationAddress)
+      : `${r.destinationCoords.lat},${r.destinationCoords.lng}`;
     waypoints = stores.map(point).join("|");
+    wpStores = stores;
   } else if(r.destination){
     const destPos = NEIGHBORHOODS[r.destination];
     destination = destPos ? `${destPos.lat},${destPos.lng}` : encodeURIComponent(r.destination + ", Atlanta, GA");
     waypoints = stores.map(point).join("|");
+    wpStores = stores;
   } else {
     const last = stores[stores.length-1];
     destination = point(last);
     waypoints = stores.slice(0,-1).map(point).join("|");
+    wpStores = stores.slice(0,-1);
   }
   let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
+  // When the final destination is a store with a known Google listing, pin
+  // that exact business so Maps shows its real card.
+  if(!r.destinationCoords && !r.destination){
+    const last = stores[stores.length-1];
+    if(last.googlePlaceId) url += `&destination_place_id=${encodeURIComponent(last.googlePlaceId)}`;
+  }
   if(waypoints) url += `&waypoints=${waypoints}`;
+  // Pin each stop to its exact Google listing, so Maps can't snap a store
+  // to a same-named branch elsewhere. Only valid when every stop has one.
+  if(waypoints && wpStores.every(x=>x.googlePlaceId)){
+    url += `&waypoint_place_ids=${wpStores.map(x=>encodeURIComponent(x.googlePlaceId)).join("|")}`;
+  }
   return url;
 }
 function buildRouteShareText(r){
@@ -4135,6 +4164,17 @@ async function shareStyleResult(){
   toast("Creating your style card…");
   try{
     const blob = await buildStyleImage(r);
+    // Inside the iPhone app, share through the native layer: the share
+    // sheet then previews the actual card instead of a generic PNG icon.
+    const cap = window.Capacitor;
+    if(cap && cap.isNativePlatform && cap.isNativePlatform() && cap.Plugins && cap.Plugins.Filesystem && cap.Plugins.Share){
+      try{
+        const b64 = await new Promise((res, rej)=>{ const fr = new FileReader(); fr.onload = ()=>res(String(fr.result).split(",")[1]); fr.onerror = rej; fr.readAsDataURL(blob); });
+        const written = await cap.Plugins.Filesystem.writeFile({ path:"my-thrift-style.png", data:b64, directory:"CACHE" });
+        await cap.Plugins.Share.share({ files:[written.uri] });
+        return;
+      }catch(err){ if(err && /cancel/i.test(err.message||"")) return; /* else fall through to the web share */ }
+    }
     const file = new File([blob], "my-thrift-style.png", { type:"image/png" });
     if(navigator.canShare && navigator.canShare({ files:[file] })){
       await navigator.share({ files:[file], title:"My thrift style", text:`I'm ${styleTitle(r.kind,r.style,r.arch)}. What's your thrift style? atlthriftguide.com` });
@@ -4375,13 +4415,13 @@ async function finishAuth(message){
   await refreshSessionAndProfile();
   await Promise.all([loadMyData(), loadEvents(), loadPosts(), checkUnreadFromTeam()]);
   if(readPendingStyle()){ await savePendingStyleIfAny(); if(state.quiz && state.quiz.result) state.quiz.saved = true; }
-  closeModal();
   const pending = state.pendingAction;
   state.pendingAction = null;
+  closeModal();
   toast(message.replace("{u}", state.user?.username||""));
   render();
-  if(!hasSeenTour("member")){ maybeStartMemberTour(); return; }
-  if(pending) pending();
+  if(pending) await pending();
+  if(!hasSeenTour("member")) maybeStartMemberTour();
 }
 async function sendSignupCode(email){
   const { error } = await sb.auth.resend({ type:"signup", email, options:{ captchaToken: turnstileToken || undefined } });
@@ -4800,11 +4840,11 @@ function saveVisitNote(id){
   requireAuth(async ()=>{
     const existing=id?state.visitNotes.find(n=>n.id===id):null;
     if(existing){
-      const { error } = await sb.from("visit_notes").update({store_id:storeId, visited_at:visitedAt, text:noteText}).eq("id",existing.id).eq("user_id",state.user.id);
+      const { error } = await sb.from("visit_notes").update({store_id:storeId, visited_at:visitedAt, note_text:noteText, updated_at:new Date().toISOString()}).eq("id",existing.id).eq("user_id",state.user.id);
       if(error){ toast("Couldn't save that note — try again."); return; }
       existing.storeId=storeId; existing.visitedAt=visitedAt; existing.text=noteText;
     } else {
-      const { data, error } = await sb.from("visit_notes").insert({user_id:state.user.id, store_id:storeId, visited_at:visitedAt, text:noteText}).select().single();
+      const { data, error } = await sb.from("visit_notes").insert({user_id:state.user.id, store_id:storeId, visited_at:visitedAt, note_text:noteText}).select().single();
       if(error){ toast("Couldn't save that note — try again."); return; }
       state.visitNotes.unshift({id:data.id, storeId, visitedAt, text:noteText});
     }
