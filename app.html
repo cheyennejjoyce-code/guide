@@ -1013,6 +1013,7 @@ const DEFAULT_STATE = {
   eventFilter:"All",
   outdoorTempF:null,
   visitNotes:[],
+  myUserFollows:[],
   profileLibraryTab:"notes",
   storeVotes:{},
   storeFollows:{},
@@ -1141,17 +1142,19 @@ async function loadMyData(){
   });
 
   if(!state.user){
-    state.savedStoreIds=[]; state.visitedStoreIds=[]; state.savedPostIds=[]; state.savedRouteIds=[]; state.userRoutes=[]; state.visitNotes=[];
+    state.savedStoreIds=[]; state.visitedStoreIds=[]; state.savedPostIds=[]; state.savedRouteIds=[]; state.userRoutes=[]; state.visitNotes=[]; state.myUserFollows=[];
     return;
   }
   const uid_ = state.user.id;
-  const [saved, visited, savedPosts, myRoutes, myNotes] = await Promise.all([
+  const [saved, visited, savedPosts, myRoutes, myNotes, myFollows] = await Promise.all([
     sb.from("saved_stores").select("store_id").eq("user_id",uid_),
     sb.from("visited_stores").select("store_id").eq("user_id",uid_),
     sb.from("saved_posts").select("post_id").eq("user_id",uid_),
     sb.from("routes").select("*").eq("user_id",uid_),
-    sb.from("visit_notes").select("*").eq("user_id",uid_).order("visited_at",{ascending:false}).order("created_at",{ascending:false})
+    sb.from("visit_notes").select("*").eq("user_id",uid_).order("visited_at",{ascending:false}).order("created_at",{ascending:false}),
+    sb.from("user_follows").select("followed_id").eq("follower_id",uid_)
   ]);
+  state.myUserFollows = (myFollows.data||[]).map(f=>f.followed_id);
   state.savedStoreIds = (saved.data||[]).map(r=>r.store_id);
   state.visitedStoreIds = (visited.data||[]).map(r=>r.store_id);
   state.savedPostIds = (savedPosts.data||[]).map(r=>r.post_id);
@@ -1159,7 +1162,10 @@ async function loadMyData(){
   state.userRoutes = (myRoutes.data||[]).map(r=>({
     id:r.id, title:r.title, start:r.start_neighborhood, destination:r.destination_neighborhood,
     stops:r.stops||[], legs:r.legs||[], totalTravel:r.total_travel, totalBrowse:r.total_browse,
-    totalTime:(r.total_travel||0)+(r.total_browse||0)
+    totalTime:(r.total_travel||0)+(r.total_browse||0),
+    destinationAddress:r.destination_address||null, destinationName:r.destination_name||null,
+    destinationCoords:(r.destination_lat!=null && r.destination_lng!=null)?{lat:r.destination_lat,lng:r.destination_lng}:null,
+    startCoords:(r.start_lat!=null && r.start_lng!=null)?{lat:r.start_lat,lng:r.start_lng}:null
   }));
   state.savedRouteIds = state.userRoutes.map(r=>r.id);
 }
@@ -1233,6 +1239,23 @@ async function toggleSaveStore(id){
       state.savedStoreIds.push(id);
     }
     render();
+  });
+}
+async function toggleFollowUser(uid, username){
+  requireAuth(async ()=>{
+    if(!uid || uid===state.user.id) return;
+    const already = state.myUserFollows.includes(uid);
+    if(already){
+      await sb.from("user_follows").delete().eq("follower_id",state.user.id).eq("followed_id",uid);
+      state.myUserFollows = state.myUserFollows.filter(x=>x!==uid);
+      toast("Unfollowed @"+username+".");
+    } else {
+      const { error } = await sb.from("user_follows").upsert({follower_id:state.user.id, followed_id:uid});
+      if(error){ toast("Couldn't follow — try again."); return; }
+      state.myUserFollows.push(uid);
+      toast("You're now following @"+username);
+    }
+    renderList();
   });
 }
 async function toggleVisited(id){
@@ -2294,7 +2317,7 @@ function postCard(p){
         <div class="pu">@${p.user}</div>
         <div class="pu-meta">${timeAgo(p.date)}</div>
       </div>
-      <button class="icon-btn" style="width:32px;height:32px" data-action="follow-user" data-u="${p.user}" aria-label="Follow">${ICONS.plus}</button>
+      ${state.user && p.userId===state.user.id ? "" : `<button class="icon-btn" style="width:32px;height:32px${state.myUserFollows.includes(p.userId)?';background:var(--ink);color:var(--cream)':''}" data-action="follow-user" data-uid="${p.userId}" data-u="${p.user}" aria-label="${state.myUserFollows.includes(p.userId)?'Unfollow':'Follow'}">${state.myUserFollows.includes(p.userId)?ICONS.check:ICONS.plus}</button>`}
     </div>
     <div class="post-photo">${postPhotoHtml(p)}<span class="price-tag">$${p.price}</span></div>
     <div class="post-body">
@@ -2371,6 +2394,7 @@ function viewProfile(){
   const u = state.user;
   const myPosts = state.posts.filter(p=>p.user===u.username);
   const likedFinds = getLikedFinds();
+  const myVoteCount = state.user ? Object.values(state.storeVotes).filter(v=>v.up.includes(state.user.id)||v.down.includes(state.user.id)).length : 0;
   const recentNotes = state.visitNotes.slice().sort((a,b)=>new Date(b.visitedAt)-new Date(a.visitedAt)).slice(0,2);
   const storeCount = state.stores.length || 0;
   const exploredPercent = storeCount ? Math.min(100,Math.round((state.visitedStoreIds.length/storeCount)*100)) : 0;
@@ -2405,6 +2429,7 @@ function viewProfile(){
       <button class="profile-shortcut" data-action="open-profile-library" data-tab="notes">${ICONS.edit}<span><span class="ps-title">Visit Notes</span><span class="ps-count">${state.visitNotes.length} ${state.visitNotes.length===1?'note':'notes'}</span></span></button>
       <button class="profile-shortcut" data-action="open-profile-library" data-tab="stores">${ICONS.bookmark}<span><span class="ps-title">Saved Shops</span><span class="ps-count">${state.savedStoreIds.length} ${state.savedStoreIds.length===1?'shop':'shops'}</span></span></button>
       <button class="profile-shortcut" data-action="open-profile-library" data-tab="liked">${ICONS.heart}<span><span class="ps-title">Liked Finds</span><span class="ps-count">${likedFinds.length} ${likedFinds.length===1?'find':'finds'}</span></span></button>
+      <button class="profile-shortcut" data-action="open-profile-library" data-tab="votes">${ICONS.check}<span><span class="ps-title">My Votes</span><span class="ps-count">${myVoteCount} ${myVoteCount===1?'store':'stores'}</span></span>${ICONS.chevronR}</button>
     </div>
 
     <div class="profile-section">
@@ -2501,18 +2526,19 @@ function viewProfileLibrary(){
   }else if(tab==="stores"){
     const stores=state.savedStoreIds.map(getStoreById).filter(Boolean);
     content=stores.length?`<div class="note-list">${stores.map(compactProfileStore).join("")}</div>`:`<div class="empty-state"><h3>No saved shops yet</h3><p>Bookmark a shop to keep it here.</p></div>`;
+  }else if(tab==="votes"){
+    const mine = state.stores.filter(st=>{ const v=state.storeVotes[st.id]; return v && (v.up.includes(state.user.id)||v.down.includes(state.user.id)); });
+    const yes = mine.filter(st=>state.storeVotes[st.id].up.includes(state.user.id));
+    const no = mine.filter(st=>state.storeVotes[st.id].down.includes(state.user.id));
+    const sect = (label, arr) => arr.length?`<div style="font-family:var(--font-mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--royal);margin:18px 0 10px">${label}</div><div class="note-list">${arr.map(compactProfileStore).join("")}</div>`:"";
+    content = mine.length ? sect("Still worth the trip", yes)+sect("Not lately", no) : `<div class="empty-state"><h3>No votes yet</h3><p>Answer "Still worth the trip?" on a store page and it will be collected here.</p></div>`;
   }else{
     const finds=getLikedFinds();
     content=finds.length?finds.map(postCard).join(""):`<div class="empty-state"><h3>No liked finds yet</h3><p>Like a community find and it will appear here.</p></div>`;
   }
   return `<div style="margin-top:6px">
     <button class="btn btn-ghost btn-sm" data-action="nav" data-view="profile" style="margin-bottom:16px">${ICONS.back}Back to profile</button>
-    <div class="profile-library-head"><div><h1>${tab==='stores'?'Saved Shops':tab==='liked'?'Liked Finds':'Visit Notes'}</h1><p>Private notes and things you want to revisit.</p></div></div>
-    <div class="tab-row">
-      <button class="${tab==='notes'?'active':''}" data-action="set-profile-library-tab" data-tab="notes">Visit Notes</button>
-      <button class="${tab==='stores'?'active':''}" data-action="set-profile-library-tab" data-tab="stores">Saved Shops</button>
-      <button class="${tab==='liked'?'active':''}" data-action="set-profile-library-tab" data-tab="liked">Liked Finds</button>
-    </div>
+    <div class="profile-library-head"><div><h1>${tab==='stores'?'Saved Shops':tab==='liked'?'Liked Finds':tab==='votes'?'My Votes':'Visit Notes'}</h1><p>${tab==='stores'?'Shops you saved to revisit.':tab==='liked'?'Finds you liked from the community.':tab==='votes'?'Stores you answered "Still worth the trip?" on.':'Your private notes from store visits.'}</p></div></div>
     ${content}
   </div>`;
 }
@@ -2631,7 +2657,12 @@ function viewMessages(){
 // ---- Admin: scan Google for stores we don't have yet ----------------------
 const SCAN_TYPES = ["thrift store","vintage clothing store","consignment shop","antique store"];
 const SCAN_AREAS = ["Decatur","Kirkwood","East Atlanta","Little Five Points","Old Fourth Ward","Midtown","Buckhead","West Midtown","Virginia-Highland","Grant Park","College Park","Marietta","Chamblee","Tucker","Smyrna","Sandy Springs"];
-function scanHiddenIds(){ try{ return JSON.parse(localStorage.getItem("atlThrift_scan_hidden")||"[]"); }catch(e){ return []; } }
+function scanHiddenIds(){
+  let local = [];
+  try{ local = JSON.parse(localStorage.getItem("atlThrift_scan_hidden")||"[]"); }catch(e){}
+  const remote = (state.admin && state.admin.scanHiddenDb) || [];
+  return [...new Set([...local, ...remote])];
+}
 function normName(n){ return String(n||"").toLowerCase().replace(/[^a-z0-9]+/g," ").replace(/\b(the|store|shop|llc|inc)\b/g,"").trim(); }
 async function adminScanStores(){
   if(!state.isAdmin) return;
@@ -2696,6 +2727,10 @@ function adminScanAdd(pid){
 function adminScanHide(pid){
   const ids = scanHiddenIds(); if(!ids.includes(pid)) ids.push(pid);
   try{ localStorage.setItem("atlThrift_scan_hidden", JSON.stringify(ids)); }catch(e){}
+  state.admin = state.admin || {};
+  state.admin.scanHiddenDb = [...new Set([...(state.admin.scanHiddenDb||[]), pid])];
+  // Saved to the database too, so the hide follows the admin account.
+  sb.from("scan_hidden_places").upsert({place_id:pid}).then(({error})=>{ if(error) console.error("scan hide sync failed:", error.message); });
   if(state.admin && state.admin.scan) state.admin.scan.results = state.admin.scan.results.filter(x=>x.id!==pid);
   renderList();
 }
@@ -2704,15 +2739,17 @@ async function loadAdminData(){
   if(!state.isAdmin) return;
   state.admin = state.admin || {};
   state.admin.loading = true; renderList();
-  const [subs, reps, signups, msgs] = await Promise.all([
+  const [subs, reps, signups, hiddenScan, msgs] = await Promise.all([
     sb.from("store_submissions").select("*").eq("status","pending").order("created_at",{ascending:false}),
     sb.from("reports").select("*").eq("status","open").order("created_at",{ascending:false}),
     sb.rpc("admin_recent_signups", { days: 30 }),
+    sb.from("scan_hidden_places").select("place_id"),
     sb.from("support_messages").select("user_id, sender, kind, body, created_at, read_by_admin, profiles!support_messages_user_id_fkey(username)").order("created_at",{ascending:false}).limit(400)
   ]);
   const convos = {};
   (msgs.data||[]).forEach(m=>{ const c = convos[m.user_id] || (convos[m.user_id] = { userId:m.user_id, name:m.profiles?.username||"member", last:m.body, at:m.created_at, unread:0, feedback:false }); if(m.sender==="member" && !m.read_by_admin){ c.unread++; if(m.kind==="feedback") c.feedback = true; } });
   state.admin.convos = Object.values(convos).sort((a,b)=>(b.unread-a.unread) || (b.at>a.at?1:-1));
+  state.admin.scanHiddenDb = (hiddenScan.data||[]).map(r=>r.place_id);
   state.admin.storeSubs = subs.data || [];
   state.admin.reports = reps.data || [];
   state.admin.signups = signups.data || [];
@@ -2821,6 +2858,17 @@ function viewAdmin(){
             <button data-action="admin-delete-store" data-id="${s.id}" aria-label="Delete">${ICONS.trash}</button>
           </div>
         </div>`).join(""); })()}
+      ${(()=>{ const t = Object.entries(state.storeVotes)
+          .map(([sid,v])=>({ s:getStoreById(sid), up:v.up.length, down:v.down.length }))
+          .filter(x=>x.s && (x.up||x.down))
+          .sort((a,b)=>(b.down-a.down)||(b.up-a.up));
+        if(!t.length) return "";
+        return `<h3 style="margin:26px 0 4px">Still worth the trip?</h3>
+        <p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">Member votes per store — most "Not lately" first, so re-check those.</p>
+        ${t.map(x=>`<div class="admin-list-row">
+          <div><div class="ar-name">${x.s.name}</div><div class="ar-sub">YES ${x.up} · NOT LATELY ${x.down}</div></div>
+          <div class="ar-actions"><button data-action="open-store" data-id="${x.s.id}" aria-label="Open">${ICONS.chevronR}</button></div>
+        </div>`).join("")}`; })()}
     `;
   } else if(tab==="routes"){
     body = `<p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">Curated routes shown on the home screen (edit store data to reflect in real time).</p>
@@ -2836,7 +2884,7 @@ function viewAdmin(){
         const store = ev.linkedStoreId ? getStoreById(ev.linkedStoreId) : null;
         return `
         <div class="admin-list-row">
-          <div><div class="ar-name">${ev.title}${ev.isSample?'<span class="badge-featured" style="background:var(--line-strong);color:var(--cream)">Sample</span>':''}</div><div class="ar-sub">${ev.dateLabel}${store?' · '+store.name:''}</div></div>
+          <div><div class="ar-name">${ev.title}${ev.isSample?'<span class="badge-featured" style="background:var(--line-strong);color:var(--cream)">Sample</span>':''}</div><div class="ar-sub">${formatEventDate(ev)}${store?' · '+store.name:''}</div></div>
           <div class="ar-actions">
             <button data-action="admin-edit-event" data-id="${ev.id}" aria-label="Edit">${ICONS.edit}</button>
             <button data-action="admin-delete-event" data-id="${ev.id}" aria-label="Delete">${ICONS.trash}</button>
@@ -2879,7 +2927,6 @@ function renderModal(){
   else if(name==="shareFind") html = shareFindModal(params);
   else if(name==="addStop") html = addStopModal();
   else if(name==="adminStoreForm") html = adminStoreFormModal(params);
-  else if(name==="adminEventForm") html = adminEventFormModal(params);
   else if(name==="eventDetail") html = eventDetailModal(params);
   else if(name==="eventSubmission") html = eventSubmissionModal();
   else if(name==="verifyEmail") html = verifyEmailModal();
@@ -3262,23 +3309,6 @@ function adminStoreFormModal(params){
   </div>`;
 }
 
-function adminEventFormModal(params){
-  const editing = params.id ? state.events.find(e=>e.id===params.id) : null;
-  const ev = editing || {title:"",linkedStoreId:"",dateLabel:"",description:""};
-  const storeOpts = `<option value="">No specific store</option>` + state.stores.map(s=>`<option value="${s.id}" ${ev.linkedStoreId===s.id?'selected':''}>${s.name}</option>`).join("");
-  return `<div class="modal-overlay">
-    <div class="modal-sheet">
-      <div class="modal-handle"></div>
-      <div class="modal-title">${editing?'Edit sale':'Add a sale'}</div>
-      <div class="modal-sub">This shows up in the "Happening this week" row on Discover. There's no automatic feed — add and remove these by hand as sales come and go.</div>
-      <div class="form-group"><label>Sale title</label><input type="text" id="ae-title" value="${ev.title}" placeholder="Fall Warehouse Clearance"></div>
-      <div class="form-group"><label>Linked store (optional)</label><select id="ae-store">${storeOpts}</select></div>
-      <div class="form-group"><label>Date or date range</label><input type="text" id="ae-date" value="${ev.dateLabel}" placeholder="Sat Sep 12 – Sun Sep 13"></div>
-      <div class="form-group"><label>Details</label><textarea id="ae-desc">${ev.description}</textarea></div>
-      <button class="btn btn-royal btn-block" data-action="submit-admin-event" data-id="${editing?editing.id:''}">${editing?'Save changes':'Add sale'}</button>
-    </div>
-  </div>`;
-}
 
 function attachGlobalHandlers(){
   const search = document.querySelector('[data-action="search-input"]');
@@ -3341,7 +3371,7 @@ function handleClick(e){
     case "like-post": toggleLike(t.dataset.id); break;
     case "toggle-comments": state.openComments = state.openComments===t.dataset.id?null:t.dataset.id; renderList(); break;
     case "add-comment": submitComment(t.dataset.id); break;
-    case "follow-user": requireAuth(()=>{ toast("You're now following @"+t.dataset.u); }); break;
+    case "follow-user": toggleFollowUser(t.dataset.uid, t.dataset.u); break;
     case "share-post": {
       const p = state.posts.find(x=>x.id===t.dataset.id);
       const st = p ? getStoreById(p.store) : null;
@@ -3396,7 +3426,7 @@ function handleClick(e){
     case "set-community-filter": state.communityFilter = t.dataset.f; renderList(); break;
     case "open-share-find": openModal("shareFind", {store: t.dataset.store}); break;
     case "set-saved-tab": state.savedTab = t.dataset.t; renderList(); break;
-    case "load-saved-route": { const r0 = state.userRoutes.find(r=>r.id===t.dataset.id); if(r0){ ensureBrowsePace(r0); const live = r0.stops.filter(sid=>getStoreById(sid)); if(live.length !== r0.stops.length){ r0.stops = live; recomputeRoute(r0); } state.currentRoute = r0; go("routeResults"); } break; }
+    case "load-saved-route": { const r0 = state.userRoutes.find(r=>r.id===t.dataset.id); if(r0){ ensureBrowsePace(r0); const live = r0.stops.filter(sid=>getStoreById(sid)); if(live.length !== r0.stops.length){ r0.stops = live; recomputeRoute(r0); persistRouteEdits(r0); } state.currentRoute = r0; go("routeResults"); } break; }
     case "open-login": openModal("login"); break;
     case "open-forgot-password": openModal("forgotPassword"); break;
     case "submit-forgot-password": submitForgotPassword(); break;
@@ -3432,7 +3462,6 @@ function handleClick(e){
     case "submit-login": submitLogin(); break;
     case "open-edit-profile": openModal("editProfile"); break;
     case "open-profile-library": state.profileLibraryTab=t.dataset.tab||"notes"; go("profileLibrary"); break;
-    case "set-profile-library-tab": state.profileLibraryTab=t.dataset.tab; renderList(); break;
     case "open-visit-note": { const sid=t.dataset.store||""; const latest=state.visitNotes.filter(n=>n.storeId===sid).sort((a,b)=>new Date(b.visitedAt)-new Date(a.visitedAt))[0]; openModal("visitNote", latest?{id:latest.id}:{storeId:sid}); break; }
     case "edit-visit-note": openModal("visitNote", {id:t.dataset.id}); break;
     case "save-visit-note": saveVisitNote(t.dataset.id); break;
@@ -3451,12 +3480,11 @@ function handleClick(e){
     case "admin-delete-store": adminDeleteStore(t.dataset.id); break;
     case "admin-toggle-featured": adminToggleFeatured(t.dataset.id); break;
     case "admin-delete-post": adminDeletePost(t.dataset.id); break;
-    case "admin-add-event": openModal("adminEventForm", {}); break;
+    case "admin-add-event": openModal("adminEditEvent", {}); break;
     case "admin-edit-event": openModal("adminEditEvent", {id:t.dataset.id}); break;
     case "admin-save-event": adminSaveEvent(t.dataset.id, t.dataset.publish==="1"); break;
     case "admin-delete-event": adminDeleteEvent(t.dataset.id); break;
     case "delete-own-event": deleteOwnEvent(t.dataset.id); break;
-    case "submit-admin-event": submitAdminEvent(t.dataset.id); break;
     case "submit-admin-store": submitAdminStore(t.dataset.id); break;
   }
 }
@@ -3557,6 +3585,14 @@ function recomputeRoute(r){
   r.totalBrowse = browseMin * stores.length;
   r.totalTime = totalTravel + r.totalBrowse;
 }
+// A route that's already saved keeps its saved copy in sync with edits,
+// so reopening it later shows exactly what you left.
+function persistRouteEdits(r){
+  if(!state.user || !r || !state.savedRouteIds.includes(r.id)) return;
+  sb.from("routes").update({ stops:r.stops, legs:r.legs, total_travel:r.totalTravel, total_browse:r.totalBrowse })
+    .eq("id", r.id).eq("user_id", state.user.id)
+    .then(({error})=>{ if(error){ console.error("route sync failed:", error.message); toast("Couldn't sync that change to your saved route."); } });
+}
 function moveStop(i,dir){
   const r = state.currentRoute;
   ensureBrowsePace(r);
@@ -3565,6 +3601,7 @@ function moveStop(i,dir){
   if(j<0 || j>=r.stops.length) return;
   [r.stops[i], r.stops[j]] = [r.stops[j], r.stops[i]];
   recomputeRoute(r);
+  persistRouteEdits(r);
   renderList();
 }
 function removeStop(i){
@@ -3573,6 +3610,7 @@ function removeStop(i){
   r.stops = r.stops.filter(sid=>getStoreById(sid));
   r.stops.splice(i,1);
   recomputeRoute(r);
+  persistRouteEdits(r);
   renderList();
 }
 function confirmAddStop(id){
@@ -3595,6 +3633,7 @@ function confirmAddStop(id){
   }
   r.stops.splice(best, 0, id);
   recomputeRoute(r);
+  persistRouteEdits(r);
   closeModal();
   renderList();
 }
@@ -3602,10 +3641,16 @@ function saveCurrentRoute(){
   requireAuth(async ()=>{
     if(!state.user.isMember){ openModal("membership"); return; }
     const r = state.currentRoute;
+    if(state.savedRouteIds.includes(r.id)){ toast("This route is already saved."); return; }
     const { data, error } = await sb.from("routes").insert({
       user_id: state.user.id, title: r.title, start_neighborhood: r.start,
       destination_neighborhood: r.destination || null, stops: r.stops, legs: r.legs,
-      total_travel: r.totalTravel, total_browse: r.totalBrowse
+      total_travel: r.totalTravel, total_browse: r.totalBrowse,
+      destination_address: r.destinationAddress || null, destination_name: r.destinationName || null,
+      destination_lat: r.destinationCoords ? r.destinationCoords.lat : null,
+      destination_lng: r.destinationCoords ? r.destinationCoords.lng : null,
+      start_lat: r.startCoords ? r.startCoords.lat : null,
+      start_lng: r.startCoords ? r.startCoords.lng : null
     }).select().single();
     if(error){ toast("Couldn't save that route — try again."); return; }
     r.id = data.id; // swap the client-generated id for the real database one
@@ -4015,12 +4060,14 @@ function styleBlurb(r){
   const n = a.name.replace(/^The /,"");
   return `${line}. As ${/^[AEIOU]/.test(n) ? "an" : "a"} ${n}, ${ARCH_LINES[r.arch]}.`;
 }
-function readPendingStyle(){ try{ return JSON.parse(localStorage.getItem("atlThrift_pending_style")||"null"); }catch(e){ return null; } }
-function writePendingStyle(r){ try{ localStorage.setItem("atlThrift_pending_style", JSON.stringify(r)); }catch(e){} }
+// Pending results are kept per quiz kind, so a guest who takes both the
+// home and fashion quizzes gets BOTH saved when they create an account.
+function readPendingStyles(){ try{ const v = JSON.parse(localStorage.getItem("atlThrift_pending_style")||"null"); if(!v) return {}; return v.kind ? {[v.kind]:v} : v; }catch(e){ return {}; } }
+function writePendingStyle(r){ try{ const all = readPendingStyles(); all[r.kind] = r; localStorage.setItem("atlThrift_pending_style", JSON.stringify(all)); }catch(e){} }
 function clearPendingStyle(){ try{ localStorage.removeItem("atlThrift_pending_style"); }catch(e){} }
 async function saveStyleResult(r){
   if(!state.user){ writePendingStyle(r); return false; }
-  const details = Object.assign({}, state.user.styleDetails||{}, {[r.kind]: {dna:r.dna, picks:r.picks||null, v:2}});
+  const details = Object.assign({}, state.user.styleDetails||{}, {[r.kind]: Object.assign({dna:r.dna, picks:r.picks||null, v:2}, r.feedback?{feedback:r.feedback}:{})});
   const row = r.kind==="home"
     ? { home_style:r.style, style_archetype_home:r.arch, style_details:details, style_updated_at:new Date().toISOString() }
     : { fashion_style:r.style, style_archetype_fashion:r.arch, style_details:details, style_updated_at:new Date().toISOString() };
@@ -4032,11 +4079,23 @@ async function saveStyleResult(r){
   return true;
 }
 async function savePendingStyleIfAny(){
-  const r = readPendingStyle();
-  if(r && state.user){ if(await saveStyleResult(r)) clearPendingStyle(); }
+  if(!state.user) return;
+  const all = readPendingStyles();
+  for(const k of Object.keys(all)){
+    if(await saveStyleResult(all[k])){
+      // Drop each kind as soon as it lands, so a kind that saved never gets
+      // re-saved later over a newer retake.
+      try{
+        const cur = readPendingStyles(); delete cur[k];
+        if(Object.keys(cur).length) localStorage.setItem("atlThrift_pending_style", JSON.stringify(cur));
+        else clearPendingStyle();
+      }catch(e){}
+    }
+  }
 }
 function savedStyleResult(kind){
-  const u = state.user; if(!u) return null;
+  const u = state.user;
+  if(!u) return readPendingStyles()[kind] || null; // a guest's result waits in localStorage
   const style = kind==="home" ? u.homeStyle : u.fashionStyle, arch = kind==="home" ? u.homeArch : u.fashionArch;
   if(!style || !arch) return null;
   const d = (u.styleDetails && u.styleDetails[kind]) || {};
@@ -4051,7 +4110,8 @@ function startStyleQuiz(kind){
 function openSavedStyle(kind){
   const r = savedStyleResult(kind); if(!r){ startStyleQuiz(kind); return; }
   state.view = "styleQuiz";
-  state.quiz = { kind, step:0, picks:[], arch:[], result:r, saved:true };
+  const fb = (state.user && state.user.styleDetails && state.user.styleDetails[kind] && state.user.styleDetails[kind].feedback) || r.feedback;
+  state.quiz = { kind, step:0, picks:[], arch:[], result:r, saved:!!state.user, feedback: fb || null };
   window.scrollTo(0,0);
   render();
 }
@@ -4153,11 +4213,33 @@ async function buildStyleImage(r){
   return await new Promise(res=>c.toBlob(res, "image/png"));
 }
 async function sendStyleFeedback(verdict){
-  const r = state.quiz && state.quiz.result; if(!r || !/^(up|down)$/.test(verdict)) return;
-  state.quiz.feedback = verdict;
-  const box = document.getElementById("style-feedback");
-  if(box) box.innerHTML = verdict==="up" ? `<span>Love that. Thanks!</span>` : `<span>Thanks, that helps us make it better. Try <b>Retake</b> if you want another pass.</span>`;
-  try{ await sb.from("style_feedback").insert({ kind:r.kind, style:r.style, archetype:r.arch, dna:r.dna, picks:r.picks||null, verdict }); }catch(e){}
+  const q = state.quiz, r = q && q.result;
+  if(!r || !/^(up|down)$/.test(verdict) || q.feedback || q.feedbackPending) return;
+  q.feedbackPending = true;
+  const row = { kind:r.kind, style:r.style, archetype:r.arch, dna:r.dna, picks:r.picks||null, verdict };
+  if(state.user) row.user_id = state.user.id;
+  const { error } = await sb.from("style_feedback").insert(row);
+  if(error){ q.feedbackPending = false; toast("Couldn't send that — try again."); return; }
+  q.feedbackPending = false;
+  q.feedback = verdict;
+  if(state.quiz === q){
+    const box = document.getElementById("style-feedback");
+    if(box) box.innerHTML = verdict==="up" ? `<span>Love that. Thanks!</span>` : `<span>Thanks, that helps us make it better. Try <b>Retake</b> if you want another pass.</span>`;
+  }
+  // Remember the answer, so the question doesn't come back every time the
+  // saved result is reopened — on the profile when signed in, otherwise on
+  // the pending result waiting in localStorage.
+  if(state.user){
+    const details = Object.assign({}, state.user.styleDetails||{});
+    details[r.kind] = Object.assign({}, details[r.kind]||{}, {feedback:verdict});
+    const { error: e2 } = await sb.from("profiles").update({style_details:details}).eq("id", state.user.id);
+    if(!e2) state.user.styleDetails = details;
+  } else {
+    try{
+      const all = readPendingStyles();
+      if(all[r.kind]){ all[r.kind].feedback = verdict; localStorage.setItem("atlThrift_pending_style", JSON.stringify(all)); }
+    }catch(e){}
+  }
 }
 async function shareStyleResult(){
   const r = state.quiz && state.quiz.result; if(!r) return;
@@ -4414,7 +4496,7 @@ function onUsernameInput(){
 async function finishAuth(message){
   await refreshSessionAndProfile();
   await Promise.all([loadMyData(), loadEvents(), loadPosts(), checkUnreadFromTeam()]);
-  if(readPendingStyle()){ await savePendingStyleIfAny(); if(state.quiz && state.quiz.result) state.quiz.saved = true; }
+  if(Object.keys(readPendingStyles()).length){ await savePendingStyleIfAny(); if(state.quiz && state.quiz.result) state.quiz.saved = !readPendingStyles()[state.quiz.result.kind]; }
   const pending = state.pendingAction;
   state.pendingAction = null;
   closeModal();
@@ -4542,16 +4624,21 @@ async function deleteMyAccount(){
 const PARKING_OPTIONS = ["Free parking","Paid parking","Street parking","No parking","Unsure"];
 const STORE_CATEGORY_OPTIONS = ["Clothing","Accessories","Furniture","Home Decor","Vintage","Designer","Books","Records"];
 function adminEditEventModal(params){
-  const ev = state.events.find(e=>e.id===params.id);
+  const blank = { status:"new", title:"", eventType:"", startDate:"", endDate:"", startTime:"", endTime:"", venue:"", address:"", priceLabel:"", parking:"", sourceUrl:"", description:"", flyerUrl:null };
+  const ev = params.id ? state.events.find(e=>e.id===params.id) : blank;
   if(!ev) return `<div class="modal-overlay"><div class="modal-sheet"><div class="modal-handle"></div><div class="modal-title">Event not found</div><button class="btn btn-ghost btn-block" data-action="close-modal">Close</button></div></div>`;
-  const v = x => escapeHtml(x||"");
+  // Event text is stored escaped in state (loadEvents); un-escape it before
+  // putting it in form fields, or every save writes HTML codes into the
+  // database and the text grows garbled with each edit.
+  const unesc = t => { if(!t) return ""; const d = document.createElement("textarea"); d.innerHTML = t; return d.value; };
+  const v = x => escapeHtml(unesc(x||""));
   const sel = (id, opts, cur) => `<select id="${id}">${opts.map(o=>`<option ${o===cur?"selected":""}>${o}</option>`).join("")}</select>`;
   const types = ["Vintage Market","Flea Market","Clothing Swap","Estate Sale","Store Sale","Other"];
   return `<div class="modal-overlay">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
-      <div class="modal-title">Edit event</div>
-      <div class="modal-sub">${ev.status==="pending" ? "Fill in anything missing, then save or publish." : `Status: ${v(ev.status)}.`}${ev.submitterEmail?` Submitted by ${v(ev.submitterEmail)}.`:""}</div>
+      <div class="modal-title">${params.id ? 'Edit event' : 'Add a sale'}</div>
+      <div class="modal-sub">${ev.status==="new" ? "This shows up in the events row once published." : ev.status==="pending" ? "Fill in anything missing, then save or publish." : `Status: ${v(ev.status)}.`}${ev.submitterEmail?` Submitted by ${v(ev.submitterEmail)}.`:""}</div>
       <div class="form-group"><label>Event name</label><input type="text" id="ae-title" value="${v(ev.title)}"></div>
       <div class="form-group"><label>Event type</label>${sel("ae-type", types, ev.eventType && types.includes(ev.eventType) ? ev.eventType : "Other")}</div>
       <div class="form-row">
@@ -4569,7 +4656,7 @@ function adminEditEventModal(params){
       <div class="form-group"><label>Event link</label><input type="url" id="ae-url" value="${v(ev.sourceUrl)}"></div>
       <div class="form-group"><label>Details</label><textarea id="ae-details">${v(ev.description)}</textarea></div>
       ${ev.flyerUrl?`<div class="form-group"><label>Flyer</label><img src="${ev.flyerUrl}" alt="Flyer" style="width:100%;max-height:220px;object-fit:contain;border-radius:14px;background:var(--cream-card)"></div>`:""}
-      <button class="btn btn-royal btn-block" data-action="admin-save-event" data-id="${ev.id}" data-publish="${ev.status==="pending"?"1":"0"}">${ev.status==="pending" ? "Save and publish" : "Save changes"}</button>
+      <button class="btn btn-royal btn-block" data-action="admin-save-event" data-id="${ev.id||''}" data-publish="${ev.status==="pending"||ev.status==="new"?"1":"0"}">${ev.status==="new" ? "Add and publish" : ev.status==="pending" ? "Save and publish" : "Save changes"}</button>
       ${ev.status==="pending" ? `<button class="btn btn-outline btn-block" style="margin-top:8px" data-action="admin-save-event" data-id="${ev.id}" data-publish="0">Save, keep pending</button>` : ""}
       <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
     </div>
@@ -4586,10 +4673,12 @@ async function adminSaveEvent(id, publish){
     start_time: val("ae-start-time")||null, end_time: val("ae-end-time")||null, venue: val("ae-venue")||null, address: val("ae-address")||null,
     price_label: val("ae-price")||null, parking: val("ae-parking")||null, source_url: link||null, description: val("ae-details")||null };
   if(publish) row.status = "published";
-  const { error } = await sb.from("events").update(row).eq("id", id);
+  const { error } = id
+    ? await sb.from("events").update(row).eq("id", id)
+    : await sb.from("events").insert(Object.assign({status: publish ? "published" : "draft"}, row));
   if(error){ console.error("save event failed:", error.message); toast("Couldn't save that event."); return; }
   closeModal();
-  await loadEvents(); toast(publish ? "Event saved and published." : "Event saved."); renderList();
+  await loadEvents(); toast(id ? (publish ? "Event saved and published." : "Event saved.") : "Sale added."); renderList();
 }
 function suggestStoreModal(){
   const hint = t => `<div style="font-size:12px;color:var(--ink-soft);margin:-2px 0 8px;line-height:1.45">${t}</div>`;
@@ -4740,10 +4829,6 @@ async function adminToggleFeatured(id){
   await loadStores(); toast(st.featured ? "Removed from featured." : "Marked as featured."); renderList();
 }
 function adminDeletePost(id){ adminRemovePost(id); }
-function submitAdminEvent(id){
-  toast("Sales/events editing isn't wired to Supabase yet — add rows to the 'events' table directly for now.");
-  closeModal();
-}
 let pendingFlyerBlob = null;
 let submittingEvent = false;
 // Shrinks a phone photo to a reasonable size before upload (max 1600px, JPEG).
