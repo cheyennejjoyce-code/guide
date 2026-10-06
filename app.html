@@ -132,7 +132,7 @@ p{margin:0;}
 .hero h1{font-family:var(--font-display);font-size:38px;line-height:.98;font-weight:600;letter-spacing:-.03em;color:var(--ink);margin-bottom:12px;}
 .hero p.sub{font-size:14.5px;line-height:1.55;color:var(--body-text);max-width:310px;margin-bottom:24px;}
 .hero-btns{display:flex;gap:8px;flex-wrap:wrap;}
-.btn{border-radius:var(--radius-pill);padding:13px 20px;font-weight:700;font-size:14.5px;border:none;display:inline-flex;align-items:center;gap:7px;}
+.btn{border-radius:var(--radius-pill);padding:13px 20px;font-weight:700;font-size:14.5px;border:none;display:inline-flex;align-items:center;justify-content:center;text-align:center;gap:7px;}
 .btn svg{width:16px;height:16px;}
 .btn-primary{background:var(--ink);color:var(--cream);}
 .btn-primary:hover{background:var(--royal);}
@@ -272,6 +272,7 @@ p{margin:0;}
 .stop-actions{display:flex;flex-direction:column;gap:5px;}
 .stop-actions button{width:26px;height:26px;border-radius:8px;border:1px solid var(--line);background:var(--cream);display:flex;align-items:center;justify-content:center;}
 .stop-actions svg{width:13px;height:13px;}
+.stop-card>svg{width:20px;height:20px;flex-shrink:0;align-self:center;color:var(--royal);}
 .travel-line{display:flex;align-items:center;gap:8px;padding:2px 0 2px 14px;font-size:11.5px;color:var(--ink-soft);margin-bottom:10px;}
 .travel-line svg{width:13px;height:13px;}
 .post-card{background:var(--cream);border:2px solid var(--line-strong);border-radius:22px;overflow:hidden;margin-bottom:16px;}
@@ -1140,19 +1141,21 @@ async function loadMyData(){
   });
 
   if(!state.user){
-    state.savedStoreIds=[]; state.visitedStoreIds=[]; state.savedPostIds=[]; state.savedRouteIds=[]; state.userRoutes=[];
+    state.savedStoreIds=[]; state.visitedStoreIds=[]; state.savedPostIds=[]; state.savedRouteIds=[]; state.userRoutes=[]; state.visitNotes=[];
     return;
   }
   const uid_ = state.user.id;
-  const [saved, visited, savedPosts, myRoutes] = await Promise.all([
+  const [saved, visited, savedPosts, myRoutes, myNotes] = await Promise.all([
     sb.from("saved_stores").select("store_id").eq("user_id",uid_),
     sb.from("visited_stores").select("store_id").eq("user_id",uid_),
     sb.from("saved_posts").select("post_id").eq("user_id",uid_),
-    sb.from("routes").select("*").eq("user_id",uid_)
+    sb.from("routes").select("*").eq("user_id",uid_),
+    sb.from("visit_notes").select("*").eq("user_id",uid_).order("visited_at",{ascending:false})
   ]);
   state.savedStoreIds = (saved.data||[]).map(r=>r.store_id);
   state.visitedStoreIds = (visited.data||[]).map(r=>r.store_id);
   state.savedPostIds = (savedPosts.data||[]).map(r=>r.post_id);
+  state.visitNotes = (myNotes.data||[]).map(n=>({id:n.id, storeId:n.store_id, visitedAt:n.visited_at, text:n.text}));
   state.userRoutes = (myRoutes.data||[]).map(r=>({
     id:r.id, title:r.title, start:r.start_neighborhood, destination:r.destination_neighborhood,
     stops:r.stops||[], legs:r.legs||[], totalTravel:r.total_travel, totalBrowse:r.total_browse,
@@ -1994,15 +1997,16 @@ function viewStoreDetail(id){
 
     <div style="display:flex;gap:8px;margin-bottom:18px">
     <button class="btn ${visited?'btn-primary':'btn-outline'}" style="flex:1;padding:12px 10px;font-size:13px" data-action="toggle-visited" data-id="${s.id}">${ICONS.check}${visited?"You've been here":'Mark as visited'}</button>
-    <button class="btn btn-outline" style="flex:1;padding:12px 10px;font-size:13px" data-action="open-visit-note" data-store="${s.id}">${ICONS.edit}${state.visitNotes.some(n=>n.storeId===s.id)?'View or add a visit note':'Add a visit note'}</button>
+    <button class="btn btn-outline" style="flex:1;padding:12px 10px;font-size:13px" data-action="open-visit-note" data-store="${s.id}">${ICONS.edit}${state.visitNotes.some(n=>n.storeId===s.id)?'Your visit notes':'Add a visit note'}</button>
     </div>
+    ${(()=>{ const myNotes=state.visitNotes.filter(n=>n.storeId===s.id).sort((a,b)=>new Date(b.visitedAt)-new Date(a.visitedAt)); return myNotes.length?`<div class="note-list" style="margin:-8px 0 18px">${myNotes.map(visitNoteCard).join("")}</div>`:''; })()}
 
     <div class="info-block">
       <h3>Before you go</h3>
       <p style="margin-bottom:10px">${s.tips}</p>
       <div class="info-row"><span class="lbl" style="min-width:0">${ICONS.pin}</span><span>${s.address}</span></div>
-      ${s.phone ? `<div class="info-row"><span class="lbl" style="min-width:0">${ICONS.phone}</span><span>${s.phone}</span></div>` : ''}
-      ${s.website ? `<div class="info-row"><span class="lbl" style="min-width:0">${ICONS.globe}</span><span>${s.website}</span></div>` : ''}
+      ${s.phone ? `<div class="info-row"><span class="lbl" style="min-width:0">${ICONS.phone}</span><a href="tel:${s.phone.replace(/[^+\d]/g,'')}" style="color:var(--royal);text-decoration:none;font-weight:600">${s.phone}</a></div>` : ''}
+      ${s.website ? `<div class="info-row"><span class="lbl" style="min-width:0">${ICONS.globe}</span><a href="${/^https?:\/\//.test(s.website)?s.website:'https://'+s.website}" target="_blank" rel="noopener" style="color:var(--royal);text-decoration:none;font-weight:600">${s.website}</a></div>` : ''}
     </div>
 
     <div class="section">
@@ -2185,10 +2189,8 @@ function generateRoute(){
     totalTravel += mins;
     prev = s.neighborhood;
   });
-  if(destPos || c.destinationCoords){
-    const finalLeg = Math.max(4, Math.round(dist(prev, c.destination || prev)*2.6) || 8);
-    totalTravel += finalLeg;
-  }
+  const endAnchor = c.destination || (c.destinationCoords ? nearestNeighborhood(c.destinationCoords.lat, c.destinationCoords.lng) : null);
+  if(endAnchor) totalTravel += legMinutes(prev, endAnchor);
   const totalBrowse = browseMin * ordered.length;
   state.currentRoute = {
     id: uid("route_"),
@@ -2493,7 +2495,7 @@ function viewProfileLibrary(){
   let content="";
   if(tab==="notes"){
     const notes=state.visitNotes.slice().sort((a,b)=>new Date(b.visitedAt)-new Date(a.visitedAt));
-    content=`<div class="preview-note">Notes are a session preview until database storage is approved.</div>${notes.length?`<div class="note-list">${notes.map(visitNoteCard).join("")}</div>`:`<div class="empty-state"><h3>No visit notes yet</h3><p>Add private notes about stores you have explored.</p></div>`}<button class="btn btn-primary btn-block" style="margin-top:16px" data-action="open-visit-note">Add a visit note</button>`;
+    content=`${notes.length?`<div class="note-list">${notes.map(visitNoteCard).join("")}</div>`:`<div class="empty-state"><h3>No visit notes yet</h3><p>Add private notes about stores you have explored.</p></div>`}<button class="btn btn-primary btn-block" style="margin-top:16px" data-action="open-visit-note">Add a visit note</button>`;
   }else if(tab==="stores"){
     const stores=state.savedStoreIds.map(getStoreById).filter(Boolean);
     content=stores.length?`<div class="note-list">${stores.map(compactProfileStore).join("")}</div>`:`<div class="empty-state"><h3>No saved shops yet</h3><p>Bookmark a shop to keep it here.</p></div>`;
@@ -2503,7 +2505,7 @@ function viewProfileLibrary(){
   }
   return `<div style="margin-top:6px">
     <button class="btn btn-ghost btn-sm" data-action="nav" data-view="profile" style="margin-bottom:16px">${ICONS.back}Back to profile</button>
-    <div class="profile-library-head"><div><h1>Your Collection</h1><p>Private notes and things you want to revisit.</p></div></div>
+    <div class="profile-library-head"><div><h1>${tab==='stores'?'Saved Shops':tab==='liked'?'Liked Finds':'Visit Notes'}</h1><p>Private notes and things you want to revisit.</p></div></div>
     <div class="tab-row">
       <button class="${tab==='notes'?'active':''}" data-action="set-profile-library-tab" data-tab="notes">Visit Notes</button>
       <button class="${tab==='stores'?'active':''}" data-action="set-profile-library-tab" data-tab="stores">Saved Shops</button>
@@ -2909,11 +2911,11 @@ function visitNoteModal(params){
     <div class="modal-handle"></div>
     <div class="modal-title">${editing?'Edit visit note':'Add a visit note'}</div>
     <div class="modal-sub">Keep a private record of what you found, prices you noticed, or whether you want to return.</div>
-    <div class="preview-note">Preview mode. This note will last for this session only.</div>
     <div class="form-group"><label>Store visited</label><select id="vn-store"><option value="">Choose a store</option>${storeOptions}</select></div>
     <div class="form-group"><label>Date visited</label><input type="date" id="vn-date" value="${editing?.visitedAt||today}"></div>
     <div class="form-group"><label>Private note</label><textarea id="vn-text" placeholder="What did you find? How were the prices? Would you return?">${escapeHtml(editing?.text||"")}</textarea></div>
     <button class="btn btn-primary btn-block" data-action="save-visit-note" data-id="${editing?.id||''}">${editing?'Save changes':'Save note'}</button>
+    ${editing?`<button class="btn btn-ghost btn-block" style="margin-top:8px;color:var(--danger)" data-action="delete-visit-note" data-id="${editing.id}">Delete note</button>`:''}
     <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
   </div></div>`;
 }
@@ -3429,9 +3431,10 @@ function handleClick(e){
     case "open-edit-profile": openModal("editProfile"); break;
     case "open-profile-library": state.profileLibraryTab=t.dataset.tab||"notes"; go("profileLibrary"); break;
     case "set-profile-library-tab": state.profileLibraryTab=t.dataset.tab; renderList(); break;
-    case "open-visit-note": openModal("visitNote", {storeId:t.dataset.store||""}); break;
+    case "open-visit-note": { const sid=t.dataset.store||""; const latest=state.visitNotes.filter(n=>n.storeId===sid).sort((a,b)=>new Date(b.visitedAt)-new Date(a.visitedAt))[0]; openModal("visitNote", latest?{id:latest.id}:{storeId:sid}); break; }
     case "edit-visit-note": openModal("visitNote", {id:t.dataset.id}); break;
     case "save-visit-note": saveVisitNote(t.dataset.id); break;
+    case "delete-visit-note": deleteVisitNote(t.dataset.id); break;
     case "submit-edit-profile": submitEditProfile(); break;
     case "submit-find": submitFind(); break;
     case "sign-out": sb.auth.signOut().then(()=>{ state.user=null; state.isAdmin=false; state.events=[]; state.posts=[]; state.comments={}; loadMyData().then(()=>go("home")); }); break;
@@ -3507,20 +3510,89 @@ function loadCuratedRoute(id){
   };
   go("routeResults");
 }
+// Where the route ultimately ends, as a neighborhood key dist() understands:
+// the chosen end neighborhood, the one nearest a searched end address, or
+// null when the route just ends at its last stop.
+function routeEndAnchor(r){
+  if(r.destination) return r.destination;
+  if(r.destinationCoords) return nearestNeighborhood(r.destinationCoords.lat, r.destinationCoords.lng);
+  return null;
+}
+// Same drive-time estimate the route builder uses.
+function legMinutes(fromKey, toKey){
+  return Math.max(4, Math.round(dist(fromKey, toKey)*2.6));
+}
+// Rebuild every leg time and the summary totals from the current stop order,
+// so adding, removing, or reordering stops never leaves stale numbers.
+// Remember the route's browse pace (minutes per stop) before the first edit,
+// so a route reloaded from the database keeps its original estimate.
+function ensureBrowsePace(r){
+  if(r.browseMin) return;
+  const t = r.createdFrom && r.createdFrom.time;
+  if(t){ r.browseMin = t==="2 hours"?40 : t==="Half day"?35 : 30; return; }
+  const n = r.stops.filter(sid=>getStoreById(sid)).length;
+  r.browseMin = (n && r.totalBrowse) ? Math.round(r.totalBrowse/n) : 35;
+}
+function recomputeRoute(r){
+  const stores = r.stops.map(id=>getStoreById(id)).filter(Boolean);
+  ensureBrowsePace(r);
+  const browseMin = r.browseMin || 35;
+  const legs = [];
+  let totalTravel = 0;
+  let prev = r.start;
+  stores.forEach((s,i)=>{
+    const raw = Math.round(dist(prev, s.neighborhood)*2.6);
+    // A curated route starts at its first stop — that leg really is zero.
+    const mins = (i===0 && raw===0) ? 0 : Math.max(4, raw);
+    legs.push(mins);
+    totalTravel += mins;
+    prev = s.neighborhood;
+  });
+  const end = routeEndAnchor(r);
+  if(end) totalTravel += legMinutes(prev, end);
+  r.legs = legs;
+  r.totalTravel = totalTravel;
+  r.totalBrowse = browseMin * stores.length;
+  r.totalTime = totalTravel + r.totalBrowse;
+}
 function moveStop(i,dir){
   const r = state.currentRoute;
+  ensureBrowsePace(r);
+  r.stops = r.stops.filter(sid=>getStoreById(sid));
   const j = dir==="up" ? i-1 : i+1;
   if(j<0 || j>=r.stops.length) return;
   [r.stops[i], r.stops[j]] = [r.stops[j], r.stops[i]];
+  recomputeRoute(r);
   renderList();
 }
 function removeStop(i){
-  state.currentRoute.stops.splice(i,1);
+  const r = state.currentRoute;
+  ensureBrowsePace(r);
+  r.stops = r.stops.filter(sid=>getStoreById(sid));
+  r.stops.splice(i,1);
+  recomputeRoute(r);
   renderList();
 }
 function confirmAddStop(id){
-  state.currentRoute.stops.push(id);
-  state.currentRoute.legs.push(8);
+  const r = state.currentRoute;
+  const s = getStoreById(id);
+  if(!s){ closeModal(); return; }
+  ensureBrowsePace(r);
+  r.stops = r.stops.filter(sid=>getStoreById(sid));
+  // Slot the new stop wherever it adds the least driving — between the
+  // start, the existing stops, and the end point — not just at the end.
+  const hoods = r.stops.map(sid=>getStoreById(sid)).filter(Boolean).map(x=>x.neighborhood);
+  const anchors = [r.start, ...hoods];
+  const end = routeEndAnchor(r);
+  let best = r.stops.length, bestCost = Infinity;
+  for(let i=0;i<=hoods.length;i++){
+    const from = anchors[i];
+    const to = i<hoods.length ? hoods[i] : end;
+    const cost = dist(from, s.neighborhood) + (to ? dist(s.neighborhood, to) - dist(from, to) : 0);
+    if(cost < bestCost){ bestCost = cost; best = i; }
+  }
+  r.stops.splice(best, 0, id);
+  recomputeRoute(r);
   closeModal();
   renderList();
 }
@@ -4725,12 +4797,31 @@ function saveVisitNote(id){
   const visitedAt=document.getElementById("vn-date")?.value;
   const noteText=document.getElementById("vn-text")?.value.trim();
   if(!storeId || !visitedAt || !noteText){ toast("Choose a store, date, and add your note."); return; }
-  const existing=id?state.visitNotes.find(n=>n.id===id):null;
-  if(existing){ existing.storeId=storeId; existing.visitedAt=visitedAt; existing.text=noteText; }
-  else state.visitNotes.unshift({id:uid("note_"),storeId,visitedAt,text:noteText});
-  closeModal();
-  renderList();
-  toast(existing?"Visit note updated.":"Visit note added for this session.");
+  requireAuth(async ()=>{
+    const existing=id?state.visitNotes.find(n=>n.id===id):null;
+    if(existing){
+      const { error } = await sb.from("visit_notes").update({store_id:storeId, visited_at:visitedAt, text:noteText}).eq("id",existing.id).eq("user_id",state.user.id);
+      if(error){ toast("Couldn't save that note — try again."); return; }
+      existing.storeId=storeId; existing.visitedAt=visitedAt; existing.text=noteText;
+    } else {
+      const { data, error } = await sb.from("visit_notes").insert({user_id:state.user.id, store_id:storeId, visited_at:visitedAt, text:noteText}).select().single();
+      if(error){ toast("Couldn't save that note — try again."); return; }
+      state.visitNotes.unshift({id:data.id, storeId, visitedAt, text:noteText});
+    }
+    closeModal();
+    renderList();
+    toast(existing?"Visit note updated.":"Visit note saved.");
+  });
+}
+function deleteVisitNote(id){
+  requireAuth(async ()=>{
+    const { error } = await sb.from("visit_notes").delete().eq("id",id).eq("user_id",state.user.id);
+    if(error){ toast("Couldn't delete that note — try again."); return; }
+    state.visitNotes = state.visitNotes.filter(n=>n.id!==id);
+    closeModal();
+    renderList();
+    toast("Visit note deleted.");
+  });
 }
 async function initAdminStoreAutocomplete(){
   const container = document.getElementById("as-google-container");
