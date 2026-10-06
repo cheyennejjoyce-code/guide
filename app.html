@@ -300,6 +300,16 @@ p{margin:0;}
 .tab-row{display:flex;gap:2px;background:var(--cream-card);border:1px solid var(--line-strong);border-radius:var(--radius-pill);padding:3px;margin-bottom:18px;overflow-x:auto;scrollbar-width:none;}
 .tab-row button{flex:1 1 auto;border:none;background:none;padding:10px clamp(4px,2vw,12px);border-radius:var(--radius-pill);font-size:clamp(11px,3.1vw,12.5px);font-weight:700;color:var(--ink-soft);white-space:nowrap;}
 .tab-row button.active{background:var(--royal);color:#FFFFFF;}
+.addr-search{position:relative;width:100%;}
+.addr-search-input{width:100%;height:48px;box-sizing:border-box;border:1.5px solid var(--line-strong);background:var(--cream-card);border-radius:var(--radius-pill);padding:0 18px;font-family:var(--font-body);font-size:16px;color:var(--ink);-webkit-appearance:none;appearance:none;}
+.addr-search-input::placeholder{color:var(--ink-soft);}
+.addr-search-input:focus{outline:none;border-color:var(--royal);}
+.addr-search-list{position:absolute;left:0;right:0;top:calc(100% + 6px);z-index:60;background:var(--page-bg);border:1.5px solid var(--line-strong);border-radius:18px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.14);}
+.addr-search-item{display:block;width:100%;text-align:left;border:none;border-bottom:1px solid var(--line);background:none;padding:11px 16px;font-family:var(--font-body);cursor:pointer;}
+.addr-search-item:hover,.addr-search-item:active{background:var(--cream-card);}
+.addr-search-main{display:block;font-size:15px;font-weight:600;color:var(--ink);}
+.addr-search-sub{display:block;margin-top:2px;font-size:12.5px;color:var(--ink-soft);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.addr-search-credit{padding:7px 16px;font-size:11px;color:var(--ink-soft);text-align:right;}
 .profile-head{display:flex;flex-direction:column;align-items:center;text-align:center;padding:14px 0 22px;}
 .profile-avatar{width:78px;height:78px;border-radius:50%;background:var(--royal);color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;font-family:var(--font-display);margin-bottom:12px;}
 .profile-head h2{font-size:20px;margin-bottom:3px;}
@@ -1820,44 +1830,97 @@ function renderGoogleMapIfNeeded(){
 // search-as-you-type experience as typing into Google Maps itself. The
 // widget is fully self-contained (renders its own input), so we just build
 // a fresh one into the container each render, same pattern as the map.
+// Address search box with our own suggestion list underneath, fed by Google
+// Places (New). Google's ready-made PlaceAutocompleteElement switches to a
+// full-screen takeover on phone-sized screens, so we draw the dropdown ourselves.
+const ATL_BOUNDS = {north:34.25, south:33.55, east:-83.95, west:-84.75};
+async function mountAddressSearch(container, {placeholder="Search for an address", fields=["displayName","formattedAddress","location"], onSelect}){
+  let places;
+  try{
+    places = (google.maps.places && google.maps.places.AutocompleteSuggestion) ? google.maps.places : await google.maps.importLibrary("places");
+  }catch(e){ return null; }
+  const {AutocompleteSuggestion, AutocompleteSessionToken} = places;
+  if(!AutocompleteSuggestion) return null;
+
+  container.innerHTML = `<div class="addr-search">
+      <input type="text" class="addr-search-input" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" enterkeyhint="search" placeholder="${escapeHtml(placeholder)}">
+      <div class="addr-search-list" role="listbox" hidden></div>
+    </div>`;
+  const input = container.querySelector(".addr-search-input");
+  const list = container.querySelector(".addr-search-list");
+  let token = new AutocompleteSessionToken();
+  let suggestions = [], timer = null, requestId = 0;
+
+  const close = ()=>{ list.hidden = true; list.innerHTML = ""; suggestions = []; };
+  const render = ()=>{
+    if(!suggestions.length){ close(); return; }
+    list.innerHTML = suggestions.map((sg,i)=>{
+      const pr = sg.placePrediction;
+      const main = pr.mainText ? pr.mainText.text : pr.text.text;
+      const sub = pr.secondaryText ? pr.secondaryText.text : "";
+      return `<button type="button" class="addr-search-item" role="option" data-i="${i}"><span class="addr-search-main">${escapeHtml(main)}</span>${sub ? `<span class="addr-search-sub">${escapeHtml(sub)}</span>` : ""}</button>`;
+    }).join("") + `<div class="addr-search-credit">Powered by Google</div>`;
+    list.hidden = false;
+  };
+  const search = async ()=>{
+    const q = input.value.trim();
+    const mine = ++requestId;
+    if(q.length < 2){ close(); return; }
+    try{
+      const res = await AutocompleteSuggestion.fetchAutocompleteSuggestions({input: q, locationBias: ATL_BOUNDS, includedRegionCodes: ["us"], sessionToken: token});
+      if(mine !== requestId) return; // a newer keystroke already asked again
+      suggestions = (res.suggestions || []).filter(sg=>sg.placePrediction).slice(0, 5);
+      render();
+    }catch(e){ console.error("address search failed", e); }
+  };
+  const choose = async (i)=>{
+    const sg = suggestions[i]; if(!sg) return;
+    const pr = sg.placePrediction;
+    if(pr.text) input.value = pr.text.text;
+    close(); input.blur();
+    try{
+      const place = pr.toPlace();
+      await place.fetchFields({fields});
+      token = new AutocompleteSessionToken();
+      await onSelect(place);
+    }catch(e){ console.error("place lookup failed", e); }
+  };
+  input.addEventListener("input", ()=>{ clearTimeout(timer); timer = setTimeout(search, 200); });
+  input.addEventListener("focus", ()=>{ if(suggestions.length) list.hidden = false; });
+  input.addEventListener("blur", ()=>{ setTimeout(()=>{ list.hidden = true; }, 200); });
+  input.addEventListener("keydown", e=>{
+    if(e.key === "Enter"){ e.preventDefault(); if(suggestions.length) choose(0); }
+    else if(e.key === "Escape"){ close(); }
+  });
+  // Keep focus in the box while pressing a suggestion, so blur doesn't hide the list first.
+  list.addEventListener("pointerdown", e=>{ if(e.target.closest(".addr-search-item")) e.preventDefault(); });
+  list.addEventListener("click", e=>{
+    const item = e.target.closest(".addr-search-item");
+    if(item) choose(Number(item.dataset.i));
+  });
+  return input;
+}
+
 async function initDestinationAutocomplete(){
   const container = document.getElementById("dest-address-container");
   if(!container) return;
   if(!(window.google && window.google.maps)){ loadGoogleMapsScript(); return; }
-  let PlaceAutocompleteElement;
-  try{
-    // Already requested via &libraries=places in the script URL, so this
-    // should exist directly — importLibrary as a fallback only if it doesn't.
-    PlaceAutocompleteElement = (google.maps.places && google.maps.places.PlaceAutocompleteElement)
-      || (await google.maps.importLibrary("places")).PlaceAutocompleteElement;
-  }catch(e){
+  const input = await mountAddressSearch(container, {
+    placeholder: "Search for an end address",
+    fields: ["displayName","formattedAddress","location"],
+    onSelect: (place)=>{
+      if(!place.location) return;
+      state.builderChoice.destinationAddress = place.formattedAddress;
+      state.builderChoice.destinationName = place.displayName;
+      state.builderChoice.destinationCoords = {lat: place.location.lat(), lng: place.location.lng()};
+      state.builderChoice.destination = null; // a specific address now takes over from a neighborhood pick
+      state.showDestinationPicker = false;
+      renderList();
+    }
+  });
+  if(!input){
     container.innerHTML = '<div style="padding:12px 14px;font-size:13px;color:var(--danger)">Address search didn\'t load — try reloading the page.</div>';
-    return;
   }
-  const placeAutocomplete = new PlaceAutocompleteElement({
-    // Biased to the Atlanta metro so "Target 30005" finds the Alpharetta
-    // one, not a Target somewhere else in the country.
-    locationBias: {north:34.25, south:33.55, east:-83.95, west:-84.75},
-    includedRegionCodes: ["us"]
-  });
-  placeAutocomplete.style.width = "100%";
-  placeAutocomplete.style.height = "100%";
-  placeAutocomplete.style.border = "1.5px solid var(--line-strong)";
-  placeAutocomplete.style.borderRadius = "99px";
-  placeAutocomplete.style.boxSizing = "border-box";
-  container.innerHTML = "";
-  container.appendChild(placeAutocomplete);
-  placeAutocomplete.addEventListener("gmp-select", async ({placePrediction})=>{
-    const place = placePrediction.toPlace();
-    await place.fetchFields({fields: ["displayName","formattedAddress","location"]});
-    if(!place.location) return;
-    state.builderChoice.destinationAddress = place.formattedAddress;
-    state.builderChoice.destinationName = place.displayName;
-    state.builderChoice.destinationCoords = {lat: place.location.lat(), lng: place.location.lng()};
-    state.builderChoice.destination = null; // a specific address now takes over from a neighborhood pick
-    state.showDestinationPicker = false;
-    renderList();
-  });
 }
 
 // Same Google address search as the route builder, used on the
@@ -1867,33 +1930,20 @@ async function initEventAddressAutocomplete(){
   const container = document.getElementById("es-address-container");
   if(!container || container.dataset.ready) return;
   if(!(window.google && window.google.maps)){ loadGoogleMapsScript(); return; }
-  let PlaceAutocompleteElement;
-  try{
-    PlaceAutocompleteElement = (google.maps.places && google.maps.places.PlaceAutocompleteElement)
-      || (await google.maps.importLibrary("places")).PlaceAutocompleteElement;
-  }catch(e){ return; }
-  const ac = new PlaceAutocompleteElement({
-    locationBias: {north:34.25, south:33.55, east:-83.95, west:-84.75},
-    includedRegionCodes: ["us"]
-  });
-  ac.style.width = "100%";
-  ac.style.border = "1px solid var(--line-strong)";
-  ac.style.borderRadius = "99px";
-  ac.style.boxSizing = "border-box";
-  container.dataset.ready = "1";
-  container.innerHTML = "";
-  container.appendChild(ac);
-  ac.addEventListener("gmp-select", async ({placePrediction})=>{
-    const place = placePrediction.toPlace();
-    await place.fetchFields({fields: ["displayName","formattedAddress"]});
-    const hidden = document.getElementById("es-address");
-    if(hidden) hidden.value = place.formattedAddress || "";
-    // Handy extra: if the venue box is empty, fill it with the place's name.
-    const venue = document.getElementById("es-venue");
-    if(venue && !venue.value.trim() && place.displayName && place.displayName !== place.formattedAddress){
-      venue.value = place.displayName;
+  const input = await mountAddressSearch(container, {
+    placeholder: "Event address",
+    fields: ["displayName","formattedAddress"],
+    onSelect: (place)=>{
+      const hidden = document.getElementById("es-address");
+      if(hidden) hidden.value = place.formattedAddress || "";
+      // Handy extra: if the venue box is empty, fill it with the place's name.
+      const venue = document.getElementById("es-venue");
+      if(venue && !venue.value.trim() && place.displayName && place.displayName !== place.formattedAddress){
+        venue.value = place.displayName;
+      }
     }
   });
+  if(input) container.dataset.ready = "1";
 }
 
 function viewStoreDetail(id){
@@ -4478,18 +4528,16 @@ async function initSuggestAddressAutocomplete(){
   const container = document.getElementById("ss-address-container");
   if(!container || container.dataset.ready) return;
   if(!(window.google && window.google.maps)){ loadGoogleMapsScript(); return; }
-  let PlaceAutocompleteElement;
-  try{ PlaceAutocompleteElement = (google.maps.places && google.maps.places.PlaceAutocompleteElement) || (await google.maps.importLibrary("places")).PlaceAutocompleteElement; }catch(e){ return; }
-  const ac = new PlaceAutocompleteElement({ locationBias: {north:34.25, south:33.55, east:-83.95, west:-84.75}, includedRegionCodes: ["us"] });
-  ac.style.width = "100%"; ac.style.border = "1px solid var(--line-strong)"; ac.style.borderRadius = "99px"; ac.style.boxSizing = "border-box";
-  container.dataset.ready = "1"; container.innerHTML = ""; container.appendChild(ac);
-  ac.addEventListener("gmp-select", async ({placePrediction})=>{
-    const place = placePrediction.toPlace();
-    await place.fetchFields({fields: ["displayName","formattedAddress"]});
-    const hidden = document.getElementById("ss-address"); if(hidden) hidden.value = place.formattedAddress || "";
-    const nameField = document.getElementById("ss-name");
-    if(nameField && !nameField.value.trim() && place.displayName && place.displayName !== place.formattedAddress) nameField.value = place.displayName;
+  const input = await mountAddressSearch(container, {
+    placeholder: "Store address",
+    fields: ["displayName","formattedAddress"],
+    onSelect: (place)=>{
+      const hidden = document.getElementById("ss-address"); if(hidden) hidden.value = place.formattedAddress || "";
+      const nameField = document.getElementById("ss-name");
+      if(nameField && !nameField.value.trim() && place.displayName && place.displayName !== place.formattedAddress) nameField.value = place.displayName;
+    }
   });
+  if(input) container.dataset.ready = "1";
 }
 function verifyEmailModal(){
   const email = escapeHtml(state.verifyEmail||"");
@@ -4686,33 +4734,31 @@ async function initAdminStoreAutocomplete(){
   const container = document.getElementById("as-google-container");
   if(!container || container.dataset.ready) return;
   if(!(window.google && window.google.maps)){ loadGoogleMapsScript(); return; }
-  let PlaceAutocompleteElement;
-  try{ PlaceAutocompleteElement = (google.maps.places && google.maps.places.PlaceAutocompleteElement) || (await google.maps.importLibrary("places")).PlaceAutocompleteElement; }catch(e){ return; }
-  const ac = new PlaceAutocompleteElement({ locationBias: {north:34.25, south:33.55, east:-83.95, west:-84.75}, includedRegionCodes: ["us"] });
-  ac.style.width = "100%"; ac.style.border = "1px solid var(--line-strong)"; ac.style.borderRadius = "99px"; ac.style.boxSizing = "border-box";
-  container.dataset.ready = "1"; container.innerHTML = ""; container.appendChild(ac);
-  ac.addEventListener("gmp-select", async ({placePrediction})=>{
-    const status = document.getElementById("as-google-status");
-    try{
-      const place = placePrediction.toPlace();
-      await place.fetchFields({fields: ["id","displayName","formattedAddress","location","rating","userRatingCount","nationalPhoneNumber","websiteURI","regularOpeningHours"]});
-      const set = (id, v)=>{ const el = document.getElementById(id); if(el && v!=null && v!=="") el.value = v; };
-      set("as-name", place.displayName); set("as-addr", place.formattedAddress);
-      set("as-phone", place.nationalPhoneNumber); set("as-web", place.websiteURI ? String(place.websiteURI).replace(/^https?:\/\//,"").replace(/\/$/,"") : null);
-      const hrs = place.regularOpeningHours && place.regularOpeningHours.weekdayDescriptions; if(hrs && hrs.length) set("as-hours", hrs.join(" · "));
-      set("as-place", place.id); if(place.location){ set("as-lat", place.location.lat()); set("as-lng", place.location.lng()); }
-      set("as-rating", place.rating); set("as-reviews", place.userRatingCount);
-      if(status) status.textContent = "✓ Linked to Google — fetching photo…";
-      // Photo names come from Places API (New); the app's photo endpoint serves them.
+  const input = await mountAddressSearch(container, {
+    placeholder: "Search for the store on Google",
+    fields: ["id","displayName","formattedAddress","location","rating","userRatingCount","nationalPhoneNumber","websiteURI","regularOpeningHours"],
+    onSelect: async (place)=>{
+      const status = document.getElementById("as-google-status");
       try{
-        const r = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(place.id)}?fields=photos&key=${GOOGLE_MAPS_JS_KEY}`, { headers: { "X-Goog-FieldMask":"photos" } });
-        const j = r.ok ? await r.json() : null;
-        const name = j && j.photos && j.photos[0] && j.photos[0].name;
-        if(name) set("as-photo", name);
-        if(status) status.textContent = name ? "✓ Linked to Google, photo found" : "✓ Linked to Google (no photo available)";
-      }catch(e){ if(status) status.textContent = "✓ Linked to Google (photo lookup failed)"; }
-    }catch(e){ console.error("google lookup failed", e); if(status) status.textContent = "Couldn't read that place — fill the fields by hand."; }
+        const set = (id, v)=>{ const el = document.getElementById(id); if(el && v!=null && v!=="") el.value = v; };
+        set("as-name", place.displayName); set("as-addr", place.formattedAddress);
+        set("as-phone", place.nationalPhoneNumber); set("as-web", place.websiteURI ? String(place.websiteURI).replace(/^https?:\/\//,"").replace(/\/$/,"") : null);
+        const hrs = place.regularOpeningHours && place.regularOpeningHours.weekdayDescriptions; if(hrs && hrs.length) set("as-hours", hrs.join(" · "));
+        set("as-place", place.id); if(place.location){ set("as-lat", place.location.lat()); set("as-lng", place.location.lng()); }
+        set("as-rating", place.rating); set("as-reviews", place.userRatingCount);
+        if(status) status.textContent = "✓ Linked to Google — fetching photo…";
+        // Photo names come from Places API (New); the app's photo endpoint serves them.
+        try{
+          const r = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(place.id)}?fields=photos&key=${GOOGLE_MAPS_JS_KEY}`, { headers: { "X-Goog-FieldMask":"photos" } });
+          const j = r.ok ? await r.json() : null;
+          const name = j && j.photos && j.photos[0] && j.photos[0].name;
+          if(name) set("as-photo", name);
+          if(status) status.textContent = name ? "✓ Linked to Google, photo found" : "✓ Linked to Google (no photo available)";
+        }catch(e){ if(status) status.textContent = "✓ Linked to Google (photo lookup failed)"; }
+      }catch(e){ console.error("google lookup failed", e); if(status) status.textContent = "Couldn't read that place — fill the fields by hand."; }
+    }
   });
+  if(input) container.dataset.ready = "1";
 }
 async function submitAdminStore(id){
   if(!state.isAdmin) return;
