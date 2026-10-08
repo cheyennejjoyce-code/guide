@@ -1,9 +1,11 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="light">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#FFFFFF">
+<meta name="color-scheme" content="light dark">
+<meta name="theme-color" content="#FFFFFF" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#221D24" media="(prefers-color-scheme: dark)">
 <title>ATL Thrift Guide — by 2nd Studio</title>
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%23221D24'/%3E%3Ctext x='32' y='43' text-anchor='middle' fill='%23FFFFFF' font-family='Georgia,serif' font-style='italic' font-weight='700' font-size='42'%3EA%3C/text%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -31,6 +33,8 @@
   --line:#DCD7DD;
   --line-strong:#221D24;
   --danger:#B84A3E;
+  --ink-block:#221D24;
+  --on-ink-block:#FFFFFF;
   --shadow-none:none;
   --radius-card:20px;
   --radius-pill:999px;
@@ -62,6 +66,8 @@
     --line:#453D46;
     --line-strong:#FFFFFF;
     --danger:#B84A3E;
+    --ink-block:#36303A;
+    --on-ink-block:#FFFFFF;
   }
 }
 :root[data-theme="dark"]{
@@ -85,7 +91,12 @@
   --line:#453D46;
   --line-strong:#FFFFFF;
   --danger:#B84A3E;
+  --ink-block:#36303A;
+  --on-ink-block:#FFFFFF;
 }
+:root{color-scheme:light;}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){color-scheme:dark;} }
+:root[data-theme="dark"]{color-scheme:dark;}
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent;}
 html,body{margin:0;padding:0;}
 body{
@@ -114,11 +125,11 @@ a{color:inherit;}
 .icon-btn svg{width:18px;height:18px;}
 main.view{flex:1;padding:0 18px 100px;}
 .bottom-nav{position:fixed;left:0;right:0;bottom:0;z-index:50;display:flex;justify-content:center;padding:10px 12px calc(10px + env(safe-area-inset-bottom));}
-.bottom-nav-inner{max-width:496px;width:100%;display:flex;gap:4px;background:var(--ink);border-radius:var(--radius-pill);padding:7px;}
+.bottom-nav-inner{max-width:496px;width:100%;display:flex;gap:4px;background:var(--ink-block);border-radius:var(--radius-pill);padding:7px;}
 .nav-item{flex:1;background:none;border:none;border-radius:var(--radius-pill);display:flex;align-items:center;justify-content:center;gap:5px;padding:13px 4px;color:#FFFFFF;font-family:var(--font-body);}
 .nav-item svg{width:17px;height:17px;}
 .nav-item span{font-size:12.5px;font-weight:700;letter-spacing:-.01em;}
-.nav-item.active{color:var(--ink);background:var(--cream);}
+.nav-item.active{color:#221D24;background:#FFFFFF;}
 .nav-item.build .nav-dot{position:absolute;}
 h1,h2,h3{font-family:var(--font-display);font-optical-sizing:auto;margin:0;color:var(--ink);}
 p{margin:0;}
@@ -135,12 +146,12 @@ p{margin:0;}
 .btn{border-radius:var(--radius-pill);padding:13px 20px;font-weight:700;font-size:14.5px;border:none;display:inline-flex;align-items:center;justify-content:center;text-align:center;gap:7px;}
 .btn svg{width:16px;height:16px;}
 .btn-primary{background:var(--ink);color:var(--cream);}
-.btn-primary:hover{background:var(--royal);}
+@media (hover:hover){.btn-primary:hover{background:var(--royal);}}
 .btn-secondary-hero{background:transparent;color:var(--ink);border:2px solid var(--ink);}
-.btn-secondary-hero:hover{background:var(--ink);color:var(--cream);}
+@media (hover:hover){.btn-secondary-hero:hover{background:var(--ink);color:var(--cream);}}
 .btn-royal{background:var(--royal);color:#FFFFFF;}
 .btn-outline{background:transparent;color:var(--ink);border:2px solid var(--line-strong);}
-.btn-outline:hover{background:var(--ink);color:var(--cream);}
+@media (hover:hover){.btn-outline:hover{background:var(--ink);color:var(--cream);}}
 .btn-ghost{background:none;border:1px solid var(--line);color:var(--ink);}
 .btn-block{width:100%;justify-content:center;}
 .btn-sm{padding:9px 14px;font-size:13px;}
@@ -189,14 +200,14 @@ p{margin:0;}
 .grid-card .gc-rating svg{width:9px;height:9px;fill:var(--gold);vertical-align:-1px;margin-right:2px;}
 .grid-card .gc-meta{font-family:var(--font-mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);margin-top:5px;}
 .chain-toggle{display:flex;align-items:center;gap:12px;width:100%;padding:16px;border-radius:20px;border:2px solid var(--line);background:transparent;color:var(--ink);cursor:pointer;text-align:left;}
-.chain-toggle.on{border-color:var(--line-strong);background:var(--ink);color:var(--cream);}
+.chain-toggle.on{border-color:var(--line-strong);background:var(--ink-block);color:var(--on-ink-block);}
 .chain-toggle .ct-title{font-size:13.5px;font-weight:700;}
 .chain-toggle .ct-sub{display:block;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);margin-top:3px;opacity:.85;}
 .chain-toggle.on .ct-sub{color:rgba(255,255,255,.75);}
 .chain-toggle .ct-switch{width:46px;height:26px;border-radius:99px;flex-shrink:0;padding:3px;display:flex;justify-content:flex-start;background:var(--line);}
 .chain-toggle.on .ct-switch{justify-content:flex-end;background:var(--gold);}
-.chain-toggle .ct-knob{width:20px;height:20px;border-radius:99px;background:var(--cream);display:block;}
-.chain-toggle.on .ct-knob{background:var(--ink);}
+.chain-toggle .ct-knob{width:20px;height:20px;border-radius:99px;background:#FFFFFF;display:block;}
+.chain-toggle.on .ct-knob{background:#221D24;}
 .map-canvas{position:relative;width:100%;height:340px;border-radius:20px;overflow:hidden;background:var(--sage);margin-bottom:16px;}
 .map-pin{position:absolute;transform:translate(-50%,-100%);display:flex;flex-direction:column;align-items:center;}
 .map-pin button{width:30px;height:30px;border-radius:50% 50% 50% 4px;background:var(--royal);border:2px solid var(--cream-card);transform:rotate(45deg);display:flex;align-items:center;justify-content:center;}
@@ -229,21 +240,20 @@ p{margin:0;}
 .wizard-step-label{font-size:12.5px;font-weight:700;color:var(--royal);margin-bottom:6px;}
 .wizard-q{font-family:var(--font-display);font-size:22px;font-weight:600;margin-bottom:18px;line-height:1.2;}
 .option-grid{display:flex;flex-direction:column;gap:10px;margin-bottom:22px;}
-.wizard-subq{font-family:var(--font-display);font-weight:600;font-size:19px;letter-spacing:-.015em;color:var(--ink);margin:22px 0 10px;}
 .option-tile{display:flex;align-items:center;gap:12px;padding:16px 16px;border-radius:20px;border:2px solid var(--line);background:transparent;text-align:left;}
-.option-tile.active{border-color:var(--line-strong);background:var(--ink);}
+.option-tile.active{border-color:var(--line-strong);background:var(--ink-block);}
 .option-tile .oi{width:36px;height:36px;border-radius:10px;background:var(--cream-card);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
 .option-tile.active .oi{background:rgba(255,255,255,.14);}
 .option-tile .oi svg{width:18px;height:18px;color:var(--royal);}
 .option-tile.active .oi svg{color:var(--gold);}
 .option-tile .ot-text{flex:1;display:flex;flex-direction:column;gap:4px;}
 .option-tile .ot-title{font-family:var(--font-display);font-weight:600;font-size:16.5px;letter-spacing:-.01em;}
-.option-tile.active .ot-title{color:var(--cream);}
+.option-tile.active .ot-title{color:var(--on-ink-block);}
 .option-tile .ot-sub{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);}
 .option-tile.active .ot-sub{color:rgba(255,255,255,.7);}
 .option-tile .check{width:22px;height:22px;border-radius:50%;border:2px solid var(--line);flex-shrink:0;}
 .option-tile.active .check{background:var(--gold);border-color:var(--gold);position:relative;}
-.option-tile.active .check::after{content:"";position:absolute;left:6px;top:3px;width:5px;height:9px;border:solid var(--ink);border-width:0 2px 2px 0;transform:rotate(45deg);}
+.option-tile.active .check::after{content:"";position:absolute;left:6px;top:3px;width:5px;height:9px;border:solid #221D24;border-width:0 2px 2px 0;transform:rotate(45deg);}
 .chip-grid{display:flex;flex-wrap:wrap;gap:9px;margin-bottom:22px;}
 .chip-grid-scroll{display:flex;flex-wrap:wrap;align-content:flex-start;gap:9px;max-height:190px;overflow-y:auto;padding-right:8px;}
 .chip-grid-scroll::-webkit-scrollbar{width:6px;}
@@ -257,8 +267,11 @@ p{margin:0;}
 .wizard-progress{display:flex;gap:5px;margin-bottom:20px;}
 .wizard-progress span{height:4px;flex:1;background:var(--line);border-radius:4px;}
 .wizard-progress span.done{background:var(--royal);}
-.wizard-nav{display:flex;gap:10px;}
-.route-summary-bar{display:flex;justify-content:space-between;background:var(--ink);color:var(--cream);border-radius:20px;padding:17px 19px;margin-bottom:16px;}
+.wizard-nav{display:flex;gap:10px;position:fixed;left:0;right:0;bottom:calc(88px + env(safe-area-inset-bottom));z-index:45;max-width:430px;margin:0 auto;padding:12px 20px 0;background:var(--page-bg);}
+.wizard-nav .btn[disabled]{opacity:.35;cursor:default;}
+body:has(.wizard-nav) .toast{bottom:calc(160px + env(safe-area-inset-bottom));}
+.wizard-card{padding-bottom:72px;}
+.route-summary-bar{display:flex;justify-content:space-between;background:var(--ink-block);color:var(--on-ink-block);border-radius:20px;padding:17px 19px;margin-bottom:16px;}
 .route-summary-bar .rsb-item{text-align:left;}
 .route-summary-bar .rsb-num{font-family:var(--font-display);font-size:23px;font-weight:600;}
 .route-summary-bar .rsb-num.gold{color:var(--gold);}
@@ -318,9 +331,9 @@ p{margin:0;}
 .profile-avatar{width:78px;height:78px;border-radius:50%;background:var(--royal);color:#FFFFFF;display:flex;align-items:center;justify-content:center;font-size:26px;font-weight:700;font-family:var(--font-display);margin-bottom:12px;}
 .profile-head h2{font-size:20px;margin-bottom:3px;}
 .profile-head .pmeta{font-size:12.5px;color:var(--ink-soft);margin-bottom:10px;}
-.profile-stats{display:flex;justify-content:space-between;gap:12px;margin-top:16px;background:var(--ink);border-radius:20px;padding:18px;width:100%;max-width:280px;}
+.profile-stats{display:flex;justify-content:space-between;gap:12px;margin-top:16px;background:var(--ink-block);border-radius:20px;padding:18px;width:100%;max-width:280px;}
 .profile-stats div{text-align:center;flex:1;}
-.profile-stats .pnum{font-family:var(--font-display);font-size:22px;font-weight:600;color:var(--cream);}
+.profile-stats .pnum{font-family:var(--font-display);font-size:22px;font-weight:600;color:var(--on-ink-block);}
 .profile-stats .pnum.gold{color:var(--gold);}
 .profile-stats .plbl{font-family:var(--font-mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.6);margin-top:5px;}
 .settings-row{display:flex;align-items:center;justify-content:space-between;padding:15px 4px;border-bottom:1px solid var(--line);font-size:14.5px;font-weight:600;}
@@ -341,7 +354,7 @@ p{margin:0;}
 .photo-upload-box input[type=file]{position:absolute;inset:0;opacity:0;cursor:pointer;}
 .photo-preview{width:100%;height:160px;border-radius:22px;overflow:hidden;margin-bottom:14px;}
 .photo-preview img{width:100%;height:100%;object-fit:cover;}
-.toast{position:fixed;bottom:96px;left:50%;transform:translateX(-50%);background:var(--ink);color:var(--cream);padding:12px 20px;border-radius:var(--radius-pill);font-size:13px;font-weight:600;z-index:200;box-shadow:none;}
+.toast{pointer-events:none;width:max-content;max-width:calc(100% - 40px);text-align:center;position:fixed;bottom:calc(96px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:var(--ink);color:var(--cream);padding:12px 20px;border-radius:var(--radius-pill);font-size:13px;font-weight:600;z-index:200;box-shadow:none;}
 .route-tag-strip{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px;}
 .admin-list-row{display:flex;justify-content:space-between;align-items:center;gap:12px;background:var(--cream-card);border:1px solid var(--line);border-radius:22px;padding:14px 16px;margin-bottom:10px;}
 .admin-list-row > div:first-child{flex:1;min-width:0;}
@@ -405,10 +418,12 @@ p{margin:0;}
 main.view{padding:0 20px 116px;}
 .bottom-nav{padding:10px 16px calc(16px + env(safe-area-inset-bottom));pointer-events:none;}
 .bottom-nav-inner{max-width:398px;gap:4px;padding:7px;pointer-events:auto;}
+:root[data-theme="dark"] .bottom-nav-inner{box-shadow:0 0 0 1px #4A424D, 0 8px 24px rgba(0,0,0,.45);}
+@media (prefers-color-scheme: dark){ :root:not([data-theme="light"]) .bottom-nav-inner{box-shadow:0 0 0 1px #4A424D, 0 8px 24px rgba(0,0,0,.45);} }
 .nav-item{padding:13px 4px;display:flex;gap:0;position:relative;color:#FFFFFF!important;}
 .nav-item::after{display:none;}
 .nav-item svg{display:block;width:20px;height:20px;flex:none;}
-.nav-item.active{color:var(--ink)!important;}
+.nav-item.active{color:#221D24!important;}
 .section{margin-top:32px;}
 .section-head{margin-bottom:12px;}
 .section-head h2,.design-eyebrow{font-family:var(--font-mono);font-size:10.5px;font-weight:500;letter-spacing:.14em;text-transform:uppercase;color:var(--ink);}
@@ -420,10 +435,10 @@ main.view{padding:0 20px 116px;}
 .hero-btns{margin-top:0;gap:8px;}
 .btn{border-radius:var(--radius-pill);box-shadow:none;}
 .btn-primary{background:var(--ink);color:var(--cream);}
-.btn-primary:hover{background:var(--royal);}
+@media (hover:hover){.btn-primary:hover{background:var(--royal);}}
 .btn-secondary-hero,.btn-outline{border:2px solid var(--ink);}
 .btn-royal{background:var(--ink);color:var(--cream);}
-.btn-royal:hover{background:var(--royal);}
+@media (hover:hover){.btn-royal:hover{background:var(--royal);}}
 .btn-ghost{border:1.5px solid var(--line);background:transparent;}
 .hscroll{gap:10px;margin-left:-20px;margin-right:-20px;padding-left:20px;padding-right:20px;}
 .home-open-card{border:2px solid var(--ink);background:var(--cream);border-radius:20px;overflow:hidden;flex:none;width:238px;text-align:left;color:var(--ink);cursor:pointer;}
@@ -446,9 +461,9 @@ main.view{padding:0 20px 116px;}
 .chip.active{background:var(--ink);color:var(--cream);border-color:var(--ink);}
 .discover-controls{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:12px;}
 .discover-count{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);text-align:right;}
-.view-toggle{background:var(--ink);border:none;padding:5px;margin-bottom:18px;}
+.view-toggle{background:var(--ink-block);border:none;padding:5px;margin-bottom:18px;}
 .view-toggle button{padding:11px 4px;color:rgba(255,255,255,.6);}
-.view-toggle button.active{background:var(--cream);color:var(--ink);}
+.view-toggle button.active{background:#FFFFFF;color:#221D24;}
 .grid-stack{gap:9px;}
 .grid-card{border:2px solid var(--ink);border-radius:20px;box-shadow:none;}
 .grid-card .gc-photo{height:112px;}
@@ -479,7 +494,7 @@ main.view{padding:0 20px 116px;}
 .wizard-q{font-size:30px;font-weight:600;line-height:1.06;letter-spacing:-.03em;margin-bottom:22px;}
 .option-grid{gap:10px;}
 .option-tile{border-radius:20px;border:2px solid var(--line);padding:16px;}
-.option-tile.active{border-color:var(--ink);background:var(--ink);}
+.option-tile.active{border-color:var(--line-strong);background:var(--ink-block);}
 .chain-toggle{border-radius:20px;}
 .route-start-map-wrap .map-canvas{height:190px;margin-bottom:10px;}
 .route-map-wrap .map-canvas{height:220px;margin-bottom:16px;}
@@ -561,7 +576,7 @@ main.view{padding:0 20px 116px;}
 .sale-card{appearance:none;text-align:left;font-family:var(--font-body);cursor:pointer;min-height:196px;display:flex;flex-direction:column;align-items:flex-start;}
 .sale-card:hover{border-color:var(--ink);}
 .sale-card .event-card-top{display:flex;align-items:flex-start;justify-content:space-between;gap:10px;width:100%;margin-bottom:14px;}
-.event-date-block{width:50px;min-height:54px;border-radius:14px;background:var(--ink);color:var(--cream);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;flex:none;}
+.event-date-block{width:50px;min-height:54px;border-radius:14px;background:var(--ink-block);color:var(--on-ink-block);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;flex:none;}
 .event-date-block .month{font-family:var(--font-mono);font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);margin-bottom:5px;}
 .event-date-block .day{font-family:var(--font-display);font-size:24px;font-weight:600;}
 .event-type{font-family:var(--font-mono);font-size:8.5px;letter-spacing:.11em;text-transform:uppercase;color:var(--royal);padding-top:3px;text-align:right;}
@@ -583,8 +598,8 @@ main.view{padding:0 20px 116px;}
 .event-list-card .event-list-location{display:block;font-size:12.5px;font-weight:700;color:var(--ink);margin-bottom:4px;}
 .event-list-card .event-list-meta{display:block;font-family:var(--font-mono);font-size:9px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);line-height:1.5;}
 .event-list-card .event-type{margin-left:auto;max-width:92px;}
-.events-submit-card{margin-top:22px;background:var(--ink);color:var(--cream);border-radius:20px;padding:20px;}
-.events-submit-card h3{color:var(--cream);font-size:21px;margin-bottom:7px;}
+.events-submit-card{margin-top:22px;background:var(--ink-block);color:var(--on-ink-block);border-radius:20px;padding:20px;}
+.events-submit-card h3{color:var(--on-ink-block);font-size:21px;margin-bottom:7px;}
 .events-submit-card p{font-size:12.5px;line-height:1.5;color:rgba(255,255,255,.72);margin-bottom:14px;}
 .events-submit-card .btn{background:var(--gold);color:#221D24;}
 .event-detail-date{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;color:var(--royal);margin-bottom:8px;}
@@ -639,7 +654,14 @@ const NEIGHBORHOODS = {
   "Austell": {x:19,y:41,lat:33.8134,lng:-84.6266},
   "Buford": {x:76,y:3,lat:34.1201,lng:-83.9993},
   "Cumming": {x:63,y:0,lat:34.2073,lng:-84.1402},
-  "Alpharetta": {x:44,y:2,lat:34.0754,lng:-84.2941}
+  "Alpharetta": {x:44,y:2,lat:34.0754,lng:-84.2941},
+  "Norcross": {x:71,y:17,lat:33.9412,lng:-84.2135},
+  "Hiram": {x:10,y:29,lat:33.8756,lng:-84.7622},
+  "Dallas": {x:5,y:19,lat:33.9237,lng:-84.8408},
+  "Dawsonville": {x:64,y:0,lat:34.4212,lng:-84.1191},
+  "Fayetteville": {x:42,y:100,lat:33.4487,lng:-84.4549},
+  "McDonough": {x:72,y:100,lat:33.4473,lng:-84.1469},
+  "Fulton Industrial": {x:27,y:52,lat:33.7549,lng:-84.5562}
 };
 
 const CATEGORIES = ["Clothing","Furniture","Home Decor","Vintage","Designer","Books","Accessories"];
@@ -742,10 +764,10 @@ const CURATED_ROUTES = [
   {id:"cr1",title:"Little Five Points Vintage Crawl",desc:"Four legendary L5P vintage and resale shops, all within a few blocks of each other.",storeIds:["s2","s3","s4","s5"],time:"Half day"},
   {id:"cr2",title:"Chamblee & Decatur Antique Day",desc:"Two of the metro's biggest antique malls, built for serious furniture hunting.",storeIds:["s12","s11"],time:"Full day"},
   {id:"cr3",title:"Cheshire Bridge Double Header",desc:"A nonprofit thrift warehouse paired with a high-end antique mall, minutes apart.",storeIds:["s1","s13"],time:"2 hours"},
-  {id:"cr4",title:"Marietta Square Antiquing Day",desc:"A walkable loop of the Square's best antique shops, all real Marietta staples.",storeIds:["s31","s32","s33"],time:"Half day"},
-  {id:"cr5",title:"Buckhead to Bennett Street Design Route",desc:"Upscale consignment and designer antique malls for furnishing a whole room.",storeIds:["s15","s14","s10"],time:"Full day"},
-  {id:"cr6",title:"Sandy Springs Resale Loop",desc:"Three resale and consignment shops clustered along Roswell Road.",storeIds:["s46","s47","s49"],time:"2 hours"},
-  {id:"cr7",title:"No-Chain Niche Route",desc:"Independent vintage, antique, and nonprofit shops only — zero big-box chains.",storeIds:["s3","s10","s42"],time:"Half day"}
+  {id:"cr4",title:"Marietta Antiquing Day",desc:"An eclectic shop just off Marietta Square plus two of Marietta's big antique malls.",storeIds:["s100","s32","s73"],time:"Half day"},
+  {id:"cr5",title:"Miami Circle Design Route",desc:"European antiques and design-grade vintage at two Miami Circle showrooms a block apart.",storeIds:["s14","s102"],time:"2 hours"},
+  {id:"cr6",title:"Sandy Springs Resale Loop",desc:"Designer resale, a nonprofit thrift, and a big Goodwill, all in Sandy Springs.",storeIds:["s49","s104","s24"],time:"Half day"},
+  {id:"cr7",title:"No-Chain Niche Route",desc:"Independent vintage shops only — zero big-box chains.",storeIds:["s3","s94","s109"],time:"Half day"}
 ];
 
 const SAMPLE_USERS = ["mara.thrifts","eastatl.vintage","deej_finds","kudzu.kid","thrifty.reese","o4w.forager","lowcountry.linens","atl.rehome"];
@@ -871,8 +893,10 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // Supabase sends people back here after they click a password-reset email
 // link, with a special temporary session. This is how we notice that and
 // prompt them to actually set a new password.
+// Remembered separately so the terms gate can't swallow the prompt.
+let pendingPasswordRecovery = false;
 sb.auth.onAuthStateChange((event, session)=>{
-  if(event === "PASSWORD_RECOVERY") openModal("setNewPassword");
+  if(event === "PASSWORD_RECOVERY"){ pendingPasswordRecovery = true; openModal("setNewPassword"); }
   // Session ended somewhere else (password reset, expired token): show the
   // signed-out app instead of a stale signed-in one where every save fails.
   if(event === "SIGNED_OUT" && state.user && !signingOut){
@@ -1063,11 +1087,17 @@ function tryDetectLocation(manual){
     if(manual) toast("Location isn't available in this browser.");
     return;
   }
+  const reqId = state.geoReqId = (state.geoReqId||0) + 1;
   navigator.geolocation.getCurrentPosition(
     pos=>{
+      // A newer request, or a start the person picked while this one was
+      // pending, wins over this answer.
+      if(reqId !== state.geoReqId) return;
+      if(!manual && state.startPickedByUser) return;
       const nb = nearestNeighborhood(pos.coords.latitude, pos.coords.longitude);
       if(nb){
         state.builderChoice.start = nb;
+        if(state.builderChoice.destination===nb) state.builderChoice.destination = null;
         // Keep your exact coordinates too — the neighborhood name is just
         // for display and filtering; the real Maps link uses this instead
         // of the neighborhood's center point, which could be a mile+ off.
@@ -1427,14 +1457,14 @@ async function toggleStoreVote(id, dir){
     const other = dir==="up" ? v.down : v.up;
     const mine = dir==="up" ? v.up : v.down;
     const wasMine = mine.includes(u);
-    const oi = other.indexOf(u);
-    if(oi>-1) other.splice(oi,1);
     if(wasMine){
-      await sb.from("store_votes").delete().eq("user_id",u).eq("store_id",id);
+      const { error } = await sb.from("store_votes").delete().eq("user_id",u).eq("store_id",id);
+      if(error){ toast("Couldn't remove that vote — try again."); return; }
       const mi = mine.indexOf(u); if(mi>-1) mine.splice(mi,1);
     } else {
       const { error } = await sb.from("store_votes").upsert({user_id:u, store_id:id, direction:dir});
       if(error){ toast("Couldn't record that vote — try again."); return; }
+      const oi = other.indexOf(u); if(oi>-1) other.splice(oi,1);
       mine.push(u);
     }
     renderList();
@@ -1554,7 +1584,7 @@ function currentFieldGuideLabel(){
   return `${day} · ${date}${temperature}`;
 }
 function designPalette(index, neighborhood){
-  if(neighborhood === "Virginia-Highland") return {bg:"var(--ink)",fg:"#FFFFFF"};
+  if(neighborhood === "Virginia-Highland") return {bg:"var(--ink-block)",fg:"#FFFFFF"};
   const p = [
     {bg:"var(--royal)",fg:"#FFFFFF"},
     {bg:"var(--cobalt)",fg:"var(--on-cobalt)"},
@@ -1639,9 +1669,9 @@ function storeGridCard(s){
     <div class="gc-body">
       <div class="gc-top">
         <span class="gc-name">${s.name}</span>
-        <span class="gc-rating">${ICONS.star}${s.rating}</span>
+        ${s.rating != null ? `<span class="gc-rating">${ICONS.star}${s.rating}</span>` : ''}
       </div>
-      <div class="gc-meta">${s.neighborhood} · ${priceStr(s.priceLevel)} · ${s.categories[0]}</div>
+      <div class="gc-meta">${s.neighborhood} · ${priceStr(s.priceLevel)}${(s.categories[0]||s.type) ? ' · '+(s.categories[0]||s.type) : ''}</div>
     </div>
   </button>`;
 }
@@ -1660,9 +1690,9 @@ function storeCard(s, wide){
     <div class="store-body">
       <div class="store-name">${s.name}</div>
       ${s.verified ? `<div style="margin:4px 0 2px">${verifiedStamp(s)}</div>` : ''}
-      <div class="store-meta"><span>${s.neighborhood}</span><span class="dot-sep">${priceStr(s.priceLevel)}</span><span class="dot-sep">${ICONS.star.replace('<svg','<svg style="width:11px;height:11px;fill:var(--gold);vertical-align:-1px"')}${s.rating}</span>${s.chain?`<span class="dot-sep">Chain</span>`:''}${(votes.up.length||votes.down.length)?`<span class="dot-sep">${ICONS.thumbsUp.replace('<svg','<svg style="width:11px;height:11px;fill:var(--ink-soft);vertical-align:-1px"')}${votes.up.length} ${ICONS.thumbsDown.replace('<svg','<svg style="width:11px;height:11px;fill:var(--ink-soft);vertical-align:-1px;margin-left:3px"')}${votes.down.length}</span>`:''}${visited?`<span class="dot-sep">✓ Visited</span>`:''}</div>
+      <div class="store-meta"><span>${s.neighborhood}</span><span class="dot-sep">${priceStr(s.priceLevel)}</span>${s.rating != null ? `<span class="dot-sep">${ICONS.star.replace('<svg','<svg style="width:11px;height:11px;fill:var(--gold);vertical-align:-1px"')}${s.rating}</span>` : ''}${s.chain?`<span class="dot-sep">Chain</span>`:''}${(votes.up.length||votes.down.length)?`<span class="dot-sep">${ICONS.thumbsUp.replace('<svg','<svg style="width:11px;height:11px;fill:var(--ink-soft);vertical-align:-1px"')}${votes.up.length} ${ICONS.thumbsDown.replace('<svg','<svg style="width:11px;height:11px;fill:var(--ink-soft);vertical-align:-1px;margin-left:3px"')}${votes.down.length}</span>`:''}${visited?`<span class="dot-sep">✓ Visited</span>`:''}</div>
       ${openState!==null ? `<div style="margin-top:6px"><span class="open-badge ${openState?'open':'closed'}">${openState?'Open now':'Closed now'}</span></div>` : ''}
-      <div class="store-desc">${s.description}</div>
+      ${s.description ? `<div class="store-desc">${s.description}</div>` : ''}
       <div class="pill-row">${s.categories.slice(0,3).map(c=>`<span class="pill">${c}</span>`).join("")}</div>
       <div class="card-cta-row">
         <button class="btn btn-royal btn-sm" data-action="add-to-route" data-id="${s.id}">Add to route</button>
@@ -1864,7 +1894,7 @@ function viewDiscover(){
         <button class="${state.discoverMode==='list'?'active':''}" data-action="set-discover-mode" data-mode="list">List</button>
         <button class="${state.discoverMode==='map'?'active':''}" data-action="set-discover-mode" data-mode="map">Map</button>
       </div>
-      <button data-action="open-suggest-store" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--ink);color:var(--cream);border:none;border-radius:18px;padding:13px 16px;margin:4px 0 16px;cursor:pointer;text-align:left">
+      <button data-action="open-suggest-store" style="width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;background:var(--ink-block);color:var(--on-ink-block);border:none;border-radius:18px;padding:13px 16px;margin:4px 0 16px;cursor:pointer;text-align:left">
         <span><span style="display:block;font-family:var(--font-display);font-size:16px;font-weight:600;line-height:1.15">Know a store we're missing?</span><span style="display:block;font-size:12.5px;opacity:.8;margin-top:2px">Suggest it and we'll check it out.</span></span>
         <span style="flex:none;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;border:1.5px solid rgba(255,255,255,.45);border-radius:99px;padding:7px 11px">Suggest</span>
       </button>
@@ -1941,6 +1971,27 @@ function fallbackStylizedMap(shown){
 }
 // Called after every render — cheap no-op unless a #gmap-canvas element is
 // actually on screen right now (Discover's map view, or route results).
+// Light or dark always follows the phone's own setting.
+function isDarkMode(){
+  return !!window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches;
+}
+// Redraw (maps included) when the phone switches modes.
+try{ window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", ()=>renderList()); }catch(e){}
+const DARK_MAP_STYLES = [
+  {elementType:"geometry", stylers:[{color:"#2A242C"}]},
+  {elementType:"labels.text.fill", stylers:[{color:"#C7BEC7"}]},
+  {elementType:"labels.text.stroke", stylers:[{color:"#221D24"}]},
+  {featureType:"administrative", elementType:"geometry.stroke", stylers:[{color:"#453D46"}]},
+  {featureType:"poi", elementType:"geometry", stylers:[{color:"#322B34"}]},
+  {featureType:"poi.park", elementType:"geometry", stylers:[{color:"#2C3A2E"}]},
+  {featureType:"road", elementType:"geometry", stylers:[{color:"#3D3540"}]},
+  {featureType:"road", elementType:"geometry.stroke", stylers:[{color:"#221D24"}]},
+  {featureType:"road.highway", elementType:"geometry", stylers:[{color:"#5A4F5C"}]},
+  {featureType:"road.highway", elementType:"labels.text.fill", stylers:[{color:"#E3DAE0"}]},
+  {featureType:"transit", elementType:"geometry", stylers:[{color:"#322B34"}]},
+  {featureType:"water", elementType:"geometry", stylers:[{color:"#1A2233"}]},
+  {featureType:"water", elementType:"labels.text.fill", stylers:[{color:"#7E9BF0"}]}
+];
 function renderGoogleMapIfNeeded(){
   const el = document.getElementById("gmap-canvas");
   if(!el) return;
@@ -1953,7 +2004,8 @@ function renderGoogleMapIfNeeded(){
     : {lat:33.7550, lng:-84.3900}; // downtown Atlanta, if nothing else to go on
   const map = new google.maps.Map(el, {
     center, zoom: userCoords ? 13 : 11,
-    disableDefaultUI: true, zoomControl: true, streetViewControl: false, mapTypeControl: false
+    disableDefaultUI: true, zoomControl: true, streetViewControl: false, mapTypeControl: false,
+    ...(isDarkMode() ? { styles: DARK_MAP_STYLES, backgroundColor: "#221D24" } : {})
   });
   stores.forEach(s=>{
     const marker = new google.maps.Marker({
@@ -2109,7 +2161,7 @@ function viewStoreDetail(id){
     </div>
     <div class="detail-title-row">
       <h1>${s.name}</h1>
-      <div class="rating-badge">${ICONS.star}${s.rating}</div>
+      ${s.rating != null ? `<div class="rating-badge">${ICONS.star}${s.rating}</div>` : ''}
     </div>
     ${s.verified ? `<div style="margin:-4px 0 10px">${verifiedStamp(s)}</div>` : ''}
     <div class="detail-meta-line">${s.type} · ${s.neighborhood} · ${priceStr(s.priceLevel)}${openState!==null ? ` · ${openState?'Open now':'Closed now'}` : ''}</div>
@@ -2118,10 +2170,10 @@ function viewStoreDetail(id){
       <button class="btn btn-outline" data-action="add-to-route" data-id="${s.id}">Add to route</button>
     </div>
 
-    <div class="detail-editorial">
+    ${s.description ? `<div class="detail-editorial">
       <div class="label">2nd Studio review</div>
       <p>${s.description}</p>
-    </div>
+    </div>` : ''}
     <div class="design-info-list">
       <div class="design-info-row"><span class="label">Hours</span><span class="value">${escapeHtml(prettyHours(s.hours))}</span></div>
       <div class="design-info-row"><span class="label">Good for</span><span class="value">${s.bestFor.join(" · ")}</span></div>
@@ -2144,7 +2196,7 @@ function viewStoreDetail(id){
 
     <div class="info-block">
       <h3>Before you go</h3>
-      <p style="margin-bottom:10px">${s.tips}</p>
+      ${s.tips ? `<p style="margin-bottom:10px">${s.tips}</p>` : ''}
       <div class="info-row"><span class="lbl" style="min-width:0">${ICONS.pin}</span><span>${s.address}</span></div>
       ${s.phone ? `<div class="info-row"><span class="lbl" style="min-width:0">${ICONS.phone}</span><a href="tel:${s.phone.replace(/[^+\d]/g,'')}" style="color:var(--royal);text-decoration:none;font-weight:600">${s.phone}</a></div>` : ''}
       ${s.website ? `<div class="info-row"><span class="lbl" style="min-width:0">${ICONS.globe}</span><a href="${/^https?:\/\//.test(s.website)?s.website:'https://'+s.website}" target="_blank" rel="noopener" style="color:var(--royal);text-decoration:none;font-weight:600;min-width:0;overflow-wrap:anywhere">${s.website}</a></div>` : ''}
@@ -2174,12 +2226,12 @@ function viewRouteBuilder(){
       <div class="wizard-step-label">Step 1 of 4</div>
       <div class="wizard-q">Where are you starting?</div>
       ${state.locationDetected ? `<div class="route-start-map-wrap">${discoverMap([])}</div>
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--ink);border-radius:20px;padding:13px 15px;margin:10px 0 16px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--ink-block);border-radius:20px;padding:13px 15px;margin:10px 0 16px">
         <span style="min-width:0">
           <span style="display:block;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)">Detected${c.startCoords ? ' · '+c.startCoords.lat.toFixed(2)+', '+c.startCoords.lng.toFixed(2) : ''}</span>
-          <span style="display:block;font-family:var(--font-display);font-size:18px;font-weight:600;color:var(--cream);margin-top:4px;letter-spacing:-.015em">${c.start}</span>
+          <span style="display:block;font-family:var(--font-display);font-size:18px;font-weight:600;color:var(--on-ink-block);margin-top:4px;letter-spacing:-.015em">${c.start}</span>
         </span>
-        <button data-action="use-my-location" style="border:1.5px solid rgba(255,255,255,.45);background:transparent;color:var(--cream);font-family:'DM Mono',monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding:9px 12px;border-radius:99px;flex-shrink:0">Refresh</button>
+        <button data-action="use-my-location" style="border:1.5px solid rgba(255,255,255,.45);background:transparent;color:var(--on-ink-block);font-family:'DM Mono',monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding:9px 12px;border-radius:99px;flex-shrink:0">Refresh</button>
       </div>` : `<button class="btn btn-outline btn-block" style="margin-bottom:16px" data-action="use-my-location">${ICONS.pin.replace('<svg','<svg style="width:16px;height:16px"')}Use my current location</button>`}
       <div class="chip-grid-scroll" style="margin-bottom:10px">
         ${Object.keys(NEIGHBORHOODS).map(n=>`<button class="chip ${c.start===n?'active':''}" data-action="set-start" data-n="${n}">${n}</button>`).join("")}
@@ -2190,12 +2242,12 @@ function viewRouteBuilder(){
         <div id="dest-address-container" style="height:48px;width:100%;border-radius:99px;overflow:visible;display:flex;align-items:center"><div style="padding:12px 14px;font-size:14px;color:var(--ink-soft);width:100%;box-sizing:border-box">Loading address search…</div></div>
       </div>
       ${c.destinationAddress ? `
-      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--ink);border-radius:20px;padding:13px 15px;margin-bottom:18px">
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;background:var(--ink-block);border-radius:20px;padding:13px 15px;margin-bottom:18px">
         <span style="min-width:0">
           <span style="display:block;font-family:'DM Mono',monospace;font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--gold)">Ending at</span>
-          <span style="display:block;font-family:var(--font-display);font-size:16px;font-weight:600;color:var(--cream);margin-top:4px;letter-spacing:-.015em">${c.destinationName || c.destinationAddress}</span>
+          <span style="display:block;font-family:var(--font-display);font-size:16px;font-weight:600;color:var(--on-ink-block);margin-top:4px;letter-spacing:-.015em">${c.destinationName || c.destinationAddress}</span>
         </span>
-        <button data-action="clear-destination-address" style="border:1.5px solid rgba(255,255,255,.45);background:transparent;color:var(--cream);font-family:'DM Mono',monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding:9px 12px;border-radius:99px;flex-shrink:0">Clear</button>
+        <button data-action="clear-destination-address" style="border:1.5px solid rgba(255,255,255,.45);background:transparent;color:var(--on-ink-block);font-family:'DM Mono',monospace;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;padding:9px 12px;border-radius:99px;flex-shrink:0">Clear</button>
       </div>` : ''}
       <div class="chip-grid-scroll gold" style="margin-bottom:22px">
         <button class="chip ${!c.destination && !c.destinationAddress?'active':''}" data-action="set-destination" data-n="">No preference</button>
@@ -2240,7 +2292,7 @@ function viewRouteBuilder(){
           return `<button class="chip ${active?'active':''}" data-action="toggle-budget" data-b="${b}">${b==="Any"?"Any":b+(b==="$"?" Bargain":b==="$$"?" Mid-range":" Splurge")}</button>`;
         }).join("")}
       </div>
-      <div class="wizard-subq">Minimum rating</div>
+      <div class="wizard-q" style="margin-top:36px">Minimum rating</div>
       <div class="chip-grid" style="margin-bottom:22px">
         ${[[0,"Any"],[4,"4.0★ and up"],[4.5,"4.5★ and up"]].map(([v,l])=>`<button class="chip ${(c.minRating||0)===v?'active':''}" data-action="set-min-rating" data-r="${v}">${l}</button>`).join("")}
       </div>
@@ -2249,7 +2301,7 @@ function viewRouteBuilder(){
   const manual = (c.manualStores||[]).map(id=>getStoreById(id)).filter(Boolean);
   const manualHtml = manual.length ? `<div style="margin-bottom:14px">
       <div style="font-family:var(--font-mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--royal);margin-bottom:8px">Stops you've added · always included</div>
-      <div style="display:flex;flex-wrap:wrap;gap:6px">${manual.map(st=>`<span style="display:inline-flex;align-items:center;gap:6px;background:var(--ink);color:var(--cream);border-radius:99px;padding:7px 8px 7px 12px;font-size:12.5px;font-weight:600">${st.name}<button data-action="remove-manual-stop" data-id="${st.id}" aria-label="Remove ${st.name}" style="background:rgba(255,255,255,.18);border:none;color:var(--cream);width:20px;height:20px;border-radius:50%;cursor:pointer;line-height:1;font-size:13px">×</button></span>`).join("")}</div>
+      <div style="display:flex;flex-wrap:wrap;gap:6px">${manual.map(st=>`<span style="display:inline-flex;align-items:center;gap:6px;background:var(--ink-block);color:var(--on-ink-block);border-radius:99px;padding:7px 8px 7px 12px;font-size:12.5px;font-weight:600">${st.name}<button data-action="remove-manual-stop" data-id="${st.id}" aria-label="Remove ${st.name}" style="background:rgba(255,255,255,.18);border:none;color:var(--on-ink-block);width:20px;height:20px;border-radius:50%;cursor:pointer;line-height:1;font-size:13px">×</button></span>`).join("")}</div>
     </div>` : "";
   return `
     <div style="margin-top:8px">
@@ -2258,7 +2310,7 @@ function viewRouteBuilder(){
       <div class="wizard-card">
         ${body}
         <div class="wizard-nav">
-          ${step>0 ? `<button class="btn btn-ghost" data-action="wizard-back">Back</button>` : ''}
+          ${step>0 ? `<button class="btn btn-ghost" data-action="wizard-back">Back</button>` : `<button class="btn btn-ghost" disabled aria-hidden="true" tabindex="-1">Back</button>`}
           ${step<3 ? `<button class="btn btn-primary btn-block" data-action="wizard-next">Next</button>` : `<button class="btn btn-primary btn-block" data-action="build-route">Build my route</button>`}
         </div>
       </div>
@@ -2406,6 +2458,7 @@ function viewRouteResults(){
         `).join("")}
       </div>
       <button class="btn btn-outline btn-block" style="margin-bottom:12px" data-action="open-add-stop">${ICONS.plus}Add another stop</button>
+      ${(()=>{ const dropped = mapsDroppedStops(r); return dropped.length ? `<div style="background:var(--cream-card);border:1px solid var(--line);border-radius:16px;padding:11px 14px;font-size:13px;line-height:1.5;color:var(--body-text);margin-bottom:10px">Google Maps only takes 9 stops between your start and end, so the directions will leave out ${dropped.map(x=>escapeHtml(x.name)).join(", ")}. Remove ${dropped.length===1?"a stop":dropped.length+" stops"} to fit them all.</div>` : ""; })()}
       <button class="btn btn-primary btn-block" style="margin-bottom:12px" data-action="open-in-maps">Open in Google Maps</button>
       <div style="display:flex;gap:8px">
         <button class="btn btn-outline" style="flex:1" data-action="share-route">${ICONS.share}Share route</button>
@@ -3514,7 +3567,7 @@ function adminStoreFormModal(params){
       <div class="form-row">
         <div class="form-group"><label>Card color</label><select id="as-color">${["royal","gold","cobalt","navy","sage"].map(c=>`<option ${s.color===c?'selected':''}>${c}</option>`).join("")}</select></div>
         <div class="form-group"><label>Chain store?</label><select id="as-chain"><option value="0" ${!s.chain?'selected':''}>No, independent</option><option value="1" ${s.chain?'selected':''}>Yes, a chain</option></select></div>
-        <div class="form-group"><label>Verified stamp?</label><select id="as-verified"><option value="0" ${!s.verified?'selected':''}>No</option><option value="1" ${s.verified?'selected':''}>Yes, show the Verified stamp</option></select></div>
+        <div class="form-group"><label>Verified stamp?</label><select id="as-verified" data-initial="${s.verified?1:0}"><option value="0" ${!s.verified?'selected':''}>No</option><option value="1" ${s.verified?'selected':''}>Yes, show the Verified stamp</option></select></div>
       </div>
       <button class="btn btn-royal btn-block" data-action="submit-admin-store" data-id="${editing?editing.id:''}">${editing?'Save changes':'Add store'}</button>
       <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
@@ -3565,8 +3618,13 @@ function handleClick(e){
     case "quiz-open-saved": openSavedStyle(t.dataset.kind); break;
     case "quiz-start-direct": go("styleQuiz"); startStyleQuiz(t.dataset.kind); break;
     case "go-profile": go("profile"); break;
-    case "go-back": go(state.user ? "discover" : "home"); break;
-    case "open-store": go("storeDetail", {id:t.dataset.id}); break;
+    case "go-back": {
+      const b = state.backTo; state.backTo = null;
+      if(b && b.view !== "storeDetail" && b.view !== "styleQuiz" && (state.user || PUBLIC_VIEWS.includes(b.view))) go(b.view, b.params);
+      else go(state.user ? "discover" : "home");
+      break;
+    }
+    case "open-store": if(state.view !== "storeDetail") state.backTo = {view: state.view, params: state.params}; go("storeDetail", {id:t.dataset.id}); break;
     case "save-store": toggleSaveStore(t.dataset.id); break;
     case "toggle-visited": toggleVisited(t.dataset.id); break;
     case "vote-store": toggleStoreVote(t.dataset.id, t.dataset.dir); break;
@@ -3585,7 +3643,7 @@ function handleClick(e){
     }
     case "share-store": {
       const s = getStoreById(t.dataset.id);
-      doShare(s ? `${s.name} — ${s.neighborhood}. ${s.description} Found on ATL Thrift Guide.` : "Check out this store on ATL Thrift Guide.");
+      doShare(s ? `${s.name} — ${s.neighborhood}.${s.description ? ' '+s.description : ''} Found on ATL Thrift Guide.` : "Check out this store on ATL Thrift Guide.");
       break;
     }
     case "share-route": doShareRaw(buildRouteShareText(state.currentRoute)); break;
@@ -3607,7 +3665,7 @@ function handleClick(e){
     case "open-event-submission": pendingFlyerBlob = null; requireAuth(()=>openModal("eventSubmission")); break;
     case "submit-event-preview": submitEventPreview(); break;
     case "toggle-hide-chains": state.hideChains = !state.hideChains; saveState(); renderList(); break;
-    case "set-start": state.builderChoice.start = t.dataset.n; if(state.builderChoice.destination===t.dataset.n) state.builderChoice.destination=null; state.locationDetected=false; state.builderChoice.startCoords=null; renderList(); break;
+    case "set-start": state.startPickedByUser = true; state.geoReqId = (state.geoReqId||0) + 1; state.builderChoice.start = t.dataset.n; if(state.builderChoice.destination===t.dataset.n) state.builderChoice.destination=null; state.locationDetected=false; state.builderChoice.startCoords=null; renderList(); break;
     case "use-my-location": tryDetectLocation(true); break;
     case "toggle-destination-picker": state.showDestinationPicker = !state.showDestinationPicker; renderList(); break;
     case "set-destination": state.builderChoice.destination = t.dataset.n || null; state.builderChoice.destinationAddress = null; state.builderChoice.destinationName = null; state.builderChoice.destinationCoords = null; state.showDestinationPicker=false; renderList(); break;
@@ -3622,10 +3680,8 @@ function handleClick(e){
     case "move-stop": moveStop(parseInt(t.dataset.i), t.dataset.dir); break;
     case "remove-stop": removeStop(parseInt(t.dataset.i)); break;
     case "open-in-maps": {
-      const rr = state.currentRoute;
-      const nStops = rr ? rr.stops.filter(id=>getStoreById(id)).length : 0;
-      const between = rr && (rr.destination || rr.destinationCoords) ? nStops : nStops - 1;
-      if(between > 9) toast("Google Maps only takes 9 stops in between start and end — the later ones were left off.");
+      const dropped = mapsDroppedStops(state.currentRoute);
+      if(dropped.length) toast(`Google Maps left out: ${dropped.map(x=>x.name).join(", ")}.`);
       const url = buildGoogleMapsUrl(state.currentRoute);
       if(url) window.open(url, "_blank"); else toast("No route to open yet.");
       break;
@@ -3721,8 +3777,10 @@ function toggleBuilderCategory(c){
 function addStoreToBuilder(id){
   if(!state.builderChoice.manualStores.includes(id)) state.builderChoice.manualStores.push(id);
   const n = state.builderChoice.manualStores.length;
-  toast(`Added to your route (${n} stop${n===1?"":"s"}). Opening the route builder…`);
-  go("route");
+  requireAuth(()=>{
+    toast(`Added to your route (${n} stop${n===1?"":"s"}). Opening the route builder…`);
+    go("route");
+  });
 }
 // Driving directions in Google Maps (opens the app when it's installed, the website otherwise).
 function openDirections(id){
@@ -3806,9 +3864,15 @@ function recomputeRoute(r){
 // so reopening it later shows exactly what you left.
 function persistRouteEdits(r){
   if(!state.user || !r || !state.savedRouteIds.includes(r.id)) return;
-  sb.from("routes").update({ stops:r.stops, legs:r.legs, total_travel:r.totalTravel, total_browse:r.totalBrowse })
+  // One update at a time per route; edits made meanwhile are sent right
+  // after, so an older update can never land last.
+  if(r.syncing){ r.syncAgain = true; return; }
+  r.syncing = true; r.syncAgain = false;
+  sb.from("routes").update({ stops:r.stops.slice(), legs:(r.legs||[]).slice(), total_travel:r.totalTravel, total_browse:r.totalBrowse })
     .eq("id", r.id).eq("user_id", state.user.id)
-    .then(({error})=>{ if(error){ console.error("route sync failed:", error.message); toast("Couldn't sync that change to your saved route."); } });
+    .then(({error})=>{ if(error){ console.error("route sync failed:", error.message); toast("Couldn't sync that change to your saved route."); } },
+          err=>{ console.error("route sync failed:", err); toast("Couldn't sync that change to your saved route."); })
+    .finally(()=>{ r.syncing = false; if(r.syncAgain) persistRouteEdits(r); });
 }
 function moveStop(i,dir){
   const r = state.currentRoute;
@@ -3934,6 +3998,12 @@ async function doShareRaw(text){
     navigator.clipboard.writeText(text).then(()=>toast("Copied to clipboard."), ()=>toast("Couldn't copy — try again."));
   }catch(e){ toast("Sharing isn't available here."); }
 }
+// Google Maps takes at most 9 stops between start and end; these are the
+// ones the directions link leaves out.
+function mapsDroppedStops(r){
+  const stores = (r && r.stops || []).map(id=>getStoreById(id)).filter(Boolean);
+  return (r && (r.destination || r.destinationCoords)) ? stores.slice(9) : stores.slice(9, Math.max(9, stores.length-1));
+}
 function buildGoogleMapsUrl(r){
   const stores = r.stops.map(id=>getStoreById(id)).filter(Boolean);
   if(!stores.length) return null;
@@ -4036,6 +4106,7 @@ async function submitNewPassword(){
   if(err){ toast(err); return; }
   const { error } = await sb.auth.updateUser({ password: pw });
   if(error){ toast("Couldn't update your password — try the reset link again."); return; }
+  pendingPasswordRecovery = false;
   await refreshSessionAndProfile();
   await loadMyData();
   closeModal();
@@ -4114,6 +4185,7 @@ async function acceptTerms(){
   }
   closeModal();
   render();
+  if(pendingPasswordRecovery){ openModal("setNewPassword"); return; }
   maybeStartMemberTour();
 }
 // ---- Style quiz data -----------------------------------------------------
@@ -4383,6 +4455,11 @@ function openSavedStyle(kind){
 }
 async function pickQuizAnswer(i){
   const q = state.quiz; if(!q || q.revealing) return;
+  // The second tap of a fast double-tap lands on the next question's
+  // freshly drawn option; ignore taps that close together.
+  const now = Date.now();
+  if(q.pickLockUntil && now < q.pickLockUntil) return;
+  q.pickLockUntil = now + 400;
   const {qs} = styleSets(q.kind);
   if(q.step < qs.length) q.picks.push(i);
   else q.arch.push(archQs(q.kind)[q.step-qs.length].options[i][1]);
@@ -4397,7 +4474,7 @@ async function pickQuizAnswer(i){
     await new Promise(r=>setTimeout(r, 2200));
     q.saved = await saving;
     q.revealing = false;
-    if(state.quiz === q){ window.scrollTo(0,0); renderList(); }
+    if(state.quiz === q && state.view === "styleQuiz"){ window.scrollTo(0,0); renderList(); }
     return;
   }
   window.scrollTo(0,0);
@@ -4562,9 +4639,9 @@ function quizResultHtml(r){
     </div>`).join("");
   const note = (k,v) => `<div style="background:var(--cream-card);border-radius:16px;padding:12px 14px"><div style="font-family:var(--font-mono);font-size:9px;letter-spacing:.14em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:4px">${k}</div><div style="font-family:var(--font-display);font-size:16px;font-weight:600;color:var(--ink);line-height:1.2">${v}</div></div>`;
   return `<div style="margin-top:8px">
-    <div style="background:var(--ink);color:var(--cream);border-radius:24px;padding:28px 22px 24px;text-align:center">
+    <div style="background:var(--ink-block);color:var(--on-ink-block);border-radius:24px;padding:28px 22px 24px;text-align:center">
       <div style="font-family:var(--font-mono);font-size:9.5px;letter-spacing:.16em;text-transform:uppercase;color:var(--gold);margin-bottom:12px">Your ${r.kind==="home"?"home":"fashion"} style</div>
-      <div style="font-family:var(--font-display);font-size:32px;line-height:1.05;letter-spacing:-.02em;font-weight:600;color:var(--cream)">${styleTitle(r.kind, r.style, r.arch)}</div>
+      <div style="font-family:var(--font-display);font-size:32px;line-height:1.05;letter-spacing:-.02em;font-weight:600;color:var(--on-ink-block)">${styleTitle(r.kind, r.style, r.arch)}</div>
       ${(r.dna||[]).length>1 && (r.dna[0][1]-r.dna[1][1])<=8 ? `<div style="font-size:12.5px;color:rgba(255,255,255,.75);margin-top:10px">A close call with <b style="color:var(--gold)">${styles[r.dna[1][0]].name}</b></div>` : ""}
       <div style="display:flex;justify-content:center;gap:8px;margin-top:18px">${e.palette.map(c=>`<span style="width:26px;height:26px;border-radius:50%;background:${c};border:2px solid rgba(255,255,255,.25)"></span>`).join("")}</div>
     </div>
@@ -4778,7 +4855,13 @@ async function sendSignupCode(email){
   if(error){ console.error("resend failed:", error.message); toast("Couldn't send a code right now — wait a minute and try again."); return false; }
   return true;
 }
+let submittingLogin = false;
 async function submitLogin(){
+  if(submittingLogin) return;
+  submittingLogin = true;
+  try{ await submitLoginInner(); } finally { submittingLogin = false; }
+}
+async function submitLoginInner(){
   const mode = state.authMode || "signin";
   const email = document.getElementById("login-email").value.trim().toLowerCase();
   const password = document.getElementById("login-password").value;
@@ -4835,9 +4918,9 @@ async function submitLogin(){
       if(/captcha/i.test(error.message)){ toast("Bot check didn't pass — please try again."); return; }
       if(/confirm/i.test(error.message)){
         state.verifyEmail = email;
-        await sendSignupCode(email);
+        const sent = await sendSignupCode(email);
         openModal("verifyEmail");
-        toast("Confirm your email first — we sent you a new code.");
+        if(sent) toast("Confirm your email first — we sent you a new code.");
         return;
       }
       toast("Incorrect email or password.");
@@ -4980,7 +5063,8 @@ async function submitSuggestStore(){
   if(!state.user){ requireAuth(()=>openModal("suggestStore")); return; }
   if(submittingStore) return;
   const val = id => (document.getElementById(id)?.value || "").trim();
-  const name = val("ss-name"), address = val("ss-address") || val("ss-address-fallback"), hood = val("ss-hood"), type = val("ss-type"), why = val("ss-why");
+  const typedAddr = (document.querySelector("#ss-address-container .addr-search-input")?.value || "").trim();
+  const name = val("ss-name"), address = val("ss-address") || typedAddr || val("ss-address-fallback"), hood = val("ss-hood"), type = val("ss-type"), why = val("ss-why");
   let link = val("ss-link");
   const cats = [...document.querySelectorAll(".ss-cat:checked")].map(c=>c.value);
   const missing = [];
@@ -5015,7 +5099,8 @@ async function initSuggestAddressAutocomplete(){
       if(nameField && !nameField.value.trim() && place.displayName && place.displayName !== place.formattedAddress) nameField.value = place.displayName;
     }
   });
-  if(input) container.dataset.ready = "1";
+  // Typing after a pick means the earlier pick no longer applies.
+  if(input){ input.addEventListener("input", ()=>{ const h = document.getElementById("ss-address"); if(h) h.value = ""; }); container.dataset.ready = "1"; }
 }
 function verifyEmailModal(){
   const email = escapeHtml(state.verifyEmail||"");
@@ -5290,7 +5375,9 @@ async function submitAdminStoreInner(id){
   const row = { name, neighborhood: hood, address, type: val("as-type")||"Thrift Store", price_level: Number(val("as-price"))||1,
     categories: list("as-cats"), hours: val("as-hours")||null, description: val("as-desc")||null, tips: val("as-tips")||null,
     best_for: list("as-best"), tags: list("as-tags"), website: val("as-web")||null, phone: val("as-phone")||null,
-    color: val("as-color")||"royal", chain: val("as-chain")==="1", verified: val("as-verified")==="1" };
+    color: val("as-color")||"royal", chain: val("as-chain")==="1" };
+  const verifiedSel = document.getElementById("as-verified");
+  if(!id || (verifiedSel && verifiedSel.value !== verifiedSel.dataset.initial)) row.verified = !!verifiedSel && verifiedSel.value === "1";
   const placeId = val("as-place");
   if(placeId){
     row.google_place_id = placeId;
