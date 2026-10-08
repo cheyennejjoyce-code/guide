@@ -273,6 +273,8 @@ p{margin:0;}
 .stop-actions{display:flex;flex-direction:column;gap:5px;}
 .stop-actions button{width:26px;height:26px;border-radius:8px;border:1px solid var(--line);background:var(--cream);display:flex;align-items:center;justify-content:center;}
 .stop-actions svg{width:13px;height:13px;}
+.verified-stamp{display:inline-flex;align-items:center;gap:4px;background:var(--gold);color:#221D24;font-family:var(--font-mono);font-size:9px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;line-height:1;padding:4px 8px 4px 5px;border-radius:999px;white-space:nowrap;vertical-align:middle;}
+.verified-stamp svg{width:13px;height:13px;flex:none;}
 .stop-card>svg{width:20px;height:20px;flex-shrink:0;align-self:center;color:var(--royal);}
 .travel-line{display:flex;align-items:center;gap:8px;padding:2px 0 2px 14px;font-size:11.5px;color:var(--ink-soft);margin-bottom:10px;}
 .travel-line svg{width:13px;height:13px;}
@@ -885,7 +887,7 @@ function mapDbStore(row){
     tags: row.tags||[], description: row.description, phone: row.phone, website: row.website,
     bestFor: row.best_for||[], tips: row.tips, featured: row.featured, color: row.color,
     chain: row.chain, googlePlaceId: row.google_place_id, lat: row.store_lat, lng: row.store_lng,
-    photoName: row.google_photo_name
+    photoName: row.google_photo_name, verified: row.verified === true
   };
 }
 function initials(name){ return name.split(/[\s._]/).filter(Boolean).slice(0,2).map(w=>w[0].toUpperCase()).join(""); }
@@ -930,7 +932,7 @@ function googleHoursToCompact(weekdayDescriptions){
     if(!m || !DAYS.includes(m[1])) return null;
     const body = m[2].trim();
     if(/^closed$/i.test(body)){ perDay[m[1]] = []; continue; }
-    if(/open 24 hours/i.test(body)){ perDay[m[1]] = ["0-23"]; continue; }
+    if(/open 24 hours/i.test(body)){ perDay[m[1]] = ["0-23:59"]; continue; }
     const windows = [];
     for(const part of body.split(",")){
       const t = part.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?\s*-\s*(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
@@ -946,7 +948,14 @@ function googleHoursToCompact(weekdayDescriptions){
       const closeDisp = (c12 <= openDisp || c12 <= 8) ? c12 : close24;
       const fmt = (h, mm) => mm && mm !== "00" ? `${h}:${mm}` : `${h}`;
       const openStr = fmt(openDisp, t[2]) + ((open24 >= 1 && open24 <= 6) ? "a" : "");
-      windows.push(`${openStr}-${fmt(closeDisp, closeMinOverride || t[5])}`);
+      const closeMm = closeMinOverride || t[5];
+      const wantOpen = open24*60 + +(t[2]||0), wantClose = close24*60 + +(closeMm||0);
+      if(wantClose <= wantOpen) return null; // past midnight: the badge can't show it
+      const ok = w => { const r = parseStoreHours(`Mon ${w}`); return !!r && r[0].openMin === wantOpen && r[0].closeMin === wantClose; };
+      let win = `${openStr}-${fmt(closeDisp, closeMm)}`;
+      if(!ok(win)) win = `${fmt(open24 % 12 || 12, t[2])}${open24 < 12 ? "a" : "p"}-${fmt(close24 % 12 || 12, closeMm)}${close24 < 12 ? "a" : "p"}`;
+      if(!ok(win)) return null;
+      windows.push(win);
     }
     perDay[m[1]] = windows;
   }
@@ -969,15 +978,19 @@ function googleHoursToCompact(weekdayDescriptions){
 }
 function prettyHours(hoursStr){
   if(!hoursStr) return "";
-  const rules = parseStoreHours(hoursStr);
-  if(!rules) return String(hoursStr);
-  const segs = String(hoursStr).replace(/\([^)]*\)/g,'').split(',').map(x=>x.trim()).filter(Boolean);
+  const raw = String(hoursStr);
+  const rules = parseStoreHours(raw);
+  if(!rules || !rules.length) return raw;
+  const notes = (raw.match(/\([^)]*\)/g) || []).join(" ");
+  const segs = raw.replace(/\([^)]*\)/g,'').split(',').map(x=>x.trim()).filter(Boolean);
+  if(segs.length !== rules.length) return raw;
   const t = m => { const h = Math.floor(m/60)%24, mm = m%60, h12 = h%12 || 12; return `${h12}${mm ? ':'+String(mm).padStart(2,'0') : ''}${h<12 ? 'am' : 'pm'}`; };
-  return segs.map((seg,i)=>{
+  const out = segs.map((seg,i)=>{
     const r = rules[i]; const day = (seg.match(/^([A-Za-z]{3}(?:[–-][A-Za-z]{3})?)/)||[,""])[1].replace("-","–");
     if(r.openMin===0 && r.closeMin>=1380) return `${day} open 24 hours`;
     return `${day} ${t(r.openMin)}–${r.closeMin>=1439 ? 'midnight' : t(r.closeMin)}`;
   }).join(", ");
+  return notes ? `${out} ${notes}` : out;
 }
 function parseStoreHours(hoursStr){
   if(!hoursStr || typeof hoursStr !== "string") return null;
@@ -1495,7 +1508,7 @@ const PUBLIC_VIEWS = ["home","storeDetail","routeResults","styleQuiz"];
 // What signed-out visitors see on each members-only tab, so they know
 // exactly what they're missing.
 const GATED_TAB_INFO = {
-  discover: {tier:"Account", title:"Browse every store", body:()=>`Search and filter all ${state.stores.filter(s=>!s.chain).length || ""} vetted thrift and antique stores by neighborhood, category, and price. See hours, insider tips, and what each store is best for.`},
+  discover: {tier:"Account", title:"Browse every store", body:()=>`Search and filter all ${state.stores.length || ""} thrift, vintage, and antique stores by neighborhood, category, and price. See hours, insider tips, and what each store is best for.`},
   route: {tier:"Account", title:"Build your own route", body:()=>"Choose where you're starting, what you're hunting for, and how much time you have. We'll plan an efficient route through the best stores, with travel times and directions in Google Maps."},
   community: {tier:"Account", title:"Join the community", body:()=>"See what Atlanta thrifters are finding, share your own finds, and swap tips on where to shop."},
   events: {tier:"Membership", title:"Curated Atlanta events", body:()=>"Vintage markets, clothing swaps, estate sales, and special store events, hunted down by 2nd Studio so you don't have to. Included with ATL Guide Insider."},
@@ -1569,13 +1582,13 @@ function viewHome(){
   const openNow = state.stores.filter(s=>isOpenNow(s)===true).slice(0,6);
   const displayStores = openNow.length ? openNow : state.stores.filter(s=>s.featured).slice(0,6);
   const upcomingEvents = getUpcomingEvents();
-  const independentCount = state.stores.filter(s=>!s.chain).length;
+  const verifiedCount = state.stores.filter(s=>s.verified).length;
   return `
     <div class="design-home">
       <div class="hero">
         <span class="hero-tag">${currentFieldGuideLabel()}</span>
         <h1>A better way<br>to discover.</h1>
-        <p class="sub">A discovery and route planning guide to Atlanta's ${independentCount} vetted independent thrift and antique stores.</p>
+        <p class="sub">A discovery and route planning guide to Atlanta's ${verifiedCount ? `${verifiedCount} verified` : state.stores.length} thrift, vintage, and antique stores.</p>
       </div>
       ${state.user ? `<div class="hero-btns" style="margin-bottom:32px">
         <button class="btn btn-primary" style="flex:1;justify-content:center;padding:17px 20px" data-action="nav" data-view="route">Build a route</button>
@@ -1608,6 +1621,12 @@ function viewHome(){
   `;
 }
 
+// Gold "Verified" stamp for stores that passed the check (100+ Google
+// reviews, a working website, a listed phone, and an address).
+const VERIFIED_SEAL = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2.5l2.3 1.7 2.9-.2.9 2.7 2.4 1.6-.9 2.7.9 2.7-2.4 1.6-.9 2.7-2.9-.2L12 21.5l-2.3-1.7-2.9.2-.9-2.7-2.4-1.6.9-2.7-.9-2.7 2.4-1.6.9-2.7 2.9.2z"/><path d="M8.6 12.2l2.3 2.3 4.6-4.7"/></svg>';
+function verifiedStamp(s, extraStyle){
+  return s && s.verified ? `<span class="verified-stamp"${extraStyle?` style="${extraStyle}"`:''} title="Verified store">${VERIFIED_SEAL}Verified</span>` : '';
+}
 function storeGridCard(s){
   const openState = isOpenNow(s);
   return `
@@ -1615,6 +1634,7 @@ function storeGridCard(s){
     <div class="gc-photo">
       ${photoOrArt(s)}
       ${openState!==null ? `<span class="open-badge ${openState?'open':'closed'}" style="position:absolute;left:8px;bottom:8px">${openState?'Open':'Closed'}</span>` : ''}
+      ${verifiedStamp(s, 'position:absolute;left:8px;top:8px')}
     </div>
     <div class="gc-body">
       <div class="gc-top">
@@ -1639,6 +1659,7 @@ function storeCard(s, wide){
     </div>
     <div class="store-body">
       <div class="store-name">${s.name}</div>
+      ${s.verified ? `<div style="margin:4px 0 2px">${verifiedStamp(s)}</div>` : ''}
       <div class="store-meta"><span>${s.neighborhood}</span><span class="dot-sep">${priceStr(s.priceLevel)}</span><span class="dot-sep">${ICONS.star.replace('<svg','<svg style="width:11px;height:11px;fill:var(--gold);vertical-align:-1px"')}${s.rating}</span>${s.chain?`<span class="dot-sep">Chain</span>`:''}${(votes.up.length||votes.down.length)?`<span class="dot-sep">${ICONS.thumbsUp.replace('<svg','<svg style="width:11px;height:11px;fill:var(--ink-soft);vertical-align:-1px"')}${votes.up.length} ${ICONS.thumbsDown.replace('<svg','<svg style="width:11px;height:11px;fill:var(--ink-soft);vertical-align:-1px;margin-left:3px"')}${votes.down.length}</span>`:''}${visited?`<span class="dot-sep">✓ Visited</span>`:''}</div>
       ${openState!==null ? `<div style="margin-top:6px"><span class="open-badge ${openState?'open':'closed'}">${openState?'Open now':'Closed now'}</span></div>` : ''}
       <div class="store-desc">${s.description}</div>
@@ -1826,6 +1847,7 @@ function viewDiscover(){
         ${ICONS.search}
         <input type="text" placeholder="Search shops, neighborhoods, categories" value="${escapeHtml(state.searchQuery||'')}" data-action="search-input">
       </div>
+      <div id="discover-results">
       <div class="filter-row">
         <button class="chip ${filters.length===0?'active':''}" data-action="toggle-filter" data-f="All">All</button>
         ${categoryFilters.map(f=>`<button class="chip ${filters.includes(f)?'active':''}" data-action="toggle-filter" data-f="${f}">${f}</button>`).join("")}
@@ -1848,6 +1870,7 @@ function viewDiscover(){
       </button>
       ${state.discoverMode==='map' ? discoverMap(list) : ''}
       ${list.length===0 ? `<div class="empty-state"><h3>No stores match yet</h3><p>Clear a filter or search a different neighborhood.</p></div>` : `<div class="grid-stack">${list.map(s=>storeGridCard(s)).join("")}</div>`}
+      </div>
     </div>
   `;
 }
@@ -2088,6 +2111,7 @@ function viewStoreDetail(id){
       <h1>${s.name}</h1>
       <div class="rating-badge">${ICONS.star}${s.rating}</div>
     </div>
+    ${s.verified ? `<div style="margin:-4px 0 10px">${verifiedStamp(s)}</div>` : ''}
     <div class="detail-meta-line">${s.type} · ${s.neighborhood} · ${priceStr(s.priceLevel)}${openState!==null ? ` · ${openState?'Open now':'Closed now'}` : ''}</div>
     <div class="detail-cta-row">
       <button class="btn btn-primary" data-action="get-directions" data-id="${s.id}">Directions</button>
@@ -2254,22 +2278,24 @@ function generateRoute(){
   const passes = s => (!budget.length || budget.includes(s.priceLevel))
     && (!minRating || (s.rating||0) >= minRating);
   const count = c.time==="2 hours"?2 : c.time==="Half day"?4 : 6;
-  let candidates = inRange.filter(passes);
+  // Stops the person added by hand come first and are never dropped; they
+  // fill slots, so they aren't counted again as filter matches below.
+  const manualIds = c.manualStores||[];
+  const manual = manualIds.map(id=>getStoreById(id)).filter(Boolean).map(s=>Object.assign({}, s, {distance: dist(c.start, s.neighborhood)}));
+  const pool = inRange.filter(s=>!manualIds.includes(s.id));
+  let candidates = pool.filter(passes);
   // Safety net: too few exact matches -> keep them first, then fill with the
   // closest other shops, and tell the person which choice was limiting.
   state.routeFilterNote = null;
-  const wantNew = Math.max(0, count - (c.manualStores||[]).length);
+  const wantNew = Math.max(0, count - manual.length);
   if((budget.length || minRating) && candidates.length < wantNew){
     const limiting = [];
-    if(budget.length && inRange.filter(s=>budget.includes(s.priceLevel)).length < wantNew) limiting.push("budget");
-    if(minRating && inRange.filter(s=>(s.rating||0) >= minRating).length < wantNew) limiting.push("rating");
+    if(budget.length && pool.filter(s=>budget.includes(s.priceLevel)).length < wantNew) limiting.push("budget");
+    if(minRating && pool.filter(s=>(s.rating||0) >= minRating).length < wantNew) limiting.push("rating");
     state.routeFilterNote = `${candidates.length ? "Only "+candidates.length+" shop"+(candidates.length===1?"":"s") : "No shops"} matched ${limiting.length ? "your "+limiting.join(" and ") : "all your choices"}, so we added the closest other shops.`;
-    candidates = candidates.concat(inRange.filter(s=>!passes(s)));
+    candidates = candidates.concat(pool.filter(s=>!passes(s)));
   }
-  // Stops the person added by hand come first and are never dropped.
-  const manual = (c.manualStores||[]).map(id=>getStoreById(id)).filter(Boolean).map(s=>Object.assign({}, s, {distance: dist(c.start, s.neighborhood)}));
-  candidates = candidates.filter(s=>!(c.manualStores||[]).includes(s.id));
-  let picked = manual.concat(candidates.slice(0, Math.max(0, count - manual.length)));
+  let picked = manual.concat(candidates.slice(0, wantNew));
   if(picked.length===0) picked = state.stores.slice(0,2);
   let ordered;
   const destPos = c.destination && NEIGHBORHOODS[c.destination];
@@ -2849,12 +2875,15 @@ async function adminRefreshFromGoogle(){
   toast(`Refreshing ${linked.length} stores from Google…`);
   let updated = 0, failed = 0;
   const mismatched = [];
-  // Words two names must share to count as the same business.
-  const words = n => normName(n).split(" ").filter(w=>w.length>2 && !["atlanta","antique","antiques","vintage","thrift","market","resale","consignment","boutique","goodwill"].includes(w));
+  // Words two names must share to count as the same business ("Labels" and
+  // "Label" count as one word).
+  const IGNORE = ["atlanta","antique","vintage","thrift","market","resale","consignment","boutique","goodwill"];
+  const words = n => normName(n).split(" ").map(w=>w.replace(/s$/,"")).filter(w=>w.length>2 && !IGNORE.includes(w));
+  const streetNo = a => (String(a||"").match(/^\s*(\d+)/)||[])[1] || null;
   for(const st of linked){
     try{
       const resp = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(st.googlePlaceId)}?key=${GOOGLE_MAPS_JS_KEY}`, {
-        headers: { "X-Goog-FieldMask": "displayName,regularOpeningHours,rating,userRatingCount,nationalPhoneNumber" }
+        headers: { "X-Goog-FieldMask": "displayName,formattedAddress,regularOpeningHours,rating,userRatingCount,nationalPhoneNumber" }
       });
       if(!resp.ok){ failed++; continue; }
       const place = await resp.json();
@@ -2862,7 +2891,11 @@ async function adminRefreshFromGoogle(){
       if(gName){
         const a = words(st.name), b = words(gName);
         const sameName = normName(st.name) === normName(gName) || a.some(w=>b.includes(w)) || (!a.length && !b.length);
-        if(!sameName){ mismatched.push({ id: st.id, name: st.name, google: gName }); continue; } // don't copy another business's data
+        // Chain listings are often just "Goodwill Thrift Store", so a matching
+        // street number also counts; a different street number never does.
+        const nA = streetNo(st.address), nB = streetNo(place.formattedAddress);
+        const sameAddr = !!nA && nA === nB, otherAddr = !!nA && !!nB && nA !== nB;
+        if(otherAddr || (!sameName && !sameAddr)){ mismatched.push({ id: st.id, name: st.name, google: gName }); continue; } // don't copy another business's data
       }
       const row = {};
       const compact = googleHoursToCompact(place.regularOpeningHours && place.regularOpeningHours.weekdayDescriptions);
@@ -3026,15 +3059,17 @@ function viewAdmin(){
       <button class="btn btn-outline btn-block" style="margin:8px 0 14px" data-action="admin-scan-stores" ${state.admin && state.admin.scan && state.admin.scan.running ? "disabled" : ""}>${ICONS.search}Scan Google for new stores</button>
       ${adminScanHtml()}
       <input type="search" id="admin-store-search" placeholder="Search stores by name, neighborhood, or category" value="${escapeHtml(state.adminStoreQuery||"")}" style="width:100%;margin-bottom:14px;border:1px solid var(--line-strong);border-radius:99px;padding:12px 16px;font-size:14px;background:var(--cream-card);color:var(--ink)">
+      <div id="admin-store-results">
       ${(()=>{ const q=(state.adminStoreQuery||"").toLowerCase().trim(); const list = q ? state.stores.filter(s=>[s.name,s.neighborhood,s.type,(s.categories||[]).join(" "),s.address].join(" ").toLowerCase().includes(q)) : state.stores; return `<div class="ar-sub" style="margin-bottom:8px">${list.length} of ${state.stores.length} stores</div>` + (list.length ? "" : `<div class="empty-state"><p>No stores match "${escapeHtml(state.adminStoreQuery||"")}".</p></div>`) + list.map(s=>`
         <div class="admin-list-row">
-          <div><div class="ar-name">${s.name}${s.featured?'<span class="badge-featured">Featured</span>':''}</div><div class="ar-sub">${s.neighborhood} · ${s.categories.join(", ")}</div></div>
+          <div><div class="ar-name">${s.name}${s.featured?'<span class="badge-featured">Featured</span>':''}${s.verified?' '+verifiedStamp(s,'margin-left:6px'):''}</div><div class="ar-sub">${s.neighborhood} · ${s.categories.join(", ")}</div></div>
           <div class="ar-actions">
             <button data-action="admin-toggle-featured" data-id="${s.id}" aria-label="Toggle featured">${ICONS.star}</button>
             <button data-action="admin-edit-store" data-id="${s.id}" aria-label="Edit">${ICONS.edit}</button>
             <button data-action="admin-delete-store" data-id="${s.id}" aria-label="Delete">${ICONS.trash}</button>
           </div>
         </div>`).join(""); })()}
+      </div>
       ${(()=>{ const t = Object.entries(state.storeVotes)
           .map(([sid,v])=>({ s:getStoreById(sid), up:v.up.length, down:v.down.length }))
           .filter(x=>x.s && (x.up||x.down))
@@ -3479,6 +3514,7 @@ function adminStoreFormModal(params){
       <div class="form-row">
         <div class="form-group"><label>Card color</label><select id="as-color">${["royal","gold","cobalt","navy","sage"].map(c=>`<option ${s.color===c?'selected':''}>${c}</option>`).join("")}</select></div>
         <div class="form-group"><label>Chain store?</label><select id="as-chain"><option value="0" ${!s.chain?'selected':''}>No, independent</option><option value="1" ${s.chain?'selected':''}>Yes, a chain</option></select></div>
+        <div class="form-group"><label>Verified stamp?</label><select id="as-verified"><option value="0" ${!s.verified?'selected':''}>No</option><option value="1" ${s.verified?'selected':''}>Yes, show the Verified stamp</option></select></div>
       </div>
       <button class="btn btn-royal btn-block" data-action="submit-admin-store" data-id="${editing?editing.id:''}">${editing?'Save changes':'Add store'}</button>
       <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
@@ -3860,7 +3896,7 @@ async function signOutNow(){
       // Some failures (expired session) still remove the local session —
       // then we really are signed out and the UI should say so.
       let stillSignedIn = true;
-      try{ const { data } = await sb.auth.getSession(); stillSignedIn = !!(data && data.session); }catch(e){}
+      try{ const { data, error: sessionErr } = await sb.auth.getSession(); stillSignedIn = !!(data && data.session) || !!sessionErr; }catch(e){}
       if(stillSignedIn){ toast("Couldn't sign out — check your connection and try again."); return; }
     }
     closeModal();
@@ -4638,7 +4674,7 @@ function profileStyleHtml(u){
 // ---- Welcome tours -------------------------------------------------------
 const TOURS = {
   member: [
-    {icon:"pin", eyebrow:"Welcome, ATL Guide Member", title:"Discover what's open near you", body:"See which vetted thrift and antique stores are open right now, then browse every store by neighborhood, category, and price."},
+    {icon:"pin", eyebrow:"Welcome, ATL Guide Member", title:"Discover what's open near you", body:"See which thrift and antique stores are open right now, then browse every store by neighborhood, category, and price."},
     {icon:"map", eyebrow:"Events", title:"Markets, swaps, and estate sales", body:"Insiders get our curated calendar of Atlanta events. Know about one? Anyone can submit an event, and we review every one."},
     {icon:"route", eyebrow:"Routes", title:"Build a route in seconds", body:"Pick a starting point, what you're hunting for, and how much time you have. We'll map out the best order of stops."},
     {icon:"users", eyebrow:"Community", title:"Share your finds", body:"Post your best scores, see what other thrifters are finding, and swap tips on where to shop."},
@@ -4646,7 +4682,7 @@ const TOURS = {
   ],
   insider: [
     {icon:"star", eyebrow:"You're in", title:"Welcome, Insider!", body:"Your ATL Guide Insider membership is active. Here's a quick look around, including everything you just unlocked.", celebrate:true},
-    {icon:"pin", eyebrow:"Home", title:"Discover what's open near you", body:"See which vetted thrift and antique stores are open right now, then browse every store by neighborhood, category, and price."},
+    {icon:"pin", eyebrow:"Home", title:"Discover what's open near you", body:"See which thrift and antique stores are open right now, then browse every store by neighborhood, category, and price."},
     {icon:"bookmark", eyebrow:"Insider perk", title:"Save your favorite stores", body:"Tap the bookmark on any store to keep your favorites in one place.", perk:true},
     {icon:"map", eyebrow:"Insider perk", title:"Check out curated events", body:"Vintage markets, clothing swaps, estate sales, and special store events, hunted down for you. Find them right on your home page.", perk:true},
     {icon:"route", eyebrow:"Routes", title:"Build a route in seconds", body:"Pick a starting point, what you're hunting for, and how much time you have. We'll map out the best order of stops."},
@@ -5212,15 +5248,20 @@ async function initAdminStoreAutocomplete(){
       const pick = ++adminPlacePickSeq; // a later pick wins over a slow earlier one
       try{
         const set = (id, v)=>{ if(pick !== adminPlacePickSeq) return; const el = document.getElementById(id); if(el && v!=null && v!=="") el.value = v; };
-        // A different listing was picked: forget the old listing's Google data first.
-        ["as-photo","as-rating","as-reviews","as-phone","as-web"].forEach(id=>{ const el = document.getElementById(id); if(el) el.value = ""; });
+        // A different listing was picked: forget the old listing's Google-only
+        // data first. Phone and website stay unless Google has a replacement.
+        if((document.getElementById("as-place")?.value || "") !== place.id){
+          ["as-photo","as-rating","as-reviews"].forEach(id=>{ const el = document.getElementById(id); if(el) el.value = ""; });
+        }
         set("as-name", place.displayName); set("as-addr", place.formattedAddress);
         set("as-phone", place.nationalPhoneNumber); set("as-web", place.websiteURI ? String(place.websiteURI).replace(/^https?:\/\//,"").replace(/\/$/,"") : null);
         const hrs = place.regularOpeningHours && place.regularOpeningHours.weekdayDescriptions;
-        if(hrs && hrs.length){ const compact = googleHoursToCompact(hrs); if(compact) set("as-hours", compact); }
+        const compactHrs = hrs && hrs.length ? googleHoursToCompact(hrs) : null;
+        if(compactHrs) set("as-hours", compactHrs);
+        const hoursNote = hrs && hrs.length && !compactHrs ? " — couldn't read Google's hours, check the Hours field" : "";
         set("as-place", place.id); if(place.location){ set("as-lat", place.location.lat()); set("as-lng", place.location.lng()); }
         set("as-rating", place.rating); set("as-reviews", place.userRatingCount);
-        if(status) status.textContent = "✓ Linked to Google — fetching photo…";
+        if(status) status.textContent = "✓ Linked to Google — fetching photo…" + hoursNote;
         // Photo names come from Places API (New); the app's photo endpoint serves them.
         try{
           const r = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(place.id)}?fields=photos&key=${GOOGLE_MAPS_JS_KEY}`, { headers: { "X-Goog-FieldMask":"photos" } });
@@ -5228,8 +5269,8 @@ async function initAdminStoreAutocomplete(){
           const name = j && j.photos && j.photos[0] && j.photos[0].name;
           if(pick !== adminPlacePickSeq) return;
           if(name) set("as-photo", name);
-          if(status) status.textContent = name ? "✓ Linked to Google, photo found" : "✓ Linked to Google (no photo available)";
-        }catch(e){ if(status) status.textContent = "✓ Linked to Google (photo lookup failed)"; }
+          if(status) status.textContent = (name ? "✓ Linked to Google, photo found" : "✓ Linked to Google (no photo available)") + hoursNote;
+        }catch(e){ if(status) status.textContent = "✓ Linked to Google (photo lookup failed)" + hoursNote; }
       }catch(e){ console.error("google lookup failed", e); if(status) status.textContent = "Couldn't read that place — fill the fields by hand."; }
     }
   });
@@ -5249,15 +5290,15 @@ async function submitAdminStoreInner(id){
   const row = { name, neighborhood: hood, address, type: val("as-type")||"Thrift Store", price_level: Number(val("as-price"))||1,
     categories: list("as-cats"), hours: val("as-hours")||null, description: val("as-desc")||null, tips: val("as-tips")||null,
     best_for: list("as-best"), tags: list("as-tags"), website: val("as-web")||null, phone: val("as-phone")||null,
-    color: val("as-color")||"royal", chain: val("as-chain")==="1" };
+    color: val("as-color")||"royal", chain: val("as-chain")==="1", verified: val("as-verified")==="1" };
   const placeId = val("as-place");
   if(placeId){
     row.google_place_id = placeId;
     const lat = parseFloat(val("as-lat")), lng = parseFloat(val("as-lng"));
     if(!isNaN(lat) && !isNaN(lng)){ row.store_lat = lat; row.store_lng = lng; }
-    const rating = parseFloat(val("as-rating")); if(!isNaN(rating)) row.google_rating = rating;
-    const reviews = parseInt(val("as-reviews"),10); if(!isNaN(reviews)) row.google_review_count = reviews;
-    const photo = val("as-photo"); if(photo) row.google_photo_name = photo;
+    const rating = parseFloat(val("as-rating")); row.google_rating = isNaN(rating) ? null : rating;
+    const reviews = parseInt(val("as-reviews"),10); row.google_review_count = isNaN(reviews) ? null : reviews;
+    row.google_photo_name = val("as-photo") || null;
   }
   let error;
   if(id){ ({ error } = await sb.from("stores").update(row).eq("id", id)); }
@@ -5275,13 +5316,27 @@ document.body.addEventListener("click", handleClick);
 // re-render would wipe out. That also keeps the map from being rebuilt on
 // every keystroke.
 let searchRenderTimer = null;
-function scheduleSearchRender(selector){
+// Mid-word on a composing keyboard (Android, Japanese, dictation) the box
+// itself can't be replaced, so only the results under it are redrawn.
+function renderSearchResultsOnly(resultsId){
+  const box = document.getElementById(resultsId);
+  if(!box) return;
+  const tmp = document.createElement("div");
+  tmp.innerHTML = renderView();
+  const fresh = tmp.querySelector("#"+resultsId);
+  if(!fresh) return;
+  box.innerHTML = fresh.innerHTML;
+  renderGoogleMapIfNeeded();
+}
+function scheduleSearchRender(selector, resultsId, composing){
   clearTimeout(searchRenderTimer);
   searchRenderTimer = setTimeout(()=>{
     const cur = document.querySelector(selector);
-    if(cur && cur.dataset && cur.dataset.composing === "1") return;
+    if(composing || (cur && cur.dataset && cur.dataset.composing === "1")){ renderSearchResultsOnly(resultsId); return; }
+    const hadFocus = !!cur && document.activeElement === cur;
     const pos = cur ? cur.selectionStart : null;
     renderList();
+    if(!hadFocus) return;
     const again = document.querySelector(selector);
     if(again && document.activeElement !== again){ again.focus(); try{ if(pos!=null) again.setSelectionRange(pos,pos); }catch(err){} }
   }, 180);
@@ -5290,10 +5345,10 @@ function handleSearchTyping(e){
   const t = e.target; if(!t) return;
   if(t.dataset && t.dataset.action === "search-input"){
     state.searchQuery = t.value;
-    if(!e.isComposing) scheduleSearchRender('[data-action="search-input"]');
+    scheduleSearchRender('[data-action="search-input"]', "discover-results", !!e.isComposing);
   } else if(t.id === "admin-store-search"){
     state.adminStoreQuery = t.value;
-    if(!e.isComposing) scheduleSearchRender("#admin-store-search");
+    scheduleSearchRender("#admin-store-search", "admin-store-results", !!e.isComposing);
   }
 }
 document.addEventListener("input", handleSearchTyping);
