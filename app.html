@@ -229,6 +229,7 @@ p{margin:0;}
 .wizard-step-label{font-size:12.5px;font-weight:700;color:var(--royal);margin-bottom:6px;}
 .wizard-q{font-family:var(--font-display);font-size:22px;font-weight:600;margin-bottom:18px;line-height:1.2;}
 .option-grid{display:flex;flex-direction:column;gap:10px;margin-bottom:22px;}
+.wizard-subq{font-family:var(--font-display);font-weight:600;font-size:19px;letter-spacing:-.015em;color:var(--ink);margin:22px 0 10px;}
 .option-tile{display:flex;align-items:center;gap:12px;padding:16px 16px;border-radius:20px;border:2px solid var(--line);background:transparent;text-align:left;}
 .option-tile.active{border-color:var(--line-strong);background:var(--ink);}
 .option-tile .oi{width:36px;height:36px;border-radius:10px;background:var(--cream-card);display:flex;align-items:center;justify-content:center;flex-shrink:0;}
@@ -501,7 +502,7 @@ main.view{padding:0 20px 116px;}
 .profile-head h2{font-size:23px;letter-spacing:-.02em;}
 .profile-head .pmeta{font-family:var(--font-mono);font-size:10px;letter-spacing:.12em;text-transform:uppercase;margin-top:6px;margin-bottom:10px;}
 .profile-stats{max-width:none;margin-top:16px;padding:18px;border-radius:20px;}
-.profile-shortcuts{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:0 0 28px;}
+.profile-shortcuts{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:0 0 28px;}
 .profile-shortcut{appearance:none;border:1.5px solid var(--line);background:var(--cream-card);color:var(--ink);border-radius:20px;padding:15px 10px;text-align:left;font-family:var(--font-body);min-height:112px;display:flex;flex-direction:column;justify-content:space-between;}
 .profile-shortcut:hover{border-color:var(--ink);}
 .profile-shortcut svg{width:19px;height:19px;color:var(--royal);fill:none;stroke:currentColor;}
@@ -522,6 +523,7 @@ main.view{padding:0 20px 116px;}
 .profile-compact-store .pcs-body{min-width:0;flex:1;}
 .profile-compact-store .pcs-name{display:block;font-family:var(--font-display);font-size:16px;font-weight:600;line-height:1.15;}
 .profile-compact-store .pcs-meta{display:block;font-family:var(--font-mono);font-size:8.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);margin-top:5px;}
+.profile-compact-store>svg{width:18px;height:18px;flex-shrink:0;color:var(--ink-soft);}
 .settings-row{padding:16px 2px;}
 .hairline{background:var(--line);}
 
@@ -869,6 +871,11 @@ const sb = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 // prompt them to actually set a new password.
 sb.auth.onAuthStateChange((event, session)=>{
   if(event === "PASSWORD_RECOVERY") openModal("setNewPassword");
+  // Session ended somewhere else (password reset, expired token): show the
+  // signed-out app instead of a stale signed-in one where every save fails.
+  if(event === "SIGNED_OUT" && state.user && !signingOut){
+    setTimeout(async ()=>{ closeModal(); await resetToSignedOut(); toast("You've been signed out."); go("home"); }, 0);
+  }
 });
 function mapDbStore(row){
   return {
@@ -899,7 +906,7 @@ function avatarHtml(username, sizeClass){
 }
 function timeAgo(dateStr){
   const d = new Date(dateStr+"T12:00:00");
-  const now = new Date("2026-09-05T12:00:00");
+  const now = new Date();
   const days = Math.round((now-d)/86400000);
   if(days<=0) return "today";
   if(days===1) return "1 day ago";
@@ -909,16 +916,80 @@ function timeAgo(dateStr){
 function priceStr(n){ return n===1?"$":n===2?"$$":"$$$"; }
 const DAY_MAP = {Sun:0,Mon:1,Tue:2,Wed:3,Thu:4,Fri:5,Sat:6};
 const UNKNOWN_HOURS_MARKERS = ["call ahead","vary","month","check dates","check location"];
+// Turns Google's weekday hours ("Monday: 9:00 AM – 8:00 PM", ...) into the
+// compact format the open/closed badge reads ("Mon–Sat 9–8, Sun 10–8").
+// Returns null when the input can't be converted safely.
+function googleHoursToCompact(weekdayDescriptions){
+  if(!weekdayDescriptions || !weekdayDescriptions.length) return null;
+  const DAYS = ["Monday","Tuesday","Wednesday","Thursday","Friday","Saturday","Sunday"];
+  const ABBR = {Monday:"Mon",Tuesday:"Tue",Wednesday:"Wed",Thursday:"Thu",Friday:"Fri",Saturday:"Sat",Sunday:"Sun"};
+  const perDay = {};
+  for(const raw of weekdayDescriptions){
+    const line = String(raw).replace(/[\u2009\u202f\u00a0]/g, " ").replace(/[\u2013\u2014\u2212]/g, "-").trim();
+    const m = line.match(/^(\w+):\s*(.+)$/);
+    if(!m || !DAYS.includes(m[1])) return null;
+    const body = m[2].trim();
+    if(/^closed$/i.test(body)){ perDay[m[1]] = []; continue; }
+    if(/open 24 hours/i.test(body)){ perDay[m[1]] = ["0-23"]; continue; }
+    const windows = [];
+    for(const part of body.split(",")){
+      const t = part.trim().match(/^(\d{1,2})(?::(\d{2}))?\s*(AM|PM)?\s*-\s*(\d{1,2})(?::(\d{2}))?\s*(AM|PM)$/i);
+      if(!t) return null;
+      const h24 = (h, mer) => { h = parseInt(h,10) % 12; if(/pm/i.test(mer)) h += 12; return h; };
+      const open24 = h24(t[1], t[3] || t[6]);
+      let close24 = h24(t[4], t[6]);
+      let closeMinOverride = null;
+      if(close24 === 0){ close24 = 23; closeMinOverride = "59"; } // closes midnight
+      // Emit numbers the badge parser decodes back to the same times.
+      const openDisp = (open24 >= 13 && open24 <= 18) ? open24 - 12 : open24;
+      const c12 = close24 > 12 ? close24 - 12 : close24;
+      const closeDisp = (c12 <= openDisp || c12 <= 8) ? c12 : close24;
+      const fmt = (h, mm) => mm && mm !== "00" ? `${h}:${mm}` : `${h}`;
+      const openStr = fmt(openDisp, t[2]) + ((open24 >= 1 && open24 <= 6) ? "a" : "");
+      windows.push(`${openStr}-${fmt(closeDisp, closeMinOverride || t[5])}`);
+    }
+    perDay[m[1]] = windows;
+  }
+  // Group consecutive days that share identical windows.
+  const segs = [];
+  let i = 0;
+  while(i < DAYS.length){
+    const w = JSON.stringify(perDay[DAYS[i]] || []);
+    if(w === "[]"){ i++; continue; }
+    let j = i;
+    while(j + 1 < DAYS.length && JSON.stringify(perDay[DAYS[j+1]] || []) === w) j++;
+    const label = i === j ? ABBR[DAYS[i]] : `${ABBR[DAYS[i]]}-${ABBR[DAYS[j]]}`;
+    for(const win of perDay[DAYS[i]]) segs.push(`${label} ${win}`);
+    i = j + 1;
+  }
+  if(!segs.length) return null;
+  const compact = segs.join(", ");
+  // Only hand back strings the badge parser genuinely understands.
+  return parseStoreHours(compact) ? compact : null;
+}
+function prettyHours(hoursStr){
+  if(!hoursStr) return "";
+  const rules = parseStoreHours(hoursStr);
+  if(!rules) return String(hoursStr);
+  const segs = String(hoursStr).replace(/\([^)]*\)/g,'').split(',').map(x=>x.trim()).filter(Boolean);
+  const t = m => { const h = Math.floor(m/60)%24, mm = m%60, h12 = h%12 || 12; return `${h12}${mm ? ':'+String(mm).padStart(2,'0') : ''}${h<12 ? 'am' : 'pm'}`; };
+  return segs.map((seg,i)=>{
+    const r = rules[i]; const day = (seg.match(/^([A-Za-z]{3}(?:[–-][A-Za-z]{3})?)/)||[,""])[1].replace("-","–");
+    if(r.openMin===0 && r.closeMin>=1380) return `${day} open 24 hours`;
+    return `${day} ${t(r.openMin)}–${r.closeMin>=1439 ? 'midnight' : t(r.closeMin)}`;
+  }).join(", ");
+}
 function parseStoreHours(hoursStr){
+  if(!hoursStr || typeof hoursStr !== "string") return null;
   let s = hoursStr.replace(/\([^)]*\)/g, '').trim();
   const lower = s.toLowerCase();
   if(UNKNOWN_HOURS_MARKERS.some(k=>lower.includes(k))) return null;
   const segments = s.split(',').map(x=>x.trim()).filter(Boolean);
   const rules = [];
   for(const seg of segments){
-    const m = seg.match(/^([A-Za-z]{3})(?:[–-]([A-Za-z]{3}))?\s+(\d{1,2})(?::(\d{2}))?[–-](\d{1,2})(?::(\d{2}))?(?:\s+only)?$/);
+    const m = seg.match(/^([A-Za-z]{3})(?:[–-]([A-Za-z]{3}))?\s+(\d{1,2})(?::(\d{2}))?([aApP])?[–-](\d{1,2})(?::(\d{2}))?([aApP])?(?:\s+only)?$/);
     if(!m) return null;
-    const [, d1, d2, oh, om, ch, cm] = m;
+    const [, d1, d2, oh, om, oap, ch, cm, cap] = m;
     if(!(d1 in DAY_MAP)) return null;
     let days;
     if(d2){
@@ -931,8 +1002,12 @@ function parseStoreHours(hoursStr){
     }
     let openHour = parseInt(oh,10), openMin = om?parseInt(om,10):0;
     let closeHour = parseInt(ch,10), closeMin = cm?parseInt(cm,10):0;
-    if(openHour>=1 && openHour<=6) openHour += 12;
-    if(closeHour<=openHour || closeHour<=8) closeHour += 12;
+    // "6a"/"6p" pin the half of the day; bare numbers use the old guess
+    // (1–6 means afternoon; a close earlier than the open is PM).
+    if(oap) openHour = openHour % 12 + (/p/i.test(oap) ? 12 : 0);
+    else if(openHour>=1 && openHour<=6) openHour += 12;
+    if(cap) closeHour = closeHour % 12 + (/p/i.test(cap) ? 12 : 0);
+    else if(closeHour<=openHour || closeHour<=8) closeHour += 12;
     rules.push({days, openMin: openHour*60+openMin, closeMin: closeHour*60+closeMin});
   }
   return rules;
@@ -1024,7 +1099,7 @@ const DEFAULT_STATE = {
   discoverFilters:[],
   hideChains:false,
   builderStep:0,
-  builderChoice:{start:"Midtown",time:"Half day",categories:[],distance:"20 miles",manualStores:[],destination:null},
+  builderChoice:{start:"Midtown",time:"Half day",categories:[],budget:[],minRating:0,manualStores:[],destination:null},
   showDestinationPicker:false,
   geoAttempted:false,
   locationDetected:false,
@@ -1248,12 +1323,12 @@ async function toggleFollowUser(uid, username){
     if(already){
       await sb.from("user_follows").delete().eq("follower_id",state.user.id).eq("followed_id",uid);
       state.myUserFollows = state.myUserFollows.filter(x=>x!==uid);
-      toast("Unfollowed @"+username+".");
+      toast("Unfollowed @"+decodeHtml(username)+".");
     } else {
       const { error } = await sb.from("user_follows").upsert({follower_id:state.user.id, followed_id:uid});
       if(error){ toast("Couldn't follow — try again."); return; }
       state.myUserFollows.push(uid);
-      toast("You're now following @"+username);
+      toast("You're now following @"+decodeHtml(username));
     }
     renderList();
   });
@@ -1328,8 +1403,12 @@ async function setFollowPref(storeId, freq){
     renderList();
   });
 }
+const votesInFlight = new Set();
 async function toggleStoreVote(id, dir){
   requireAuth(async ()=>{
+    if(votesInFlight.has(id)) return;
+    votesInFlight.add(id);
+    try{
     const v = getStoreVotes(id);
     const u = state.user.id;
     const other = dir==="up" ? v.down : v.up;
@@ -1346,6 +1425,7 @@ async function toggleStoreVote(id, dir){
       mine.push(u);
     }
     renderList();
+    } finally { votesInFlight.delete(id); }
   });
 }
 function getStoreById(id){ return state.stores.find(s=>s.id===id); }
@@ -1744,7 +1824,7 @@ function viewDiscover(){
     <div class="discover-page" style="margin-top:4px">
       <div class="search-wrap">
         ${ICONS.search}
-        <input type="text" placeholder="Search shops, neighborhoods, categories" value="${state.searchQuery||''}" data-action="search-input">
+        <input type="text" placeholder="Search shops, neighborhoods, categories" value="${escapeHtml(state.searchQuery||'')}" data-action="search-input">
       </div>
       <div class="filter-row">
         <button class="chip ${filters.length===0?'active':''}" data-action="toggle-filter" data-f="All">All</button>
@@ -1775,6 +1855,7 @@ function viewDiscover(){
 let __pendingMapStores = null;
 let __pendingMapUserCoords = null;
 let __gmapsLoadAttempted = false;
+let __gmapsFailed = false;
 function discoverMap(list){
   const shown = list.length ? list : state.stores;
   // Stash what to draw — the actual Google Map gets built right after this
@@ -1785,12 +1866,20 @@ function discoverMap(list){
     || state.builderChoice.startCoords || null;
   return `<div id="gmap-canvas" class="map-canvas" style="display:flex;align-items:center;justify-content:center;color:var(--ink-soft);font-size:13px">Loading map…</div>`;
 }
+function showFallbackMapIfFailed(){
+  if(!__gmapsFailed) return false;
+  const el = document.getElementById("gmap-canvas");
+  if(el) el.outerHTML = fallbackStylizedMap(__pendingMapStores || []);
+  return true;
+}
 function loadGoogleMapsScript(){
+  if(showFallbackMapIfFailed()) return;
   if(__gmapsLoadAttempted || (window.google && window.google.maps)) return;
   __gmapsLoadAttempted = true;
   if(!GOOGLE_MAPS_JS_KEY || GOOGLE_MAPS_JS_KEY.indexOf("YOUR_") === 0){
     // No key configured yet — quietly fall back to the illustrated map
     // instead of leaving "Loading map…" up forever.
+    __gmapsFailed = true;
     const el = document.getElementById("gmap-canvas");
     if(el) el.outerHTML = fallbackStylizedMap(__pendingMapStores || []);
     return;
@@ -1801,6 +1890,7 @@ function loadGoogleMapsScript(){
   // active, etc. Without this, Google silently overwrites our map div with
   // its own generic "Oops!" box, bypassing every fallback below.
   window.gm_authFailure = function(){
+    __gmapsFailed = true;
     const el = document.getElementById("gmap-canvas");
     if(el) el.outerHTML = fallbackStylizedMap(__pendingMapStores || []);
   };
@@ -1808,6 +1898,7 @@ function loadGoogleMapsScript(){
   script.src = `https://maps.googleapis.com/maps/api/js?key=${GOOGLE_MAPS_JS_KEY}&libraries=places&callback=__onGoogleMapsReady`;
   script.async = true;
   script.onerror = function(){
+    __gmapsFailed = true;
     const el = document.getElementById("gmap-canvas");
     if(el) el.outerHTML = fallbackStylizedMap(__pendingMapStores || []);
   };
@@ -1830,6 +1921,7 @@ function fallbackStylizedMap(shown){
 function renderGoogleMapIfNeeded(){
   const el = document.getElementById("gmap-canvas");
   if(!el) return;
+  if(showFallbackMapIfFailed()) return;
   if(!(window.google && window.google.maps)){ loadGoogleMapsScript(); return; }
   const stores = (__pendingMapStores || []).filter(s=>s.lat!=null && s.lng!=null);
   const userCoords = __pendingMapUserCoords;
@@ -2007,7 +2099,7 @@ function viewStoreDetail(id){
       <p>${s.description}</p>
     </div>
     <div class="design-info-list">
-      <div class="design-info-row"><span class="label">Hours</span><span class="value">${s.hours}</span></div>
+      <div class="design-info-row"><span class="label">Hours</span><span class="value">${escapeHtml(prettyHours(s.hours))}</span></div>
       <div class="design-info-row"><span class="label">Good for</span><span class="value">${s.bestFor.join(" · ")}</span></div>
     </div>
 
@@ -2048,7 +2140,6 @@ const TIME_OPTS = [
   {key:"Half day",label:"Half day",sub:"3–4 stops, a relaxed pace",icon:"compass"},
   {key:"Full day",label:"Full day",sub:"5–6 stops, the whole crawl",icon:"route"}
 ];
-const DIST_OPTS = ["5 miles","10 miles","20 miles","Anywhere in Atlanta"];
 
 function viewRouteBuilder(){
   const step = state.builderStep;
@@ -2110,7 +2201,7 @@ function viewRouteBuilder(){
           return `<button class="chip ${active?'active':''}" data-action="toggle-category" data-c="${o}">${o}</button>`;
         }).join("")}
       </div>
-      <button class="chain-toggle ${state.hideChains?'on':''}" style="margin-bottom:22px" data-action="toggle-hide-chains">
+      <button class="chain-toggle ${state.hideChains?'on':''}" style="margin:18px 0 22px" data-action="toggle-hide-chains">
         <span style="flex:1"><span class="ct-title">Independent shops only</span><span class="ct-sub">Excludes Goodwill, Salvation Army</span></span>
         <span class="ct-switch"><span class="ct-knob"></span></span>
       </button>
@@ -2118,15 +2209,18 @@ function viewRouteBuilder(){
   } else if(step===3){
     body = `
       <div class="wizard-step-label">Step 4 of 4</div>
-      <div class="wizard-q">How far will you travel?</div>
-      <div class="option-grid">
-        ${DIST_OPTS.map(d=>`
-        <button class="option-tile ${c.distance===d?'active':''}" data-action="set-distance" data-d="${d}">
-          <span class="oi">${ICONS.map}</span>
-          <span class="ot-text"><span class="ot-title">${d}</span></span>
-          <span class="check"></span>
-        </button>`).join("")}
-      </div>`;
+      <div class="wizard-q">What's your budget?</div>
+      <div class="chip-grid">
+        ${["Any","$","$$","$$$"].map(b=>{
+          const active = b==="Any" ? !(c.budget||[]).length : (c.budget||[]).includes(b.length);
+          return `<button class="chip ${active?'active':''}" data-action="toggle-budget" data-b="${b}">${b==="Any"?"Any":b+(b==="$"?" Bargain":b==="$$"?" Mid-range":" Splurge")}</button>`;
+        }).join("")}
+      </div>
+      <div class="wizard-subq">Minimum rating</div>
+      <div class="chip-grid" style="margin-bottom:22px">
+        ${[[0,"Any"],[4,"4.0★ and up"],[4.5,"4.5★ and up"]].map(([v,l])=>`<button class="chip ${(c.minRating||0)===v?'active':''}" data-action="set-min-rating" data-r="${v}">${l}</button>`).join("")}
+      </div>
+    `;
   }
   const manual = (c.manualStores||[]).map(id=>getStoreById(id)).filter(Boolean);
   const manualHtml = manual.length ? `<div style="margin-bottom:14px">
@@ -2150,16 +2244,28 @@ function viewRouteBuilder(){
 
 function generateRoute(){
   const c = state.builderChoice;
-  let candidates = state.stores.filter(s=>{
+  const budget = c.budget||[], minRating = c.minRating||0;
+  const base = state.stores.filter(s=>{
     if(state.hideChains && s.chain) return false;
     if(c.categories.length && !c.categories.some(cat=>s.categories.includes(cat))) return false;
     return true;
-  });
-  candidates = candidates.map(s=>Object.assign({}, s, {distance: dist(c.start, s.neighborhood)}));
-  const maxMi = c.distance==="5 miles"?5 : c.distance==="10 miles"?10 : c.distance==="20 miles"?20 : 999;
-  candidates = candidates.filter(s=>s.distance<=maxMi);
-  candidates.sort((a,b)=>a.distance-b.distance);
+  }).map(s=>Object.assign({}, s, {distance: dist(c.start, s.neighborhood)}));
+  const inRange = base.sort((a,b)=>a.distance-b.distance);
+  const passes = s => (!budget.length || budget.includes(s.priceLevel))
+    && (!minRating || (s.rating||0) >= minRating);
   const count = c.time==="2 hours"?2 : c.time==="Half day"?4 : 6;
+  let candidates = inRange.filter(passes);
+  // Safety net: too few exact matches -> keep them first, then fill with the
+  // closest other shops, and tell the person which choice was limiting.
+  state.routeFilterNote = null;
+  const wantNew = Math.max(0, count - (c.manualStores||[]).length);
+  if((budget.length || minRating) && candidates.length < wantNew){
+    const limiting = [];
+    if(budget.length && inRange.filter(s=>budget.includes(s.priceLevel)).length < wantNew) limiting.push("budget");
+    if(minRating && inRange.filter(s=>(s.rating||0) >= minRating).length < wantNew) limiting.push("rating");
+    state.routeFilterNote = `${candidates.length ? "Only "+candidates.length+" shop"+(candidates.length===1?"":"s") : "No shops"} matched ${limiting.length ? "your "+limiting.join(" and ") : "all your choices"}, so we added the closest other shops.`;
+    candidates = candidates.concat(inRange.filter(s=>!passes(s)));
+  }
   // Stops the person added by hand come first and are never dropped.
   const manual = (c.manualStores||[]).map(id=>getStoreById(id)).filter(Boolean).map(s=>Object.assign({}, s, {distance: dist(c.start, s.neighborhood)}));
   candidates = candidates.filter(s=>!(c.manualStores||[]).includes(s.id));
@@ -2231,7 +2337,8 @@ function generateRoute(){
     totalTravel,
     totalBrowse,
     totalTime: totalTravel + totalBrowse,
-    createdFrom: Object.assign({}, c)
+    createdFrom: Object.assign({}, c),
+    filterNote: state.routeFilterNote || null
   };
   go("routeResults");
 }
@@ -2247,6 +2354,7 @@ function viewRouteResults(){
       <button class="btn btn-ghost btn-sm" data-action="nav" data-view="route" style="margin-bottom:16px">${ICONS.back}Rebuild</button>
       <h2 style="font-size:30px;line-height:1.06;letter-spacing:-.03em;margin-bottom:7px">${r.title}</h2>
       <p style="font-family:var(--font-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:16px">${r.destination ? `From ${r.start} to ${r.destination}` : `From ${r.start}`}</p>
+      ${r.filterNote ? `<div style="background:var(--cream-card);border:1px solid var(--line);border-radius:16px;padding:11px 14px;font-size:13px;line-height:1.5;color:var(--body-text);margin-bottom:14px">${r.filterNote}</div>` : ""}
       <div class="route-summary-bar">
         <div class="rsb-item"><div class="rsb-num gold">${stores.length}</div><div class="rsb-lbl">stops</div></div>
         <div class="rsb-item"><div class="rsb-num">${hrs}h ${mins}m</div><div class="rsb-lbl">time</div></div>
@@ -2261,7 +2369,7 @@ function viewRouteResults(){
             <div class="stop-thumb">${photoOrArt(s)}</div>
             <div class="stop-info" data-action="open-store" data-id="${s.id}" style="cursor:pointer">
               <div class="sname">${s.name}</div>
-              <div class="smeta">${s.neighborhood.toUpperCase()} · ${s.hours.toUpperCase()}</div>
+              <div class="smeta">${s.neighborhood.toUpperCase()}${s.hours ? ' · '+escapeHtml(prettyHours(s.hours)).toUpperCase() : ''}</div>
             </div>
             <div class="stop-actions">
               <button data-action="move-stop" data-dir="up" data-i="${i}" aria-label="Move up">${ICONS.up}</button>
@@ -2495,6 +2603,11 @@ function blobToDataURL(blob){
 function escapeHtml(value){
   return String(value??"").replace(/[&<>"']/g,char=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#039;"}[char]));
 }
+// The reverse, for text that leaves the page as plain text (share sheet,
+// toasts) after being stored HTML-safe.
+function decodeHtml(value){
+  return String(value??"").replace(/&(amp|lt|gt|quot|#039);/g, (m,k)=>({amp:"&",lt:"<",gt:">",quot:'"',"#039":"'"}[k]));
+}
 function noteDateLabel(value){
   if(!value) return "Visit date not added";
   const parts=String(value).slice(0,10).split("-").map(Number);
@@ -2690,7 +2803,7 @@ async function adminScanStores(){
         if(havePlace.has(pl.id) || haveName.has(normName(name)) || hidden.has(pl.id)) return;
         seen.set(pl.id, { id:pl.id, name, address:pl.formattedAddress||"", rating:pl.rating||null, reviews:pl.userRatingCount||0,
           lat:pl.location && pl.location.latitude, lng:pl.location && pl.location.longitude, phone:pl.nationalPhoneNumber||"", website:pl.websiteUri||"",
-          hours:(pl.regularOpeningHours && pl.regularOpeningHours.weekdayDescriptions || []).join(" · "), photo:(pl.photos && pl.photos[0] && pl.photos[0].name)||"",
+          hours:(()=>{ const w = pl.regularOpeningHours && pl.regularOpeningHours.weekdayDescriptions; return (w && googleHoursToCompact(w)) || ""; })(), photo:(pl.photos && pl.photos[0] && pl.photos[0].name)||"",
           kind:(pl.primaryTypeDisplayName && pl.primaryTypeDisplayName.text)||job.t, area:job.a });
       });
     }catch(e){ if(!scan.error) scan.error = "Couldn't reach Google — check the connection and the Maps key."; }
@@ -2718,11 +2831,60 @@ function adminScanHtml(){
 }
 function adminScanAdd(pid){
   const r = state.admin && state.admin.scan && state.admin.scan.results.find(x=>x.id===pid); if(!r) return;
-  const hood = Object.keys(NEIGHBORHOODS).includes(r.area) ? r.area : Object.keys(NEIGHBORHOODS)[0];
+  const hood = Object.keys(NEIGHBORHOODS).includes(r.area) ? r.area
+    : ((r.lat!=null && r.lng!=null && nearestNeighborhood(r.lat, r.lng)) || Object.keys(NEIGHBORHOODS)[0]);
   const k = r.kind.toLowerCase();
   const type = /antique/.test(k) ? "Antique Store" : /vintage/.test(k) ? "Vintage Boutique" : /consign/.test(k) ? "Consignment" : "Thrift Store";
   openModal("adminStoreForm", { prefill:{ name:r.name, address:r.address, neighborhood:hood, type, phone:r.phone, website:String(r.website||"").replace(/^https?:\/\//,"").replace(/\/$/,""), hours:r.hours,
     googlePlaceId:r.id, lat:r.lat, lng:r.lng, rating:r.rating, reviewCount:r.reviews, photoName:r.photo, categories:[], tags:[], bestFor:[], description:"", tips:"", priceLevel:1, color:"royal", chain:false } });
+}
+// One sweep over every store that's linked to a Google listing: pull fresh
+// hours (converted to the badge format), rating, review count, and phone.
+let refreshingGoogle = false;
+async function adminRefreshFromGoogle(){
+  if(!state.isAdmin || refreshingGoogle) return;
+  const linked = state.stores.filter(s=>s.googlePlaceId);
+  if(!linked.length){ toast("No stores are linked to Google yet."); return; }
+  refreshingGoogle = true;
+  toast(`Refreshing ${linked.length} stores from Google…`);
+  let updated = 0, failed = 0;
+  const mismatched = [];
+  // Words two names must share to count as the same business.
+  const words = n => normName(n).split(" ").filter(w=>w.length>2 && !["atlanta","antique","antiques","vintage","thrift","market","resale","consignment","boutique","goodwill"].includes(w));
+  for(const st of linked){
+    try{
+      const resp = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(st.googlePlaceId)}?key=${GOOGLE_MAPS_JS_KEY}`, {
+        headers: { "X-Goog-FieldMask": "displayName,regularOpeningHours,rating,userRatingCount,nationalPhoneNumber" }
+      });
+      if(!resp.ok){ failed++; continue; }
+      const place = await resp.json();
+      const gName = place.displayName && place.displayName.text;
+      if(gName){
+        const a = words(st.name), b = words(gName);
+        const sameName = normName(st.name) === normName(gName) || a.some(w=>b.includes(w)) || (!a.length && !b.length);
+        if(!sameName){ mismatched.push({ id: st.id, name: st.name, google: gName }); continue; } // don't copy another business's data
+      }
+      const row = {};
+      const compact = googleHoursToCompact(place.regularOpeningHours && place.regularOpeningHours.weekdayDescriptions);
+      if(compact) row.hours = compact;
+      if(place.rating != null) row.google_rating = place.rating;
+      if(place.userRatingCount != null) row.google_review_count = place.userRatingCount;
+      if(place.nationalPhoneNumber) row.phone = place.nationalPhoneNumber;
+      if(!Object.keys(row).length){ continue; }
+      const { error } = await sb.from("stores").update(row).eq("id", st.id);
+      if(error){ failed++; continue; }
+      if(row.hours) st.hours = row.hours;
+      if(row.google_rating != null) st.rating = row.google_rating;
+      if(row.google_review_count != null) st.reviewCount = row.google_review_count;
+      if(row.phone) st.phone = row.phone;
+      updated++;
+    }catch(e){ failed++; }
+  }
+  refreshingGoogle = false;
+  state.admin = state.admin || {};
+  state.admin.googleMismatch = mismatched;
+  toast(`Refreshed ${updated} of ${linked.length} stores${failed ? ` (${failed} failed)` : ""}${mismatched.length ? ` — ${mismatched.length} look linked to the wrong business` : ""}.`);
+  renderList();
 }
 function adminScanHide(pid){
   const ids = scanHiddenIds(); if(!ids.includes(pid)) ids.push(pid);
@@ -2846,6 +3008,21 @@ function viewAdmin(){
   } else if(tab==="stores"){
     body = `
       <button class="btn btn-royal btn-block" data-action="admin-add-store">${ICONS.plus}Add a store</button>
+      <button class="btn btn-outline btn-block" style="margin-top:8px" data-action="admin-refresh-google">Refresh hours & ratings from Google</button>
+      ${(()=>{ const mm = (state.admin && state.admin.googleMismatch) || [];
+        if(!mm.length) return "";
+        return `<div style="margin-top:10px;border:1.5px solid var(--danger);border-radius:16px;padding:12px 14px">
+          <div style="font-family:var(--font-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--danger);margin-bottom:6px">${mm.length} linked to the wrong Google listing</div>
+          <div style="font-size:12.5px;line-height:1.6;color:var(--ink-soft)">Google Maps will show the wrong business for these. Open each, use "Find the business on Google," and pick the right one.</div>
+          <div style="font-size:13px;line-height:1.7;margin-top:6px">${mm.map(x=>`<button class="link-btn" data-action="admin-edit-store" data-id="${x.id}" style="display:block;text-align:left;padding:2px 0">${escapeHtml(x.name)} <span style="color:var(--ink-soft)">→ Google says "${escapeHtml(x.google)}"</span></button>`).join("")}</div>
+        </div>`; })()}
+      ${(()=>{ const bad = state.stores.filter(st=>!st.hours || !parseStoreHours(st.hours));
+        if(!bad.length) return "";
+        return `<div style="margin-top:10px;border:1px solid var(--line);border-radius:16px;padding:12px 14px">
+          <div style="font-family:var(--font-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--royal);margin-bottom:6px">${bad.length} store${bad.length===1?'':'s'} without readable hours</div>
+          <div style="font-size:12.5px;line-height:1.6;color:var(--ink-soft)">No open/closed badge until fixed — link each to Google in its editor, or type hours like "Mon-Sat 10-7, Sun 12-6".</div>
+          <div style="font-size:13px;line-height:1.7;margin-top:6px">${bad.map(st=>`<button class="link-btn" data-action="admin-edit-store" data-id="${st.id}" style="display:block;text-align:left;padding:2px 0">${st.name}</button>`).join("")}</div>
+        </div>`; })()}
       <button class="btn btn-outline btn-block" style="margin:8px 0 14px" data-action="admin-scan-stores" ${state.admin && state.admin.scan && state.admin.scan.running ? "disabled" : ""}>${ICONS.search}Scan Google for new stores</button>
       ${adminScanHtml()}
       <input type="search" id="admin-store-search" placeholder="Search stores by name, neighborhood, or category" value="${escapeHtml(state.adminStoreQuery||"")}" style="width:100%;margin-bottom:14px;border:1px solid var(--line-strong);border-radius:99px;padding:12px 16px;font-size:14px;background:var(--cream-card);color:var(--ink)">
@@ -2955,7 +3132,7 @@ function visitNoteModal(params){
   const editing=params.id?state.visitNotes.find(n=>n.id===params.id):null;
   const preferredStoreId=params.storeId||editing?.storeId||state.visitedStoreIds[0]||"";
   const storeOptions=state.stores.map(s=>`<option value="${s.id}" ${preferredStoreId===s.id?'selected':''}>${s.name}</option>`).join("");
-  const today=new Date().toISOString().slice(0,10);
+  const n=new Date(), today=`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}-${String(n.getDate()).padStart(2,"0")}`;
   return `<div class="modal-overlay"><div class="modal-sheet">
     <div class="modal-handle"></div>
     <div class="modal-title">${editing?'Edit visit note':'Add a visit note'}</div>
@@ -3236,7 +3413,7 @@ function editProfileModal(){
 }
 
 function shareFindModal(params){
-  const storeOpts = state.stores.map(s=>`<option value="${s.id}" ${params.store===s.id?'selected':''}>${s.name}</option>`).join("");
+  const storeOpts = `<option value="" ${params.store?'':'selected'}>Choose a store (optional)</option>` + state.stores.map(s=>`<option value="${s.id}" ${params.store===s.id?'selected':''}>${s.name}</option>`).join("");
   return `<div class="modal-overlay">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
@@ -3311,16 +3488,8 @@ function adminStoreFormModal(params){
 
 
 function attachGlobalHandlers(){
-  const search = document.querySelector('[data-action="search-input"]');
-  if(search){
-    search.addEventListener("input", e=>{
-      state.searchQuery = e.target.value;
-      const cursorPos = search.selectionStart;
-      renderList();
-      const s2 = document.querySelector('[data-action="search-input"]');
-      if(s2){ s2.focus(); s2.setSelectionRange(cursorPos, cursorPos); }
-    });
-  }
+  // Search input events arrive via the delegated document listener below,
+  // so they survive every re-render.
 }
 function renderList(){
   const viewRoot = document.getElementById("view-root");
@@ -3360,7 +3529,7 @@ function handleClick(e){
     case "quiz-open-saved": openSavedStyle(t.dataset.kind); break;
     case "quiz-start-direct": go("styleQuiz"); startStyleQuiz(t.dataset.kind); break;
     case "go-profile": go("profile"); break;
-    case "go-back": go("discover"); break;
+    case "go-back": go(state.user ? "discover" : "home"); break;
     case "open-store": go("storeDetail", {id:t.dataset.id}); break;
     case "save-store": toggleSaveStore(t.dataset.id); break;
     case "toggle-visited": toggleVisited(t.dataset.id); break;
@@ -3375,7 +3544,7 @@ function handleClick(e){
     case "share-post": {
       const p = state.posts.find(x=>x.id===t.dataset.id);
       const st = p ? getStoreById(p.store) : null;
-      doShare(p ? `${p.item} — $${p.price}${st?', found at '+st.name:''}. Posted on ATL Thrift Guide.` : "Check out this find on ATL Thrift Guide.");
+      doShare(p ? `${decodeHtml(p.item)} — $${p.price}${st?', found at '+st.name:''}. Posted on ATL Thrift Guide.` : "Check out this find on ATL Thrift Guide.");
       break;
     }
     case "share-store": {
@@ -3408,14 +3577,19 @@ function handleClick(e){
     case "set-destination": state.builderChoice.destination = t.dataset.n || null; state.builderChoice.destinationAddress = null; state.builderChoice.destinationName = null; state.builderChoice.destinationCoords = null; state.showDestinationPicker=false; renderList(); break;
     case "clear-destination-address": state.builderChoice.destinationAddress = null; state.builderChoice.destinationName = null; state.builderChoice.destinationCoords = null; renderList(); break;
     case "set-time": state.builderChoice.time = t.dataset.t; renderList(); break;
-    case "set-distance": state.builderChoice.distance = t.dataset.d; renderList(); break;
     case "toggle-category": toggleBuilderCategory(t.dataset.c); break;
+    case "toggle-budget": { const c=state.builderChoice; c.budget=c.budget||[]; if(t.dataset.b==="Any") c.budget=[]; else { const n=t.dataset.b.length; c.budget = c.budget.includes(n) ? c.budget.filter(x=>x!==n) : c.budget.concat(n); } renderList(); break; }
+    case "set-min-rating": state.builderChoice.minRating = parseFloat(t.dataset.r)||0; renderList(); break;
     case "wizard-next": state.builderStep = Math.min(3, state.builderStep+1); renderList(); break;
     case "wizard-back": state.builderStep = Math.max(0, state.builderStep-1); renderList(); break;
     case "build-route": generateRoute(); break;
     case "move-stop": moveStop(parseInt(t.dataset.i), t.dataset.dir); break;
     case "remove-stop": removeStop(parseInt(t.dataset.i)); break;
     case "open-in-maps": {
+      const rr = state.currentRoute;
+      const nStops = rr ? rr.stops.filter(id=>getStoreById(id)).length : 0;
+      const between = rr && (rr.destination || rr.destinationCoords) ? nStops : nStops - 1;
+      if(between > 9) toast("Google Maps only takes 9 stops in between start and end — the later ones were left off.");
       const url = buildGoogleMapsUrl(state.currentRoute);
       if(url) window.open(url, "_blank"); else toast("No route to open yet.");
       break;
@@ -3424,7 +3598,7 @@ function handleClick(e){
     case "confirm-add-stop": confirmAddStop(t.dataset.id); break;
     case "save-route": saveCurrentRoute(); break;
     case "set-community-filter": state.communityFilter = t.dataset.f; renderList(); break;
-    case "open-share-find": openModal("shareFind", {store: t.dataset.store}); break;
+    case "open-share-find": pendingFindPhotoData = null; openModal("shareFind", {store: t.dataset.store}); break;
     case "set-saved-tab": state.savedTab = t.dataset.t; renderList(); break;
     case "load-saved-route": { const r0 = state.userRoutes.find(r=>r.id===t.dataset.id); if(r0){ ensureBrowsePace(r0); const live = r0.stops.filter(sid=>getStoreById(sid)); if(live.length !== r0.stops.length){ r0.stops = live; recomputeRoute(r0); persistRouteEdits(r0); } state.currentRoute = r0; go("routeResults"); } break; }
     case "open-login": openModal("login"); break;
@@ -3468,7 +3642,7 @@ function handleClick(e){
     case "delete-visit-note": deleteVisitNote(t.dataset.id); break;
     case "submit-edit-profile": submitEditProfile(); break;
     case "submit-find": submitFind(); break;
-    case "sign-out": sb.auth.signOut().then(()=>{ state.user=null; state.isAdmin=false; state.events=[]; state.posts=[]; state.comments={}; loadMyData().then(()=>go("home")); }); break;
+    case "sign-out": signOutNow(); break;
     case "admin-login": adminLogin(); break;
     case "set-admin-tab": state.adminTab = t.dataset.t; if(t.dataset.t==="review") loadAdminData(); renderList(); break;
     case "admin-add-store": openModal("adminStoreForm", {}); break;
@@ -3481,6 +3655,7 @@ function handleClick(e){
     case "admin-toggle-featured": adminToggleFeatured(t.dataset.id); break;
     case "admin-delete-post": adminDeletePost(t.dataset.id); break;
     case "admin-add-event": openModal("adminEditEvent", {}); break;
+    case "admin-refresh-google": adminRefreshFromGoogle(); break;
     case "admin-edit-event": openModal("adminEditEvent", {id:t.dataset.id}); break;
     case "admin-save-event": adminSaveEvent(t.dataset.id, t.dataset.publish==="1"); break;
     case "admin-delete-event": adminDeleteEvent(t.dataset.id); break;
@@ -3516,7 +3691,9 @@ function addStoreToBuilder(id){
 // Driving directions in Google Maps (opens the app when it's installed, the website otherwise).
 function openDirections(id){
   const s = getStoreById(id); if(!s) return;
-  const dest = (s.lat && s.lng) ? `${s.lat},${s.lng}` : (s.address || s.name);
+  // Name + address, so Google Maps shows the store instead of "Dropped pin";
+  // the place id pins the exact listing when we have it.
+  const dest = s.address ? `${s.name}, ${s.address}` : ((s.lat && s.lng) ? `${s.lat},${s.lng}` : s.name);
   let url = `https://www.google.com/maps/dir/?api=1&destination=${encodeURIComponent(dest)}&travelmode=driving`;
   if(s.googlePlaceId) url += `&destination_place_id=${encodeURIComponent(s.googlePlaceId)}`;
   window.open(url, "_blank", "noopener");
@@ -3524,19 +3701,23 @@ function openDirections(id){
 function loadCuratedRoute(id){
   const r = CURATED_ROUTES.find(x=>x.id===id);
   if(!r) return;
+  // A store can be deleted after a curated route was written; skip it
+  // rather than crash.
+  const ids = r.storeIds.filter(sid=>getStoreById(sid));
+  if(!ids.length){ toast("This route's stores aren't available right now."); return; }
   const legs = [];
-  let prev = r.storeIds[0] ? getStoreById(r.storeIds[0]).neighborhood : "Old Fourth Ward";
-  r.storeIds.forEach((sid,i)=>{
+  let prev = getStoreById(ids[0]).neighborhood;
+  ids.forEach((sid,i)=>{
     if(i===0){ legs.push(0); return; }
     const s = getStoreById(sid);
     legs.push(Math.max(4, Math.round(dist(prev, s.neighborhood)*2.6)));
     prev = s.neighborhood;
   });
   const totalTravel = legs.reduce((a,b)=>a+b,0);
-  const totalBrowse = 35*r.storeIds.length;
+  const totalBrowse = 35*ids.length;
   state.currentRoute = {
-    id: uid("route_"), title:r.title, start: getStoreById(r.storeIds[0]).neighborhood,
-    stops:[...r.storeIds], legs, totalTravel, totalBrowse, totalTime: totalTravel+totalBrowse, curated:true
+    id: uid("route_"), title:r.title, start: getStoreById(ids[0]).neighborhood,
+    stops:[...ids], legs, totalTravel, totalBrowse, totalTime: totalTravel+totalBrowse, curated:true
   };
   go("routeResults");
 }
@@ -3642,7 +3823,12 @@ function saveCurrentRoute(){
     if(!state.user.isMember){ openModal("membership"); return; }
     const r = state.currentRoute;
     if(state.savedRouteIds.includes(r.id)){ toast("This route is already saved."); return; }
-    const { data, error } = await sb.from("routes").insert({
+    if(r.saving) return;
+    r.saving = true;
+    const stopsAtSave = JSON.stringify(r.stops);
+    let data, error;
+    try{
+    ({ data, error } = await sb.from("routes").insert({
       user_id: state.user.id, title: r.title, start_neighborhood: r.start,
       destination_neighborhood: r.destination || null, stops: r.stops, legs: r.legs,
       total_travel: r.totalTravel, total_browse: r.totalBrowse,
@@ -3651,14 +3837,42 @@ function saveCurrentRoute(){
       destination_lng: r.destinationCoords ? r.destinationCoords.lng : null,
       start_lat: r.startCoords ? r.startCoords.lat : null,
       start_lng: r.startCoords ? r.startCoords.lng : null
-    }).select().single();
+    }).select().single());
+    } catch(err){ error = err; }
+    finally { r.saving = false; }
     if(error){ toast("Couldn't save that route — try again."); return; }
     r.id = data.id; // swap the client-generated id for the real database one
     state.userRoutes.push(r);
     state.savedRouteIds.push(r.id);
+    // Stops edited while the save was in flight: send them now.
+    if(JSON.stringify(r.stops) !== stopsAtSave) persistRouteEdits(r);
     toast("Route saved.");
     renderList();
   });
+}
+let signingOut = false;
+async function signOutNow(){
+  if(signingOut) return;
+  signingOut = true;
+  try{
+    const { error } = await sb.auth.signOut();
+    if(error){
+      // Some failures (expired session) still remove the local session —
+      // then we really are signed out and the UI should say so.
+      let stillSignedIn = true;
+      try{ const { data } = await sb.auth.getSession(); stillSignedIn = !!(data && data.session); }catch(e){}
+      if(stillSignedIn){ toast("Couldn't sign out — check your connection and try again."); return; }
+    }
+    closeModal();
+    await resetToSignedOut();
+    go("home");
+  } finally { signingOut = false; }
+}
+// Clears personal state and reloads the public content (posts, events)
+// that signed-out visitors still see.
+async function resetToSignedOut(){
+  state.user = null; state.isAdmin = false; state.events = []; state.posts = []; state.comments = {};
+  await Promise.all([loadMyData(), loadPosts(), loadEvents()]);
 }
 // Prefer the phone's own share sheet (Messages, Mail, Instagram…); fall
 // back to copying when the browser doesn't offer one.
@@ -3697,9 +3911,10 @@ function buildGoogleMapsUrl(r){
   // Your exact GPS position, when we have it, beats the neighborhood's
   // center point every time — that center can be a mile or more off from
   // where you're actually standing.
-  const origin = r.startCoords ? `${r.startCoords.lat},${r.startCoords.lng}`
-    : startPos ? `${startPos.lat},${startPos.lng}`
-    : encodeURIComponent(r.start + ", Atlanta, GA");
+  // With real GPS we leave the origin out entirely: Google Maps then uses
+  // the phone's own position, labeled "Your location" instead of a pin.
+  const IN_CITY = ["Downtown","Midtown","Buckhead","Cheshire Bridge","Virginia-Highland","Poncey-Highland","Little Five Points","Reynoldstown","West End","Upper Westside","South Atlanta"];
+  const origin = r.startCoords ? null : encodeURIComponent(IN_CITY.includes(r.start) ? `${r.start}, Atlanta, GA` : `${r.start}, GA`);
   let destination, waypoints, wpStores;
   if(r.destinationCoords){
     // A searched end address: show its name when we have one, so the last
@@ -3720,12 +3935,16 @@ function buildGoogleMapsUrl(r){
     waypoints = stores.slice(0,-1).map(point).join("|");
     wpStores = stores.slice(0,-1);
   }
-  let url = `https://www.google.com/maps/dir/?api=1&origin=${origin}&destination=${destination}&travelmode=driving`;
+  let url = `https://www.google.com/maps/dir/?api=1${origin ? `&origin=${origin}` : ""}&destination=${destination}&travelmode=driving`;
   // When the final destination is a store with a known Google listing, pin
   // that exact business so Maps shows its real card.
   if(!r.destinationCoords && !r.destination){
     const last = stores[stores.length-1];
     if(last.googlePlaceId) url += `&destination_place_id=${encodeURIComponent(last.googlePlaceId)}`;
+  }
+  if(wpStores && wpStores.length > 9){
+    wpStores = wpStores.slice(0, 9);
+    waypoints = wpStores.map(point).join("|");
   }
   if(waypoints) url += `&waypoints=${waypoints}`;
   // Pin each stop to its exact Google listing, so Maps can't snap a store
@@ -3742,14 +3961,22 @@ function buildRouteShareText(r){
   const hrs = Math.floor(r.totalTime/60), mins = r.totalTime%60;
   const mapsUrl = buildGoogleMapsUrl(r);
   const destLine = r.destinationAddress ? `\nEnding at: ${r.destinationName || r.destinationAddress}` : '';
-  return `My ATL thrift route${r.title?': '+r.title:''}:\n${lines.join('\n')}${destLine}\nEstimated time: ${hrs}h ${mins}m.${mapsUrl ? '\nDrive it in Google Maps: '+mapsUrl : ''}`;
+  const between = (r.destination || r.destinationCoords) ? stores.length : stores.length - 1;
+  const capNote = between > 9 ? '\n(Google Maps holds 9 stops in between, so the link covers the first ones.)' : '';
+  return `My ATL thrift route${r.title?': '+r.title:''}:\n${lines.join('\n')}${destLine}\nEstimated time: ${hrs}h ${mins}m.${mapsUrl ? '\nDrive it in Google Maps: '+mapsUrl+capNote : ''}`;
 }
+const commentsInFlight = new Set();
 function submitComment(id){
   const input = document.querySelector(`[data-comment-input="${id}"]`);
   if(!input || !input.value.trim()) return;
   const text = input.value.trim();
   requireAuth(async ()=>{
-    const { error } = await sb.from("comments").insert({post_id:id, user_id:state.user.id, text});
+    if(commentsInFlight.has(id)) return;
+    commentsInFlight.add(id);
+    let res;
+    try{ res = await sb.from("comments").insert({post_id:id, user_id:state.user.id, text}); }
+    finally{ commentsInFlight.delete(id); }
+    const { error } = res;
     if(error){ toast("Couldn't post that comment — try again."); return; }
     if(!state.comments[id]) state.comments[id]=[];
     state.comments[id].push({user: escapeHtml(state.user.username), text: escapeHtml(text)});
@@ -3818,7 +4045,9 @@ const RESERVED_USERNAME = /(admin|atlthriftguide|atlguide|2ndstudio|secondstudio
 // Bump this date whenever the Terms or Privacy Policy change, so everyone
 // is asked to agree to the new version.
 const TERMS_VERSION = "2026-10-05";
+let termsAcceptedThisSession = false;
 function hasAcceptedTerms(){
+  if(termsAcceptedThisSession) return true;
   if(state.user && state.user.termsVersion === TERMS_VERSION) return true;
   try{ return localStorage.getItem("atlThrift_terms_version") === TERMS_VERSION; }catch(e){ return false; }
 }
@@ -3841,6 +4070,7 @@ function termsGateModal(){
 async function acceptTerms(){
   if(!document.getElementById("gate-agree")?.checked){ toast("Check the box to agree and continue."); return; }
   const acceptedAt = new Date().toISOString();
+  termsAcceptedThisSession = true;
   try{ localStorage.setItem("atlThrift_terms_version", TERMS_VERSION); localStorage.setItem("atlThrift_terms_accepted_at", acceptedAt); }catch(e){}
   if(state.user){
     state.user.termsVersion = TERMS_VERSION;
@@ -4503,10 +4733,12 @@ async function finishAuth(message){
   toast(message.replace("{u}", state.user?.username||""));
   render();
   if(pending) await pending();
-  if(!hasSeenTour("member")) maybeStartMemberTour();
+  if(!hasSeenTour("member") && !activeModal) maybeStartMemberTour();
 }
 async function sendSignupCode(email){
-  const { error } = await sb.auth.resend({ type:"signup", email, options:{ captchaToken: turnstileToken || undefined } });
+  const captchaToken = await getCaptchaToken();
+  const { error } = await sb.auth.resend({ type:"signup", email, options:{ captchaToken } });
+  resetTurnstile();
   if(error){ console.error("resend failed:", error.message); toast("Couldn't send a code right now — wait a minute and try again."); return false; }
   return true;
 }
@@ -4611,10 +4843,12 @@ async function deleteMyAccount(){
     // 2. Delete the account; everything else is cleaned up by the database.
     const { error } = await sb.rpc("delete_my_account");
     if(error){ console.error("delete account failed:", error.message); toast("Couldn't delete your account — try again."); return; }
-    try{ await sb.auth.signOut(); }catch(e){}
-    state.user = null; state.isAdmin = false; state.events = []; state.posts = []; state.comments = {};
-    closeModal();
-    await loadMyData();
+    signingOut = true;
+    try{
+      try{ await sb.auth.signOut(); }catch(e){}
+      closeModal();
+      await resetToSignedOut();
+    } finally { signingOut = false; }
     toast("Your account has been deleted.");
     go("home");
   } finally {
@@ -4656,14 +4890,19 @@ function adminEditEventModal(params){
       <div class="form-group"><label>Event link</label><input type="url" id="ae-url" value="${v(ev.sourceUrl)}"></div>
       <div class="form-group"><label>Details</label><textarea id="ae-details">${v(ev.description)}</textarea></div>
       ${ev.flyerUrl?`<div class="form-group"><label>Flyer</label><img src="${ev.flyerUrl}" alt="Flyer" style="width:100%;max-height:220px;object-fit:contain;border-radius:14px;background:var(--cream-card)"></div>`:""}
-      <button class="btn btn-royal btn-block" data-action="admin-save-event" data-id="${ev.id||''}" data-publish="${ev.status==="pending"||ev.status==="new"?"1":"0"}">${ev.status==="new" ? "Add and publish" : ev.status==="pending" ? "Save and publish" : "Save changes"}</button>
-      ${ev.status==="pending" ? `<button class="btn btn-outline btn-block" style="margin-top:8px" data-action="admin-save-event" data-id="${ev.id}" data-publish="0">Save, keep pending</button>` : ""}
+      <button class="btn btn-royal btn-block" data-action="admin-save-event" data-id="${ev.id||''}" data-publish="${ev.status==="published"?"0":"1"}">${ev.status==="new" ? "Add and publish" : ev.status==="published" ? "Save changes" : "Save and publish"}</button>
+      ${ev.status!=="published" && ev.status!=="new" ? `<button class="btn btn-outline btn-block" style="margin-top:8px" data-action="admin-save-event" data-id="${ev.id}" data-publish="0">Save, keep ${v(ev.status)}</button>` : ""}
       <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
     </div>
   </div>`;
 }
+let savingAdminEvent = false;
 async function adminSaveEvent(id, publish){
-  if(!state.isAdmin) return;
+  if(!state.isAdmin || savingAdminEvent) return;
+  savingAdminEvent = true;
+  try{ await adminSaveEventInner(id, publish); } finally { savingAdminEvent = false; }
+}
+async function adminSaveEventInner(id, publish){
   const val = x => (document.getElementById(x)?.value || "").trim();
   const title = val("ae-title"), startDate = val("ae-start");
   if(!title || !startDate){ toast("Add the event name and start date."); return; }
@@ -4751,6 +4990,7 @@ function verifyEmailModal(){
       <div class="modal-sub">We sent a code to <b>${email}</b>. Enter it below to finish creating your account. It can take a minute to arrive, so check your spam folder too.</div>
       <div class="form-group"><label>Code</label><input type="text" id="verify-code" inputmode="numeric" autocomplete="one-time-code" maxlength="10" placeholder="123456" style="letter-spacing:.3em;font-size:20px;text-align:center"></div>
       <button class="btn btn-royal btn-block" data-action="submit-verify-code">Confirm email</button>
+      <div id="cf-turnstile" style="margin:12px 0 0"></div>
       <button class="link-btn" style="display:block;margin:12px auto 0" data-action="resend-verify-code">Send a new code</button>
       <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="verify-use-different-email">Use a different email</button>
     </div>
@@ -4782,7 +5022,9 @@ async function submitEditProfile(){
   closeModal();
   render();
 }
+let submittingFind = false;
 function submitFind(){
+  if(submittingFind) return;
   const item = document.getElementById("sf-item").value.trim();
   const store = document.getElementById("sf-store").value;
   const price = parseFloat(document.getElementById("sf-price").value) || 0;
@@ -4790,6 +5032,9 @@ function submitFind(){
   const caption = document.getElementById("sf-caption").value.trim();
   if(!item){ toast("Add a short item description first."); return; }
   requireAuth(async ()=>{
+    if(submittingFind) return;
+    submittingFind = true;
+    try{
     let photoUrl = null;
     if(pendingFindPhotoData){
       const path = `${state.user.id}/${Date.now()}-${Math.random().toString(36).slice(2,8)}.jpg`;
@@ -4807,6 +5052,7 @@ function submitFind(){
     closeModal();
     toast("Find posted.");
     go("community");
+    } finally { submittingFind = false; }
   });
 }
 function adminLogin(){
@@ -4917,12 +5163,16 @@ async function submitEventPreview(){
     submittingEvent = false;
   }
 }
+let savingNote = false;
 function saveVisitNote(id){
   const storeId=document.getElementById("vn-store")?.value;
   const visitedAt=document.getElementById("vn-date")?.value;
   const noteText=document.getElementById("vn-text")?.value.trim();
   if(!storeId || !visitedAt || !noteText){ toast("Choose a store, date, and add your note."); return; }
   requireAuth(async ()=>{
+    if(savingNote) return;
+    savingNote = true;
+    try{
     const existing=id?state.visitNotes.find(n=>n.id===id):null;
     if(existing){
       const { error } = await sb.from("visit_notes").update({store_id:storeId, visited_at:visitedAt, note_text:noteText, updated_at:new Date().toISOString()}).eq("id",existing.id).eq("user_id",state.user.id);
@@ -4936,6 +5186,7 @@ function saveVisitNote(id){
     closeModal();
     renderList();
     toast(existing?"Visit note updated.":"Visit note saved.");
+    } finally { savingNote = false; }
   });
 }
 function deleteVisitNote(id){
@@ -4948,6 +5199,7 @@ function deleteVisitNote(id){
     toast("Visit note deleted.");
   });
 }
+let adminPlacePickSeq = 0;
 async function initAdminStoreAutocomplete(){
   const container = document.getElementById("as-google-container");
   if(!container || container.dataset.ready) return;
@@ -4957,11 +5209,15 @@ async function initAdminStoreAutocomplete(){
     fields: ["id","displayName","formattedAddress","location","rating","userRatingCount","nationalPhoneNumber","websiteURI","regularOpeningHours"],
     onSelect: async (place)=>{
       const status = document.getElementById("as-google-status");
+      const pick = ++adminPlacePickSeq; // a later pick wins over a slow earlier one
       try{
-        const set = (id, v)=>{ const el = document.getElementById(id); if(el && v!=null && v!=="") el.value = v; };
+        const set = (id, v)=>{ if(pick !== adminPlacePickSeq) return; const el = document.getElementById(id); if(el && v!=null && v!=="") el.value = v; };
+        // A different listing was picked: forget the old listing's Google data first.
+        ["as-photo","as-rating","as-reviews","as-phone","as-web"].forEach(id=>{ const el = document.getElementById(id); if(el) el.value = ""; });
         set("as-name", place.displayName); set("as-addr", place.formattedAddress);
         set("as-phone", place.nationalPhoneNumber); set("as-web", place.websiteURI ? String(place.websiteURI).replace(/^https?:\/\//,"").replace(/\/$/,"") : null);
-        const hrs = place.regularOpeningHours && place.regularOpeningHours.weekdayDescriptions; if(hrs && hrs.length) set("as-hours", hrs.join(" · "));
+        const hrs = place.regularOpeningHours && place.regularOpeningHours.weekdayDescriptions;
+        if(hrs && hrs.length){ const compact = googleHoursToCompact(hrs); if(compact) set("as-hours", compact); }
         set("as-place", place.id); if(place.location){ set("as-lat", place.location.lat()); set("as-lng", place.location.lng()); }
         set("as-rating", place.rating); set("as-reviews", place.userRatingCount);
         if(status) status.textContent = "✓ Linked to Google — fetching photo…";
@@ -4970,6 +5226,7 @@ async function initAdminStoreAutocomplete(){
           const r = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(place.id)}?fields=photos&key=${GOOGLE_MAPS_JS_KEY}`, { headers: { "X-Goog-FieldMask":"photos" } });
           const j = r.ok ? await r.json() : null;
           const name = j && j.photos && j.photos[0] && j.photos[0].name;
+          if(pick !== adminPlacePickSeq) return;
           if(name) set("as-photo", name);
           if(status) status.textContent = name ? "✓ Linked to Google, photo found" : "✓ Linked to Google (no photo available)";
         }catch(e){ if(status) status.textContent = "✓ Linked to Google (photo lookup failed)"; }
@@ -4978,8 +5235,13 @@ async function initAdminStoreAutocomplete(){
   });
   if(input) container.dataset.ready = "1";
 }
+let savingAdminStore = false;
 async function submitAdminStore(id){
-  if(!state.isAdmin) return;
+  if(!state.isAdmin || savingAdminStore) return;
+  savingAdminStore = true;
+  try{ await submitAdminStoreInner(id); } finally { savingAdminStore = false; }
+}
+async function submitAdminStoreInner(id){
   const val = x => (document.getElementById(x)?.value || "").trim();
   const list = x => val(x).split(",").map(t=>t.trim()).filter(Boolean);
   const name = val("as-name"), address = val("as-addr"), hood = val("as-n");
@@ -5008,15 +5270,35 @@ async function submitAdminStore(id){
 
 document.body.addEventListener("click", handleClick);
 
-document.addEventListener("input", (e)=>{
-  if(e.target && e.target.id === "admin-store-search"){
-    state.adminStoreQuery = e.target.value;
-    const pos = e.target.selectionStart;
+// Search boxes re-render the list once typing pauses (not on every key),
+// and never in the middle of an IME composition or dictation, which a
+// re-render would wipe out. That also keeps the map from being rebuilt on
+// every keystroke.
+let searchRenderTimer = null;
+function scheduleSearchRender(selector){
+  clearTimeout(searchRenderTimer);
+  searchRenderTimer = setTimeout(()=>{
+    const cur = document.querySelector(selector);
+    if(cur && cur.dataset && cur.dataset.composing === "1") return;
+    const pos = cur ? cur.selectionStart : null;
     renderList();
-    const box = document.getElementById("admin-store-search");
-    if(box){ box.focus(); try{ box.setSelectionRange(pos,pos); }catch(err){} }
+    const again = document.querySelector(selector);
+    if(again && document.activeElement !== again){ again.focus(); try{ if(pos!=null) again.setSelectionRange(pos,pos); }catch(err){} }
+  }, 180);
+}
+function handleSearchTyping(e){
+  const t = e.target; if(!t) return;
+  if(t.dataset && t.dataset.action === "search-input"){
+    state.searchQuery = t.value;
+    if(!e.isComposing) scheduleSearchRender('[data-action="search-input"]');
+  } else if(t.id === "admin-store-search"){
+    state.adminStoreQuery = t.value;
+    if(!e.isComposing) scheduleSearchRender("#admin-store-search");
   }
-});
+}
+document.addEventListener("input", handleSearchTyping);
+document.addEventListener("compositionstart", e=>{ if(e.target && e.target.dataset) e.target.dataset.composing = "1"; });
+document.addEventListener("compositionend", e=>{ if(e.target && e.target.dataset){ delete e.target.dataset.composing; handleSearchTyping(e); } });
 function attachModalHandlers(){
   renderTurnstile();
   const unameInput = document.getElementById("login-username");
@@ -5068,10 +5350,16 @@ function attachModalHandlers(){
       }
     });
   }
-  document.querySelectorAll('[data-comment-input]').forEach(inp=>{
-    inp.addEventListener("keydown", e=>{ if(e.key==="Enter") submitComment(inp.dataset.commentInput); });
-  });
 }
+// Enter in any comment box posts the comment, wherever the box was rendered.
+document.addEventListener("keydown", e=>{
+  // Skip held-key repeats and the Enter that confirms an Asian-language
+  // keyboard's word choice (isComposing / keyCode 229).
+  if(e.key==="Enter" && !e.repeat && !e.isComposing && e.keyCode!==229 && e.target && e.target.dataset && e.target.dataset.commentInput){
+    e.preventDefault();
+    submitComment(e.target.dataset.commentInput);
+  }
+});
 
 boot();
 </script>
