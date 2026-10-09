@@ -1075,12 +1075,6 @@ function isOpenNow(store){
   }
   return false;
 }
-function dist(aKey,bKey){
-  const a = NEIGHBORHOODS[aKey], b = NEIGHBORHOODS[bKey];
-  if(!a||!b) return 5;
-  const dx = a.x-b.x, dy=a.y-b.y;
-  return Math.sqrt(dx*dx+dy*dy)*0.55;
-}
 function nearestNeighborhood(lat,lng){
   let best=null, bestD=Infinity;
   for(const name in NEIGHBORHOODS){
@@ -1131,11 +1125,25 @@ function refreshUserLocation(){
   if(locating) return locating;
   locating = getPosition().then(pos=>{
     state.userCoords = {lat:pos.coords.latitude, lng:pos.coords.longitude};
+    // The route builder starts from where you are unless you picked a start.
+    if(!state.startPickedByUser) applyStartLocation(state.userCoords);
     loadOutdoorTemperature();
-    if(state.view==="home") renderList();
+    if(state.view==="home" || state.view==="route") renderList();
     return state.userCoords;
   }).catch(()=>null).finally(()=>{ locating = null; });
   return locating;
+}
+// Makes your exact position the route builder's starting point. The
+// neighborhood name is just for display; routes are measured from the
+// exact coordinates.
+function applyStartLocation(coords){
+  const nb = nearestNeighborhood(coords.lat, coords.lng);
+  if(!nb) return false;
+  state.builderChoice.start = nb;
+  if(state.builderChoice.destination===nb) state.builderChoice.destination = null;
+  state.builderChoice.startCoords = {lat: coords.lat, lng: coords.lng};
+  state.locationDetected = true;
+  return true;
 }
 // The one time the app asks: the first open, right after "Before you start".
 // After that, location is only used if it was allowed; iOS never asks again.
@@ -1162,24 +1170,85 @@ async function useLocationForHome(){
 }
 function milesFrom(coords, s){
   if(!coords || s.lat==null || s.lng==null) return Infinity;
+  return milesBetween(coords, s);
+}
+// ---- Route math: real distances between real places ------------------------
+// A place is a store (its own address), a neighborhood name (its center), or
+// any {lat, lng}.
+function placeOf(x){
+  if(!x) return null;
+  if(typeof x === "string"){ const n = NEIGHBORHOODS[x]; return n && n.lat!=null ? {lat:n.lat, lng:n.lng} : null; }
+  if(x.lat!=null && x.lng!=null) return {lat:x.lat, lng:x.lng};
+  if(x.neighborhood) return placeOf(x.neighborhood);
+  return null;
+}
+// Straight-line miles between two places.
+function milesBetween(a, b){
+  const p = placeOf(a), q = placeOf(b);
+  if(!p || !q) return 5;
   const toRad = d=>d*Math.PI/180;
-  const dLat = toRad(s.lat-coords.lat), dLng = toRad(s.lng-coords.lng);
-  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(coords.lat))*Math.cos(toRad(s.lat))*Math.sin(dLng/2)**2;
-  return 3958.8*2*Math.asin(Math.sqrt(a));
+  const dLat = toRad(q.lat-p.lat), dLng = toRad(q.lng-p.lng);
+  const h = Math.sin(dLat/2)**2 + Math.cos(toRad(p.lat))*Math.cos(toRad(q.lat))*Math.sin(dLng/2)**2;
+  return 3958.8*2*Math.asin(Math.sqrt(h));
+}
+// A rough drive time: roads wind about 30% more than a straight line, city
+// streets average around 22 mph and longer hops use the highway, plus a few
+// minutes to park. Stores in the same plaza are a 0-minute walk.
+function driveMinutes(miles){
+  if(miles < 0.15) return 0;
+  const road = miles*1.3;
+  const mph = road < 5 ? 22 : road < 15 ? 30 : 42;
+  return Math.max(4, Math.round(road/mph*60 + 3));
+}
+// Open now, or opening within the next `mins` minutes today.
+function openSoon(s, mins){
+  if(isOpenNow(s)===true) return true;
+  const rules = parseStoreHours(s.hours);
+  if(!rules) return false;
+  const now = new Date(), day = now.getDay(), m = now.getHours()*60+now.getMinutes();
+  return rules.some(r=>r.days.includes(day) && r.openMin > m && r.openMin <= m+mins);
+}
+// The shortest driving order for a handful of stops: tries every order (at
+// most 8 stops, 40,320 orders) from the start, ending at the end point if
+// there is one. Longer lists fall back to "nearest next".
+function bestStopOrder(startPos, stops, endPos){
+  const n = stops.length;
+  if(n <= 1) return stops.slice();
+  const pts = [startPos, ...stops, endPos];
+  const d = pts.map(a=>pts.map(b=>(a && b) ? milesBetween(a,b) : 0));
+  const E = n+1;
+  if(n > 8){
+    const left = stops.map((_,i)=>i+1), out = [];
+    let cur = 0;
+    while(left.length){ left.sort((a,b)=>d[cur][a]-d[cur][b]); cur = left.shift(); out.push(stops[cur-1]); }
+    return out;
+  }
+  let best = null, bestLen = Infinity;
+  const perm = stops.map((_,i)=>i+1), used = new Array(n+2).fill(false), cur = [];
+  (function walk(prev, len){
+    if(len >= bestLen) return;
+    if(cur.length === n){
+      const total = len + (endPos ? d[prev][E] : 0);
+      if(total < bestLen){ bestLen = total; best = cur.slice(); }
+      return;
+    }
+    for(const i of perm){ if(used[i]) continue; used[i] = true; cur.push(i); walk(i, len + d[prev][i]); cur.pop(); used[i] = false; }
+  })(0, 0);
+  return best.map(i=>stops[i-1]);
 }
 async function tryDetectLocation(manual){
   if(state.geoAttempted && !manual) return;
   state.geoAttempted = true;
   const perm = await locationPermission();
-  // Opening the route builder only uses location that was already allowed;
-  // it never brings up a permission prompt by itself.
-  if(perm !== "granted" && !manual) return;
-  if(perm === "denied"){ locationOffToast(); return; }
+  if(perm === "denied"){ if(manual) locationOffToast(); return; }
+  // In the iPhone app, opening the route builder only uses location that was
+  // already allowed (iOS asked on the first open). Older installs without the
+  // native location plugin fall back to the web view, which asks by itself.
+  if(!manual && perm !== "granted" && nativeGeo()) return;
   const reqId = state.geoReqId = (state.geoReqId||0) + 1;
   let pos;
   try{ pos = await getPosition(); }
   catch(err){
-    state.locationDetected = false;
     if(manual && reqId === state.geoReqId) toast("Couldn't get your location — pick a starting point below.");
     return;
   }
@@ -1188,16 +1257,8 @@ async function tryDetectLocation(manual){
   if(reqId !== state.geoReqId) return;
   state.userCoords = {lat: pos.coords.latitude, lng: pos.coords.longitude};
   if(!manual && state.startPickedByUser) return;
-  const nb = nearestNeighborhood(pos.coords.latitude, pos.coords.longitude);
-  if(nb){
-    state.builderChoice.start = nb;
-    if(state.builderChoice.destination===nb) state.builderChoice.destination = null;
-    // Keep your exact coordinates too — the neighborhood name is just
-    // for display and filtering; the real Maps link uses this instead
-    // of the neighborhood's center point, which could be a mile+ off.
-    state.builderChoice.startCoords = {lat: pos.coords.latitude, lng: pos.coords.longitude};
-    state.locationDetected = true;
-    if(manual) toast("Starting point set to "+nb+".");
+  if(applyStartLocation(state.userCoords)){
+    if(manual){ state.startPickedByUser = false; toast("Starting from your location."); }
     renderList();
   }
 }
@@ -1432,6 +1493,7 @@ function go(view, params){
   state.params = params || {};
   window.scrollTo(0,0);
   render();
+  if(view==="route" && state.userCoords && !state.startPickedByUser && !state.locationDetected){ applyStartLocation(state.userCoords); renderList(); }
   if(view==="route" && !state.geoAttempted){ tryDetectLocation(false); }
 }
 function toast(msg){
@@ -2444,20 +2506,32 @@ function viewRouteBuilder(){
 function generateRoute(){
   const c = state.builderChoice;
   const budget = c.budget||[], minRating = c.minRating||0;
-  const base = state.stores.filter(s=>{
-    if(state.hideChains && s.chain) return false;
-    if(c.categories.length && !c.categories.some(cat=>s.categories.includes(cat))) return false;
-    return true;
-  }).map(s=>Object.assign({}, s, {distance: dist(c.start, s.neighborhood)}));
-  const inRange = base.sort((a,b)=>a.distance-b.distance);
-  const passes = s => (!budget.length || budget.includes(s.priceLevel))
-    && (!minRating || (s.rating||0) >= minRating);
   const count = c.time==="2 hours"?2 : c.time==="Half day"?4 : 6;
+  // Real places: your exact location (or the center of the neighborhood you
+  // picked), each store's own address, and the end point if there is one.
+  const startPos = c.startCoords || placeOf(c.start) || ATLANTA_CENTER;
+  const endPos = c.destinationCoords || placeOf(c.destination) || null;
+  const direct = endPos ? milesBetween(startPos, endPos) : 0;
+  // How far out of the way a store is: its distance from the start, or with
+  // an end point, the extra driving it adds on the way there.
+  const costOf = s => endPos ? milesBetween(startPos,s) + milesBetween(s,endPos) - direct : milesBetween(startPos,s);
+  // Shops that are open (or opening within the hour) come first, then ones
+  // whose hours we can't read, then closed ones; closest first within each.
+  const openRank = s => openSoon(s, 60) ? 0 : isOpenNow(s)===null ? 1 : 2;
   // Stops the person added by hand come first and are never dropped; they
   // fill slots, so they aren't counted again as filter matches below.
   const manualIds = c.manualStores||[];
-  const manual = manualIds.map(id=>getStoreById(id)).filter(Boolean).map(s=>Object.assign({}, s, {distance: dist(c.start, s.neighborhood)}));
-  const pool = inRange.filter(s=>!manualIds.includes(s.id));
+  const manual = manualIds.map(id=>getStoreById(id)).filter(Boolean);
+  const pool = state.stores.filter(s=>{
+    if(manualIds.includes(s.id)) return false;
+    if(state.hideChains && s.chain) return false;
+    if(c.categories.length && !c.categories.some(cat=>s.categories.includes(cat))) return false;
+    return true;
+  }).map(s=>({s, cost:costOf(s), rank:openRank(s)}))
+    .sort((a,b)=>a.rank-b.rank || a.cost-b.cost)
+    .map(x=>x.s);
+  const passes = s => (!budget.length || budget.includes(s.priceLevel))
+    && (!minRating || (s.rating||0) >= minRating);
   let candidates = pool.filter(passes);
   // Safety net: too few exact matches -> keep them first, then fill with the
   // closest other shops, and tell the person which choice was limiting.
@@ -2472,57 +2546,22 @@ function generateRoute(){
   }
   let picked = manual.concat(candidates.slice(0, wantNew));
   if(picked.length===0) picked = state.stores.slice(0,2);
-  let ordered;
-  const destPos = c.destination && NEIGHBORHOODS[c.destination];
-  if(c.destinationCoords){
-    // A real, specific address (from the autocomplete search) — order stops
-    // along the straight line from the real start point to that exact
-    // address, using each store's real geocoded position when we have it
-    // rather than just the neighborhood's rough center.
-    const startPos = c.startCoords || NEIGHBORHOODS[c.start];
-    const vx = c.destinationCoords.lng - startPos.lng, vy = c.destinationCoords.lat - startPos.lat;
-    const len2 = (vx*vx+vy*vy) || 1;
-    const posOf = s => (s.lat!=null && s.lng!=null) ? s : (NEIGHBORHOODS[s.neighborhood] || startPos);
-    ordered = [...picked].sort((a,b)=>{
-      const pa = posOf(a), pb = posOf(b);
-      const ta = ((pa.lng-startPos.lng)*vx + (pa.lat-startPos.lat)*vy)/len2;
-      const tb = ((pb.lng-startPos.lng)*vx + (pb.lat-startPos.lat)*vy)/len2;
-      return ta-tb;
-    });
-  } else if(destPos){
-    const startPos = NEIGHBORHOODS[c.start];
-    const vx = destPos.x-startPos.x, vy = destPos.y-startPos.y;
-    const len2 = (vx*vx+vy*vy) || 1;
-    ordered = [...picked].sort((a,b)=>{
-      const pa = NEIGHBORHOODS[a.neighborhood], pb = NEIGHBORHOODS[b.neighborhood];
-      const ta = ((pa.x-startPos.x)*vx + (pa.y-startPos.y)*vy)/len2;
-      const tb = ((pb.x-startPos.x)*vx + (pb.y-startPos.y)*vy)/len2;
-      return ta-tb;
-    });
-  } else {
-    ordered = [];
-    let currentPos = c.start;
-    let pool = [...picked];
-    while(pool.length){
-      pool.sort((a,b)=>dist(currentPos,a.neighborhood)-dist(currentPos,b.neighborhood));
-      const next = pool.shift();
-      ordered.push(next);
-      currentPos = next.neighborhood;
-    }
-  }
+  const ordered = bestStopOrder(startPos, picked, endPos);
+  // Say so when a stop isn't open right now, so nobody drives to a locked door.
+  const closed = ordered.filter(s=>isOpenNow(s)===false && !openSoon(s, 60));
+  const closedNote = !closed.length ? "" : closed.length===ordered.length
+    ? "These shops are closed right now, so check their hours before you go."
+    : `${closed.map(s=>s.name).join(", ")} ${closed.length===1?"is":"are"} closed right now, so check ${closed.length===1?"its":"their"} hours before you go.`;
   const browseMin = c.time==="2 hours"?40 : c.time==="Half day"?35 : 30;
-  let totalTravel = 0;
   const legs = [];
-  let prev = c.start;
-  ordered.forEach((s,i)=>{
-    const raw = Math.round(dist(prev, s.neighborhood)*2.6);
-    const mins = (i===0 && raw===0) ? 0 : Math.max(4, raw);
+  let prev = startPos, totalTravel = 0;
+  ordered.forEach(s=>{
+    const mins = driveMinutes(milesBetween(prev, s));
     legs.push(mins);
     totalTravel += mins;
-    prev = s.neighborhood;
+    prev = s;
   });
-  const endAnchor = c.destination || (c.destinationCoords ? nearestNeighborhood(c.destinationCoords.lat, c.destinationCoords.lng) : null);
-  if(endAnchor) totalTravel += legMinutes(prev, endAnchor);
+  if(endPos) totalTravel += driveMinutes(milesBetween(prev, endPos));
   const totalBrowse = browseMin * ordered.length;
   state.currentRoute = {
     id: uid("route_"),
@@ -2539,7 +2578,7 @@ function generateRoute(){
     totalBrowse,
     totalTime: totalTravel + totalBrowse,
     createdFrom: Object.assign({}, c),
-    filterNote: state.routeFilterNote || null
+    filterNote: [state.routeFilterNote, closedNote].filter(Boolean).join(" ") || null
   };
   go("routeResults");
 }
@@ -2564,7 +2603,7 @@ function viewRouteResults(){
       <div class="route-map-wrap">${discoverMap(stores)}</div>
       <div style="margin-bottom:16px">
         ${stores.map((s,i)=>`
-          ${i>0 ? `<div class="travel-line">${ICONS.route}${r.legs[i]} min drive</div>` : ''}
+          ${i>0 ? `<div class="travel-line">${ICONS.route}${r.legs[i] ? r.legs[i]+" min drive" : "Next door, walk over"}</div>` : ''}
           <div class="stop-card">
             <div class="stop-num">${i+1}</div>
             <div class="stop-thumb">${photoOrArt(s)}</div>
@@ -3993,12 +4032,12 @@ function loadCuratedRoute(id){
   const ids = r.storeIds.filter(sid=>getStoreById(sid));
   if(!ids.length){ toast("This route's stores aren't available right now."); return; }
   const legs = [];
-  let prev = getStoreById(ids[0]).neighborhood;
+  let prev = getStoreById(ids[0]);
   ids.forEach((sid,i)=>{
     if(i===0){ legs.push(0); return; }
     const s = getStoreById(sid);
-    legs.push(Math.max(4, Math.round(dist(prev, s.neighborhood)*2.6)));
-    prev = s.neighborhood;
+    legs.push(driveMinutes(milesBetween(prev, s)));
+    prev = s;
   });
   const totalTravel = legs.reduce((a,b)=>a+b,0);
   const totalBrowse = 35*ids.length;
@@ -4008,7 +4047,7 @@ function loadCuratedRoute(id){
   };
   go("routeResults");
 }
-// Where the route ultimately ends, as a neighborhood key dist() understands:
+// Where the route ultimately ends, as a neighborhood name:
 // the chosen end neighborhood, the one nearest a searched end address, or
 // null when the route just ends at its last stop.
 function routeEndAnchor(r){
@@ -4017,8 +4056,8 @@ function routeEndAnchor(r){
   return null;
 }
 // Same drive-time estimate the route builder uses.
-function legMinutes(fromKey, toKey){
-  return Math.max(4, Math.round(dist(fromKey, toKey)*2.6));
+function legMinutes(from, to){
+  return driveMinutes(milesBetween(from, to));
 }
 // Rebuild every leg time and the summary totals from the current stop order,
 // so adding, removing, or reordering stops never leaves stale numbers.
@@ -4037,17 +4076,16 @@ function recomputeRoute(r){
   const browseMin = r.browseMin || 35;
   const legs = [];
   let totalTravel = 0;
-  let prev = r.start;
-  stores.forEach((s,i)=>{
-    const raw = Math.round(dist(prev, s.neighborhood)*2.6);
-    // A curated route starts at its first stop — that leg really is zero.
-    const mins = (i===0 && raw===0) ? 0 : Math.max(4, raw);
+  // A curated route starts at its first stop, so that leg really is zero.
+  let prev = r.curated ? stores[0] : (r.startCoords || placeOf(r.start));
+  stores.forEach(s=>{
+    const mins = prev ? driveMinutes(milesBetween(prev, s)) : 0;
     legs.push(mins);
     totalTravel += mins;
-    prev = s.neighborhood;
+    prev = s;
   });
-  const end = routeEndAnchor(r);
-  if(end) totalTravel += legMinutes(prev, end);
+  const end = r.destinationCoords || placeOf(r.destination);
+  if(end && prev) totalTravel += legMinutes(prev, end);
   r.legs = legs;
   r.totalTravel = totalTravel;
   r.totalBrowse = browseMin * stores.length;
@@ -4095,14 +4133,14 @@ function confirmAddStop(id){
   r.stops = r.stops.filter(sid=>getStoreById(sid));
   // Slot the new stop wherever it adds the least driving — between the
   // start, the existing stops, and the end point — not just at the end.
-  const hoods = r.stops.map(sid=>getStoreById(sid)).filter(Boolean).map(x=>x.neighborhood);
-  const anchors = [r.start, ...hoods];
-  const end = routeEndAnchor(r);
+  const here = r.stops.map(sid=>getStoreById(sid)).filter(Boolean);
+  const anchors = [r.curated ? null : (r.startCoords || placeOf(r.start)), ...here];
+  const end = r.destinationCoords || placeOf(r.destination);
   let best = r.stops.length, bestCost = Infinity;
-  for(let i=0;i<=hoods.length;i++){
+  for(let i=0;i<=here.length;i++){
     const from = anchors[i];
-    const to = i<hoods.length ? hoods[i] : end;
-    const cost = dist(from, s.neighborhood) + (to ? dist(s.neighborhood, to) - dist(from, to) : 0);
+    const to = i<here.length ? here[i] : end;
+    const cost = (from ? milesBetween(from, s) : 0) + (to ? milesBetween(s, to) - (from ? milesBetween(from, to) : 0) : 0);
     if(cost < bestCost){ bestCost = cost; best = i; }
   }
   r.stops.splice(best, 0, id);
