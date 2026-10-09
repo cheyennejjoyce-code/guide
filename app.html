@@ -309,8 +309,11 @@ body:has(.wizard-nav) .toast{bottom:calc(160px + env(safe-area-inset-bottom));}
 .post-actions button.liked svg{fill:var(--danger);stroke:var(--danger);color:var(--danger);}
 .post-actions button.saved-t svg{fill:var(--gold);stroke:var(--gold);color:var(--gold);}
 .comments-box{margin-top:12px;padding-top:12px;border-top:1px solid var(--line);}
-.comment-row{display:flex;gap:8px;margin-bottom:9px;font-size:12.5px;}
+.comment-row{display:flex;flex-wrap:wrap;column-gap:8px;row-gap:0;margin-bottom:9px;font-size:12.5px;}
 .comment-row b{font-weight:700;}
+.comment-row > span{flex:1;min-width:0;overflow-wrap:anywhere;}
+.comment-row .c-acts{display:flex;flex:1 0 100%;justify-content:flex-end;margin:-10px -8px -9px 0;}
+.comment-row .c-acts button{min-height:40px;padding:0 8px;background:none;border:none;font-family:var(--font-mono);font-size:9.5px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);}
 .comment-input-row{display:flex;gap:8px;margin-top:8px;}
 .comment-input-row input{flex:1;border:1px solid var(--line);background:var(--cream);border-radius:var(--radius-pill);padding:9px 14px;font-size:13px;color:var(--ink);}
 .comment-input-row button{background:var(--royal);color:#FFFFFF;border:none;border-radius:var(--radius-pill);padding:0 16px;font-weight:700;font-size:12.5px;}
@@ -333,6 +336,8 @@ body:has(.wizard-nav) .toast{bottom:calc(160px + env(safe-area-inset-bottom));}
 .profile-head .pmeta{font-size:12.5px;color:var(--ink-soft);margin-bottom:10px;}
 .profile-stats{display:flex;justify-content:space-between;gap:12px;margin-top:16px;background:var(--ink-block);border-radius:20px;padding:18px;width:100%;max-width:280px;}
 .profile-stats div{text-align:center;flex:1;}
+.profile-stats button{appearance:none;background:none;border:none;padding:0;margin:0;flex:1;min-height:40px;text-align:center;font:inherit;color:inherit;cursor:pointer;}
+.profile-stats .pnum,.profile-stats .plbl{display:block;}
 .profile-stats .pnum{font-family:var(--font-display);font-size:22px;font-weight:600;color:var(--on-ink-block);}
 .profile-stats .pnum.gold{color:var(--gold);}
 .profile-stats .plbl{font-family:var(--font-mono);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:rgba(255,255,255,.6);margin-top:5px;}
@@ -362,7 +367,8 @@ body:has(.wizard-nav) .toast{bottom:calc(160px + env(safe-area-inset-bottom));}
 .admin-list-row .ar-name .badge-featured{display:inline-block;vertical-align:middle;}
 .admin-list-row .ar-sub{font-size:12px;line-height:1.45;color:var(--ink-soft);margin-top:3px;}
 .admin-list-row .ar-actions{display:flex;gap:6px;flex:none;}
-.admin-list-row .ar-actions button{width:32px;height:32px;border-radius:9px;border:1px solid var(--line);background:var(--cream);display:flex;align-items:center;justify-content:center;}
+.admin-list-row .ar-actions button:not(.btn){width:40px;height:40px;border-radius:9px;border:1px solid var(--line);background:var(--cream);color:var(--ink);display:flex;align-items:center;justify-content:center;}
+.admin-list-row .ar-actions .btn{min-height:40px;white-space:nowrap;}
 .admin-list-row .ar-actions svg{width:15px;height:15px;}
 .badge-featured{background:var(--gold);color:#5C3A1E;font-size:10px;font-weight:800;padding:3px 8px;border-radius:8px;margin-left:6px;}
 .hairline{height:1px;background:var(--line);margin:22px 0;border:none;}
@@ -509,7 +515,7 @@ main.view{padding:0 20px 116px;}
 .avatar{font-family:var(--font-display);font-size:15px;font-weight:600;}
 .post-head .pu-meta{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;margin-top:2px;}
 .post-photo{height:230px;}
-.price-tag{font-family:var(--font-mono);font-size:10.5px;font-weight:500;letter-spacing:.12em;color:#221D24;border-radius:999px;transform:none;padding:7px 11px;}
+.price-tag{font-family:var(--font-mono);font-size:10.5px;font-weight:500;letter-spacing:.12em;color:var(--ink);border-radius:999px;transform:none;padding:7px 11px;}
 .post-item{font-family:var(--font-display);font-size:18px;font-weight:600;letter-spacing:-.015em;}
 .post-store{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--royal);margin-top:5px;}
 .post-caption{font-size:13.5px;line-height:1.55;}
@@ -525,6 +531,9 @@ main.view{padding:0 20px 116px;}
 .profile-shortcut svg{width:19px;height:19px;color:var(--royal);fill:none;stroke:currentColor;}
 .profile-shortcut .ps-title{display:block;font-size:12.5px;font-weight:700;line-height:1.15;margin-top:13px;}
 .profile-shortcut .ps-count{display:block;font-family:var(--font-mono);font-size:8.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft);margin-top:5px;}
+.profile-shortcut:last-child:nth-child(odd){grid-column:1/-1;min-height:0;flex-direction:row;align-items:center;justify-content:flex-start;gap:12px;}
+.profile-shortcut:last-child:nth-child(odd)>span{flex:1;}
+.profile-shortcut:last-child:nth-child(odd) .ps-title{margin-top:0;}
 .note-list{display:flex;flex-direction:column;gap:9px;}
 .note-card{border:1px solid var(--line);background:var(--cream-card);border-radius:20px;padding:15px 16px;text-align:left;color:var(--ink);}
 .note-card-button{appearance:none;width:100%;font-family:var(--font-body);cursor:pointer;}
@@ -541,6 +550,10 @@ main.view{padding:0 20px 116px;}
 .profile-compact-store .pcs-name{display:block;font-family:var(--font-display);font-size:16px;font-weight:600;line-height:1.15;}
 .profile-compact-store .pcs-meta{display:block;font-family:var(--font-mono);font-size:8.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--ink-soft);margin-top:5px;}
 .profile-compact-store>svg{width:18px;height:18px;flex-shrink:0;color:var(--ink-soft);}
+.profile-route-card{display:flex;align-items:center;gap:6px;border:1px solid var(--line);background:var(--cream-card);border-radius:20px;padding-right:10px;}
+.profile-route-card .profile-compact-store{flex:1;width:auto;min-width:0;border:none;background:none;padding-right:2px;}
+.profile-route-card .btn{flex-shrink:0;width:40px;height:40px;padding:0;}
+.profile-route-card .pcs-stops{font-family:var(--font-body);font-size:12px;letter-spacing:0;text-transform:none;margin-top:4px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
 .settings-row{padding:16px 2px;}
 .hairline{background:var(--line);}
 
@@ -1080,39 +1093,113 @@ function nearestNeighborhood(lat,lng){
   }
   return best;
 }
-function tryDetectLocation(manual){
+// ---- Location: asked once on first open, then used quietly ----------------
+// In the iPhone app this goes through iOS's own location permission (the
+// Capacitor Geolocation plugin), so iOS asks one time and remembers the
+// answer. The browser fallback is only for testing on a computer.
+const ATLANTA_CENTER = {lat:33.749, lng:-84.388};
+function nativeGeo(){
+  const c = window.Capacitor;
+  // Older installs of the iPhone app don't have the plugin yet; they keep
+  // using the web view's location until they're rebuilt.
+  if(!c || !c.isNativePlatform || !c.isNativePlatform() || !c.Plugins) return null;
+  if(c.isPluginAvailable && !c.isPluginAvailable("Geolocation")) return null;
+  return c.Plugins.Geolocation || null;
+}
+// "granted" | "denied" | "prompt" (not asked yet)
+async function locationPermission(){
+  const g = nativeGeo();
+  if(g){
+    try{ const p = await g.checkPermissions(); return p.location === "granted" ? "granted" : p.location === "denied" ? "denied" : "prompt"; }
+    catch(e){ return "denied"; } // location services switched off for the whole phone
+  }
+  try{ if(navigator.permissions){ const p = await navigator.permissions.query({name:"geolocation"}); return p.state; } }catch(e){}
+  return "prompt";
+}
+function getPosition(){
+  const g = nativeGeo();
+  if(g) return g.getCurrentPosition({enableHighAccuracy:false, timeout:8000, maximumAge:600000});
+  return new Promise((resolve,reject)=>{
+    if(!("geolocation" in navigator)) return reject(new Error("unavailable"));
+    navigator.geolocation.getCurrentPosition(resolve, reject, {timeout:8000, maximumAge:600000});
+  });
+}
+let locating = null;
+// Gets a fresh position (asking iOS the first time) and remembers it for
+// "Open now near you" and the weather. Resolves to the coordinates or null.
+function refreshUserLocation(){
+  if(locating) return locating;
+  locating = getPosition().then(pos=>{
+    state.userCoords = {lat:pos.coords.latitude, lng:pos.coords.longitude};
+    loadOutdoorTemperature();
+    if(state.view==="home") renderList();
+    return state.userCoords;
+  }).catch(()=>null).finally(()=>{ locating = null; });
+  return locating;
+}
+// The one time the app asks: the first open, right after "Before you start".
+// After that, location is only used if it was allowed; iOS never asks again.
+async function askLocationOnce(){
+  let asked = false;
+  try{ asked = localStorage.getItem("atlThrift_location_asked") === "1"; }catch(e){}
+  const perm = await locationPermission();
+  if(perm === "granted"){ refreshUserLocation(); return; }
+  if(asked || perm === "denied") return;
+  try{ localStorage.setItem("atlThrift_location_asked","1"); }catch(e){}
+  const g = nativeGeo();
+  if(g){
+    try{ const p = await g.requestPermissions({permissions:["location"]}); if(p.location === "granted") refreshUserLocation(); }catch(e){}
+  } else refreshUserLocation();
+}
+function locationOffToast(){
+  toast("Location is off for ATL Thrift Guide. Turn it on in Settings → ATL Thrift Guide → Location.");
+}
+// A tap on "Near me" on Home.
+async function useLocationForHome(){
+  if(await locationPermission() === "denied"){ locationOffToast(); return; }
+  const coords = await refreshUserLocation();
+  if(!coords) toast("Couldn't get your location — try again in a moment.");
+}
+function milesFrom(coords, s){
+  if(!coords || s.lat==null || s.lng==null) return Infinity;
+  const toRad = d=>d*Math.PI/180;
+  const dLat = toRad(s.lat-coords.lat), dLng = toRad(s.lng-coords.lng);
+  const a = Math.sin(dLat/2)**2 + Math.cos(toRad(coords.lat))*Math.cos(toRad(s.lat))*Math.sin(dLng/2)**2;
+  return 3958.8*2*Math.asin(Math.sqrt(a));
+}
+async function tryDetectLocation(manual){
   if(state.geoAttempted && !manual) return;
   state.geoAttempted = true;
-  if(!("geolocation" in navigator)){
-    if(manual) toast("Location isn't available in this browser.");
+  const perm = await locationPermission();
+  // Opening the route builder only uses location that was already allowed;
+  // it never brings up a permission prompt by itself.
+  if(perm !== "granted" && !manual) return;
+  if(perm === "denied"){ locationOffToast(); return; }
+  const reqId = state.geoReqId = (state.geoReqId||0) + 1;
+  let pos;
+  try{ pos = await getPosition(); }
+  catch(err){
+    state.locationDetected = false;
+    if(manual && reqId === state.geoReqId) toast("Couldn't get your location — pick a starting point below.");
     return;
   }
-  const reqId = state.geoReqId = (state.geoReqId||0) + 1;
-  navigator.geolocation.getCurrentPosition(
-    pos=>{
-      // A newer request, or a start the person picked while this one was
-      // pending, wins over this answer.
-      if(reqId !== state.geoReqId) return;
-      if(!manual && state.startPickedByUser) return;
-      const nb = nearestNeighborhood(pos.coords.latitude, pos.coords.longitude);
-      if(nb){
-        state.builderChoice.start = nb;
-        if(state.builderChoice.destination===nb) state.builderChoice.destination = null;
-        // Keep your exact coordinates too — the neighborhood name is just
-        // for display and filtering; the real Maps link uses this instead
-        // of the neighborhood's center point, which could be a mile+ off.
-        state.builderChoice.startCoords = {lat: pos.coords.latitude, lng: pos.coords.longitude};
-        state.locationDetected = true;
-        if(manual) toast("Starting point set to "+nb+".");
-        renderList();
-      }
-    },
-    err=>{
-      state.locationDetected = false;
-      if(manual) toast("Couldn't get your location — pick a starting point below.");
-    },
-    {timeout:8000, maximumAge:600000}
-  );
+  // A newer request, or a start the person picked while this one was
+  // pending, wins over this answer.
+  if(reqId !== state.geoReqId) return;
+  state.userCoords = {lat: pos.coords.latitude, lng: pos.coords.longitude};
+  if(!manual && state.startPickedByUser) return;
+  const nb = nearestNeighborhood(pos.coords.latitude, pos.coords.longitude);
+  if(nb){
+    state.builderChoice.start = nb;
+    if(state.builderChoice.destination===nb) state.builderChoice.destination = null;
+    // Keep your exact coordinates too — the neighborhood name is just
+    // for display and filtering; the real Maps link uses this instead
+    // of the neighborhood's center point, which could be a mile+ off.
+    state.builderChoice.startCoords = {lat: pos.coords.latitude, lng: pos.coords.longitude};
+    state.locationDetected = true;
+    if(manual) toast("Starting point set to "+nb+".");
+    renderList();
+  }
 }
 
 const DEFAULT_STATE = {
@@ -1146,6 +1233,7 @@ const DEFAULT_STATE = {
   showDestinationPicker:false,
   geoAttempted:false,
   locationDetected:false,
+  userCoords:null,
   currentRoute:null,
   savedTab:"stores",
   communityFilter:"All",
@@ -1184,7 +1272,7 @@ async function refreshSessionAndProfile(){
     username: profile?.username || user.email.split("@")[0],
     bio: profile?.bio || "", favCategory: profile?.fav_category || CATEGORIES[0],
     neighborhood: profile?.neighborhood || Object.keys(NEIGHBORHOODS)[0],
-    avatarUrl: profile?.avatar_url || "",
+    avatarUrl: safeImageSrc(profile?.avatar_url) || "",
     homeStyle: profile?.home_style || null, homeArch: profile?.style_archetype_home || null,
     fashionStyle: profile?.fashion_style || null, fashionArch: profile?.style_archetype_fashion || null,
     styleDetails: profile?.style_details || {},
@@ -1204,25 +1292,33 @@ async function loadStores(){
   if(error){ console.error("loadStores failed:", error.message); state.stores = []; return; }
   state.stores = data.map(mapDbStore);
 }
+// Every event column except submitter_email and submitter_role, which stay
+// private (admins fetch the email one event at a time with admin_event_contact).
+const EVENT_COLUMNS = "id,title,linked_store_id,date_label,start_date,end_date,start_time,end_time,venue,address,source_url,event_type,price_label,status,description,is_sample,flyer_url,submitted_by,parking,created_at";
 async function loadEvents(){
-  const { data, error } = await sb.from("events").select("*").order("created_at",{ascending:false});
+  const { data, error } = await sb.from("events").select(EVENT_COLUMNS).order("created_at",{ascending:false});
   if(error){ console.error("loadEvents failed:", error.message); state.events = []; return; }
   // Event text comes from members now, so it's made HTML-safe here, once,
   // before any screen displays it. Links must be real web addresses.
   const safe = v => v==null ? v : escapeHtml(v);
   const safeUrl = v => (v && /^https?:\/\//i.test(v)) ? escapeHtml(v) : null;
-  state.events = data.map(e=>({
-    id:e.id, title:safe(e.title), linkedStoreId:e.linked_store_id, dateLabel:safe(e.date_label),
-    startDate:e.start_date, endDate:e.end_date, startTime:e.start_time, endTime:e.end_time,
+  // Dates, times, the linked store and the status must look exactly like what
+  // the app itself saves; anything else is dropped instead of displayed.
+  const safeDate = v => { const m = /^(\d{4}-\d{2}-\d{2})(?:[T ][\d:.]+(?:Z|[+-]\d{2}(?::?\d{2})?)?)?$/.exec(String(v??"")); return m ? m[1] : null; };
+  const safeTime = v => /^\d{1,2}:\d{2}(:\d{2})?$/.test(String(v??"")) ? String(v) : null;
+  const safeStatus = v => v==null ? null : ["pending","published","declined","draft"].includes(v) ? v : "pending";
+  state.events = data.filter(e=>/^[A-Za-z0-9-]+$/.test(String(e.id))).map(e=>({
+    id:e.id, title:safe(e.title), linkedStoreId:/^s[a-z0-9]+$/i.test(String(e.linked_store_id??"")) ? e.linked_store_id : null, dateLabel:safe(e.date_label),
+    startDate:safeDate(e.start_date), endDate:safeDate(e.end_date), startTime:safeTime(e.start_time), endTime:safeTime(e.end_time),
     venue:safe(e.venue), address:safe(e.address), sourceUrl:safeUrl(e.source_url), eventType:safe(e.event_type),
-    priceLabel:safe(e.price_label), status:e.status, description:safe(e.description), isSample:e.is_sample,
-    flyerUrl:safeUrl(e.flyer_url), submitterRole:e.submitter_role, submittedBy:e.submitted_by, parking:safe(e.parking), submitterEmail:e.submitter_email
+    priceLabel:safe(e.price_label), status:safeStatus(e.status), description:safe(e.description), isSample:e.is_sample,
+    flyerUrl:safeUrl(e.flyer_url), submittedBy:e.submitted_by, parking:safe(e.parking)
   }));
 }
 async function loadPosts(){
   state.blockedIds = [];
   if(state.user){
-    const { data: blockRows } = await sb.from("blocks").select("blocked_id");
+    const { data: blockRows } = await sb.from("blocks").select("blocked_id").eq("blocker_id", state.user.id);
     state.blockedIds = (blockRows||[]).map(r=>r.blocked_id);
   }
   const { data, error } = await sb.from("posts").select("*, profiles!posts_user_id_fkey(username)").order("created_at",{ascending:false});
@@ -1239,7 +1335,9 @@ async function loadPosts(){
   (likeRows||[]).forEach(r=>{ (state.likes[r.post_id] = state.likes[r.post_id]||[]).push(r.user_id); });
   const { data: commentRows } = await sb.from("comments").select("*, profiles!comments_user_id_fkey(username)").order("created_at",{ascending:true});
   state.comments = {};
-  (commentRows||[]).filter(c=>!state.blockedIds.includes(c.user_id)).forEach(c=>{ (state.comments[c.post_id] = state.comments[c.post_id]||[]).push({user:escapeHtml(c.profiles?.username||"unknown"), userId:c.user_id, text:escapeHtml(c.text)}); });
+  // Admins keep blocked members' comments so reports about them can still be
+  // handled; postCard hides them from the feed either way.
+  (commentRows||[]).filter(c=>state.isAdmin || !state.blockedIds.includes(c.user_id)).forEach(c=>{ (state.comments[c.post_id] = state.comments[c.post_id]||[]).push({id:String(c.id), postId:c.post_id, user:escapeHtml(c.profiles?.username||"unknown"), userId:c.user_id, text:escapeHtml(c.text), createdAt:c.created_at||""}); });
 }
 async function loadMyData(){
   // Vote and follow counts are public — everyone browsing should see them,
@@ -1250,6 +1348,7 @@ async function loadMyData(){
   ]);
   state.storeVotes = {};
   (votes.data||[]).forEach(v=>{
+    if(v.direction!=="up" && v.direction!=="down") return;
     if(!state.storeVotes[v.store_id]) state.storeVotes[v.store_id] = {up:[],down:[]};
     state.storeVotes[v.store_id][v.direction].push(v.user_id);
   });
@@ -1268,7 +1367,7 @@ async function loadMyData(){
     sb.from("saved_stores").select("store_id").eq("user_id",uid_),
     sb.from("visited_stores").select("store_id").eq("user_id",uid_),
     sb.from("saved_posts").select("post_id").eq("user_id",uid_),
-    sb.from("routes").select("*").eq("user_id",uid_),
+    sb.from("routes").select("*").eq("user_id",uid_).order("created_at",{ascending:false}),
     sb.from("visit_notes").select("*").eq("user_id",uid_).order("visited_at",{ascending:false}).order("created_at",{ascending:false}),
     sb.from("user_follows").select("followed_id").eq("follower_id",uid_)
   ]);
@@ -1296,18 +1395,21 @@ async function boot(){
   render();
   maybeStartMemberTour();
   loadOutdoorTemperature();
+  // First open: the terms gate asks once it's accepted (acceptTerms). Anyone
+  // who accepted on an earlier version gets the one-time ask here instead.
+  if(hasAcceptedTerms()) askLocationOnce();
   checkUnreadFromTeam().then(()=>{ if(state.unreadFromTeam) renderList(); });
-  if(!("geolocation" in navigator)) state.geoAttempted = true;
 }
 
+// Atlanta's weather unless the person allowed location; never asks by itself.
 function loadOutdoorTemperature(){
-  if(!("geolocation" in navigator)) return;
-  navigator.geolocation.getCurrentPosition(async position=>{
+  const here = state.userCoords || ATLANTA_CENTER;
+  (async ()=>{
     try{
       // Weather only needs an approximate location. Rounded coordinates avoid
       // sending the user's precise position to the forecast service.
-      const lat = Number(position.coords.latitude.toFixed(2));
-      const lng = Number(position.coords.longitude.toFixed(2));
+      const lat = Number(here.lat.toFixed(2));
+      const lng = Number(here.lng.toFixed(2));
       const url = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lng}&current=temperature_2m&temperature_unit=fahrenheit`;
       const response = await fetch(url);
       if(!response.ok) return;
@@ -1319,7 +1421,7 @@ function loadOutdoorTemperature(){
     }catch(error){
       console.warn("Weather unavailable:", error.message);
     }
-  },()=>{}, {timeout:8000,maximumAge:900000});
+  })();
 }
 
 function go(view, params){
@@ -1597,6 +1699,8 @@ function designPalette(index, neighborhood){
 function homeStoreCard(s){
   const saved = state.savedStoreIds.includes(s.id);
   const openState = isOpenNow(s);
+  const miles = milesFrom(state.userCoords, s);
+  const away = Number.isFinite(miles) ? ` · ${miles < 10 ? miles.toFixed(1) : Math.round(miles)} mi` : (openState===true?' · Open now':'');
   return `<div class="home-open-card" data-action="open-store" data-id="${s.id}">
     <div class="store-photo">
       ${photoOrArt(s)}
@@ -1604,12 +1708,15 @@ function homeStoreCard(s){
     </div>
     <span class="home-card-body">
       <span class="home-card-name">${s.name}</span>
-      <span class="home-card-meta">${s.neighborhood} · ${priceStr(s.priceLevel)}${openState===true?' · Open now':''}</span>
+      <span class="home-card-meta">${s.neighborhood} · ${priceStr(s.priceLevel)}${away}</span>
     </span>
   </div>`;
 }
 function viewHome(){
-  const openNow = state.stores.filter(s=>isOpenNow(s)===true).slice(0,6);
+  // Closest first once the person has allowed location; list order otherwise.
+  const here = state.userCoords;
+  const openNow = state.stores.filter(s=>isOpenNow(s)===true)
+    .sort((a,b)=>here ? milesFrom(here,a)-milesFrom(here,b) : 0).slice(0,6);
   const displayStores = openNow.length ? openNow : state.stores.filter(s=>s.featured).slice(0,6);
   const upcomingEvents = getUpcomingEvents();
   const verifiedCount = state.stores.filter(s=>s.verified).length;
@@ -1626,7 +1733,7 @@ function viewHome(){
       </div>` : `<div style="margin-bottom:24px"></div>`}
 
       <div class="section" style="margin-top:0">
-        <div class="section-head"><h2>${openNow.length?'Open now near you':'Featured shops'}</h2>${state.user?`<button class="see-all" data-action="nav" data-view="discover">See all</button>`:""}</div>
+        <div class="section-head"><h2>${openNow.length?(here?'Open now near you':'Open now'):'Featured shops'}</h2><span style="display:flex;gap:16px">${openNow.length && !here?`<button class="see-all" style="padding:10px 0;margin:-10px 0" data-action="home-use-location">Near me</button>`:""}${state.user?`<button class="see-all" data-action="nav" data-view="discover">See all</button>`:""}</span></div>
         <div class="hscroll">${displayStores.map(s=>homeStoreCard(s)).join("")}</div>
       </div>
 
@@ -1755,10 +1862,11 @@ function formatEventDate(ev){
   return `${startText} to ${endText}`;
 }
 function formatEventTime(value){
-  if(!value) return "";
-  const [h,m] = String(value).slice(0,5).split(":").map(Number);
-  if(Number.isNaN(h)) return value;
-  const d = new Date(2000,0,1,h,m||0);
+  const parts = /^(\d{1,2}):(\d{2})(?::\d{2})?$/.exec(String(value??"").trim());
+  if(!parts) return "";
+  const h = Number(parts[1]), m = Number(parts[2]);
+  if(h>23 || m>59) return "";
+  const d = new Date(2000,0,1,h,m);
   return d.toLocaleTimeString(undefined,{hour:"numeric",minute:m?"2-digit":undefined});
 }
 function eventTimeRange(ev){
@@ -1786,15 +1894,17 @@ function getUpcomingEvents(){
     return ad-bd;
   });
 }
+// "This weekend" is Friday through Sunday, local time. From Friday to Sunday
+// it means the weekend you're in; Monday to Thursday, the one coming up.
 function isThisWeekend(ev){
   const start = eventDateValue(ev.startDate), end = eventDateValue(ev.endDate || ev.startDate);
   if(!start || !end) return false;
   const today = new Date(); today.setHours(0,0,0,0);
-  const saturday = new Date(today);
-  const daysUntilSaturday = (6-today.getDay()+7)%7;
-  saturday.setDate(today.getDate()+daysUntilSaturday);
-  const sunday = new Date(saturday); sunday.setDate(saturday.getDate()+1);
-  return start<=sunday && end>=saturday;
+  const day = today.getDay();
+  const friday = new Date(today);
+  friday.setDate(today.getDate() + (day===0 ? -2 : 5-day));
+  const sundayEnd = new Date(friday); sundayEnd.setDate(friday.getDate()+2); sundayEnd.setHours(23,59,59,999);
+  return start<=sundayEnd && end>=friday;
 }
 function filterEvents(events, filter){
   if(filter==="This weekend") return events.filter(isThisWeekend);
@@ -1854,14 +1964,27 @@ function viewEvents(){
   </div>`;
 }
 
+// Search compares text the loose way people type on a phone: case, accents,
+// curly apostrophes, "&" or "and", hyphens, periods and extra spaces don't matter.
+function searchText(v){
+  return String(v??"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase()
+    .replace(/[‘’‛′`´]/g,"'").replace(/&/g," and ").replace(/['.]/g,"")
+    .replace(/[^a-z0-9À-῿぀-￯]+/g," ").trim();
+}
+// Every word of the query has to show up in one of the fields (a word can
+// also run across a space, so "virginiahighland" finds Virginia-Highland).
+function matchesSearch(query, fields){
+  const words = searchText(query).split(" ").filter(Boolean);
+  if(!words.length) return true;
+  const parts = fields.map(searchText);
+  const hay = parts.join(" "), joined = parts.map(p=>p.replace(/ /g,"")).join(" ");
+  return words.every(w=>hay.includes(w) || joined.includes(w));
+}
 function viewDiscover(){
   const filters = state.discoverFilters;
   let list = state.stores.filter(s=>{
     if(state.hideChains && s.chain) return false;
-    if(state.searchQuery){
-      const q = state.searchQuery.toLowerCase();
-      if(!s.name.toLowerCase().includes(q) && !s.neighborhood.toLowerCase().includes(q) && !s.categories.join(" ").toLowerCase().includes(q)) return false;
-    }
+    if(state.searchQuery && !matchesSearch(state.searchQuery, [s.name, s.neighborhood, s.type, ...(s.categories||[])])) return false;
     if(filters.length===0) return true;
     return filters.every(f=>{
       if(CATEGORIES.includes(f)) return s.categories.includes(f);
@@ -1875,7 +1998,7 @@ function viewDiscover(){
     <div class="discover-page" style="margin-top:4px">
       <div class="search-wrap">
         ${ICONS.search}
-        <input type="text" placeholder="Search shops, neighborhoods, categories" value="${escapeHtml(state.searchQuery||'')}" data-action="search-input">
+        <input type="text" enterkeyhint="search" autocomplete="off" placeholder="Search shops, neighborhoods, categories" value="${escapeHtml(state.searchQuery||'')}" data-action="search-input">
       </div>
       <div id="discover-results">
       <div class="filter-row">
@@ -2190,7 +2313,7 @@ function viewStoreDetail(id){
 
     <div style="display:flex;gap:8px;margin-bottom:18px">
     <button class="btn ${visited?'btn-primary':'btn-outline'}" style="flex:1;padding:12px 10px;font-size:13px" data-action="toggle-visited" data-id="${s.id}">${ICONS.check}${visited?"You've been here":'Mark as visited'}</button>
-    <button class="btn btn-outline" style="flex:1;padding:12px 10px;font-size:13px" data-action="open-visit-note" data-store="${s.id}">${ICONS.edit}${state.visitNotes.some(n=>n.storeId===s.id)?'Your visit notes':'Add a visit note'}</button>
+    <button class="btn btn-outline" style="flex:1;padding:12px 10px;font-size:13px" data-action="open-visit-note" data-store="${s.id}">${ICONS.edit}${state.visitNotes.some(n=>n.storeId===s.id)?'Your shop notes':'Add a shop note'}</button>
     </div>
     ${(()=>{ const myNotes=state.visitNotes.filter(n=>n.storeId===s.id).sort((a,b)=>new Date(b.visitedAt)-new Date(a.visitedAt)); return myNotes.length?`<div class="note-list" style="margin:-8px 0 18px">${myNotes.map(visitNoteCard).join("")}</div>`:''; })()}
 
@@ -2426,7 +2549,7 @@ function viewRouteResults(){
   if(!r) return `<div class="empty-state"><h3>No route yet</h3><p>Build one from the Route tab.</p><button class="btn btn-primary" style="margin-top:14px" data-action="nav" data-view="route">Start building</button></div>`;
   const stores = r.stops.map(id=>getStoreById(id)).filter(Boolean);
   const hrs = Math.floor(r.totalTime/60), mins = r.totalTime%60;
-  const saved = state.savedRouteIds.includes(r.id);
+  const saved = state.savedRouteIds.includes(r.id) || !!findSavedRoute(r);
   return `
     <div style="margin-top:8px">
       <button class="btn btn-ghost btn-sm" data-action="nav" data-view="route" style="margin-bottom:16px">${ICONS.back}Rebuild</button>
@@ -2494,8 +2617,7 @@ function postCard(p){
   const store = getStoreById(p.store);
   const likes = state.likes[p.id] || [];
   const liked = state.user && likes.includes(state.user.id);
-  const savedT = state.savedPostIds.includes(p.id);
-  const comments = state.comments[p.id] || [];
+  const comments = (state.comments[p.id] || []).filter(c=>!state.blockedIds.includes(c.userId));
   return `
   <div class="post-card">
     <div class="post-head">
@@ -2514,13 +2636,12 @@ function postCard(p){
       <div class="post-actions">
         <button class="${liked?'liked':''}" data-action="like-post" data-id="${p.id}">${ICONS.heart}${likes.length}</button>
         <button data-action="toggle-comments" data-id="${p.id}">${ICONS.comment}${comments.length}</button>
-        <button class="${savedT?'saved-t':''}" data-action="save-post" data-id="${p.id}">${ICONS.bookmark}</button>
         <button data-action="share-post" data-id="${p.id}">${ICONS.share}</button>
         ${state.isAdmin || (state.user && p.userId===state.user.id) ? "" : `<button data-action="open-report" data-type="post" data-id="${p.id}" data-uid="${p.userId||""}" data-uname="${p.user}" style="margin-left:auto;font-size:12px;color:var(--ink-soft)">Report</button>`}
         ${state.isAdmin ? `<button data-action="admin-remove-post" data-id="${p.id}" style="font-size:12px;color:var(--danger)">Remove</button>` : ""}
       </div>
       <div class="comments-box" id="comments-${p.id}" style="display:${state.openComments===p.id?'block':'none'}">
-        ${comments.map(c=>`<div class="comment-row"><b>@${c.user}</b><span>${c.text}</span></div>`).join("") || `<div class="comment-row" style="color:var(--ink-soft)">No comments yet.</div>`}
+        ${comments.map(c=>commentRow(c,p)).join("") || `<div class="comment-row" style="color:var(--ink-soft)">No comments yet.</div>`}
         <div class="comment-input-row">
           <input type="text" placeholder="Add a comment" data-comment-input="${p.id}">
           <button data-action="add-comment" data-id="${p.id}">Post</button>
@@ -2528,6 +2649,20 @@ function postCard(p){
       </div>
     </div>
   </div>`;
+}
+// Comment text and names are already HTML-safe in state. Others' comments get
+// Report (not for admins, like posts); the author, the find's owner and admins get Delete.
+function commentRow(c, p){
+  const mine = !!(state.user && c.userId===state.user.id);
+  const canReport = !!(state.user && c.id && !mine && !state.isAdmin);
+  const canDelete = !!(state.user && c.id && (mine || p.userId===state.user.id || state.isAdmin));
+  const acts = (canReport ? `<button data-action="open-report" data-type="comment" data-id="${escapeHtml(c.id)}" data-uid="${escapeHtml(c.userId||"")}" data-uname="${c.user}" aria-label="Report this comment">Report</button>` : "")
+    + (canDelete ? `<button data-action="delete-comment" data-id="${escapeHtml(c.id)}" aria-label="Delete this comment">Delete</button>` : "");
+  return `<div class="comment-row"><b>@${c.user}</b><span>${c.text}</span>${acts ? `<div class="c-acts">${acts}</div>` : ""}</div>`;
+}
+function findComment(id){
+  for(const k in state.comments){ const c = state.comments[k].find(x=>x.id===String(id)); if(c) return c; }
+  return null;
 }
 
 function viewSaved(){
@@ -2581,30 +2716,28 @@ function viewProfile(){
   const u = state.user;
   const myPosts = state.posts.filter(p=>p.user===u.username);
   const likedFinds = getLikedFinds();
-  const myVoteCount = state.user ? Object.values(state.storeVotes).filter(v=>v.up.includes(state.user.id)||v.down.includes(state.user.id)).length : 0;
-  const recentNotes = state.visitNotes.slice().sort((a,b)=>new Date(b.visitedAt)-new Date(a.visitedAt)).slice(0,2);
   const storeCount = state.stores.length || 0;
   const exploredPercent = storeCount ? Math.min(100,Math.round((state.visitedStoreIds.length/storeCount)*100)) : 0;
   return `
     <div class="profile-head">
       <div class="profile-avatar">${state.user.avatarUrl ? `<img src="${state.user.avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : initials(u.username)}</div>
-      <h2>@${u.username}</h2>
-      <div class="pmeta">${u.neighborhood||'Atlanta'} · Loves ${u.favCategory||'thrifting'}</div>
+      <h2>@${escapeHtml(u.username)}</h2>
+      <div class="pmeta">${escapeHtml(u.neighborhood||'Atlanta')} · Loves ${escapeHtml(u.favCategory||'thrifting')}</div>
       <div style="margin:8px 0 4px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;padding:5px 11px;border-radius:99px;display:inline-block;${u.isMember ? 'background:var(--gold);color:#221D24' : 'background:var(--cream-card);color:var(--ink-soft);border:1px solid var(--line)'}">${u.isMember ? 'ATL Guide Insider' : 'ATL Guide Member'}</div>
-      ${u.bio ? `<p style="font-size:13px;color:var(--ink-soft);max-width:280px">${u.bio}</p>` : ''}
+      ${u.bio ? `<p style="font-size:13px;color:var(--ink-soft);max-width:280px">${escapeHtml(u.bio)}</p>` : ''}
       <div class="profile-stats">
         <div><div class="pnum gold">${myPosts.length}</div><div class="plbl">finds</div></div>
-        <div><div class="pnum">${state.visitedStoreIds.length}</div><div class="plbl">visited</div></div>
-        <div><div class="pnum">${state.savedRouteIds.length}</div><div class="plbl">saved routes</div></div>
+        <button data-action="open-profile-library" data-tab="stores"><span class="pnum">${state.savedStoreIds.length}</span><span class="plbl">saved shops ›</span></button>
+        <button data-action="open-profile-library" data-tab="routes"><span class="pnum">${state.savedRouteIds.length}</span><span class="plbl">saved routes ›</span></button>
       </div>
-      <div style="width:100%;max-width:260px;margin:16px auto 0">
-        <div style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink-soft);margin-bottom:5px">
-          <span>Stores explored</span><span>${state.visitedStoreIds.length}/${storeCount}</span>
-        </div>
-        <div style="height:6px;border-radius:4px;background:var(--line);overflow:hidden">
-          <div style="height:100%;width:${exploredPercent}%;background:var(--royal);border-radius:4px"></div>
-        </div>
-      </div>
+      <button data-action="open-profile-library" data-tab="visited" aria-label="Visited stores" style="display:block;width:100%;max-width:260px;margin:10px auto 0;padding:8px 0;background:none;border:none;font:inherit;color:inherit;text-align:left;cursor:pointer">
+        <span style="display:flex;justify-content:space-between;font-size:11px;color:var(--ink-soft);margin-bottom:5px">
+          <span>Stores explored ›</span><span>${state.visitedStoreIds.length}/${storeCount}</span>
+        </span>
+        <span style="display:block;height:6px;border-radius:4px;background:var(--line);overflow:hidden">
+          <span style="display:block;height:100%;width:${exploredPercent}%;background:var(--royal);border-radius:4px"></span>
+        </span>
+      </button>
     </div>
     ${u.isMember ? "" : `<div class="events-submit-card" style="margin:6px 0 22px">
       <h3>Upgrade to Insider</h3>
@@ -2613,15 +2746,8 @@ function viewProfile(){
     </div>`}
     ${profileStyleHtml(u)}
     <div class="profile-shortcuts">
-      <button class="profile-shortcut" data-action="open-profile-library" data-tab="notes">${ICONS.edit}<span><span class="ps-title">Visit Notes</span><span class="ps-count">${state.visitNotes.length} ${state.visitNotes.length===1?'note':'notes'}</span></span></button>
-      <button class="profile-shortcut" data-action="open-profile-library" data-tab="stores">${ICONS.bookmark}<span><span class="ps-title">Saved Shops</span><span class="ps-count">${state.savedStoreIds.length} ${state.savedStoreIds.length===1?'shop':'shops'}</span></span></button>
+      <button class="profile-shortcut" data-action="open-profile-library" data-tab="notes">${ICONS.edit}<span><span class="ps-title">Shop Notes</span><span class="ps-count">${state.visitNotes.length} ${state.visitNotes.length===1?'note':'notes'}</span></span></button>
       <button class="profile-shortcut" data-action="open-profile-library" data-tab="liked">${ICONS.heart}<span><span class="ps-title">Liked Finds</span><span class="ps-count">${likedFinds.length} ${likedFinds.length===1?'find':'finds'}</span></span></button>
-      <button class="profile-shortcut" data-action="open-profile-library" data-tab="votes">${ICONS.check}<span><span class="ps-title">My Votes</span><span class="ps-count">${myVoteCount} ${myVoteCount===1?'store':'stores'}</span></span>${ICONS.chevronR}</button>
-    </div>
-
-    <div class="profile-section">
-      <div class="section-head"><h2>Recent Visit Notes</h2><button class="see-all" data-action="open-profile-library" data-tab="notes">See all</button></div>
-      ${recentNotes.length?`<div class="note-list">${recentNotes.map(visitNoteCard).join("")}</div>`:`<div class="empty-state" style="padding:24px 12px"><p>Keep private notes about stores you visit.</p><button class="btn btn-ghost btn-sm" style="margin-top:12px" data-action="open-visit-note">Add your first note</button></div>`}
     </div>
 
     <div class="profile-section">
@@ -2701,12 +2827,22 @@ function visitNoteCard(note){
     <div class="note-text">${escapeHtml(note.text)}</div>
   </button>`;
 }
-function compactProfileStore(s){
+function compactProfileStore(s, vote){
   return `<button class="profile-compact-store" data-action="open-store" data-id="${s.id}">
     <span class="stop-thumb">${photoOrArt(s)}</span>
-    <span class="pcs-body"><span class="pcs-name">${s.name}</span><span class="pcs-meta">${s.neighborhood} · ${s.categories[0]||s.type}</span></span>
+    <span class="pcs-body"><span class="pcs-name">${s.name}</span><span class="pcs-meta">${s.neighborhood} · ${s.categories[0]||s.type}${vote?` · <span style="color:var(--royal)">${vote}</span>`:""}</span></span>
     ${ICONS.chevronR}
   </button>`;
+}
+function profileRouteCard(r){
+  const stores=r.stops.map(getStoreById).filter(Boolean);
+  return `<div class="profile-route-card">
+    <button class="profile-compact-store" data-action="load-saved-route" data-id="${r.id}">
+      <span class="stop-thumb">${stores[0]?photoOrArt(stores[0]):""}</span>
+      <span class="pcs-body"><span class="pcs-name">${escapeHtml(r.title||"Saved route")}</span><span class="pcs-meta">${stores.length} ${stores.length===1?'stop':'stops'}${r.start?` · from ${escapeHtml(r.start)}`:""}</span>${stores.length?`<span class="pcs-meta pcs-stops">${stores.slice(0,3).map(s=>s.name).join(", ")}${stores.length>3?` +${stores.length-3}`:""}</span>`:""}</span>
+    </button>
+    <button class="btn btn-ghost btn-sm" aria-label="Remove route" data-action="remove-saved-route" data-id="${r.id}">${ICONS.trash}</button>
+  </div>`;
 }
 function viewProfileLibrary(){
   if(!state.user) return viewProfile();
@@ -2714,10 +2850,18 @@ function viewProfileLibrary(){
   let content="";
   if(tab==="notes"){
     const notes=state.visitNotes.slice().sort((a,b)=>new Date(b.visitedAt)-new Date(a.visitedAt));
-    content=`${notes.length?`<div class="note-list">${notes.map(visitNoteCard).join("")}</div>`:`<div class="empty-state"><h3>No visit notes yet</h3><p>Add private notes about stores you have explored.</p></div>`}<button class="btn btn-primary btn-block" style="margin-top:16px" data-action="open-visit-note">Add a visit note</button>`;
+    content=`${notes.length?`<div class="note-list">${notes.map(visitNoteCard).join("")}</div>`:`<div class="empty-state"><h3>No shop notes yet</h3><p>Add private notes about stores you have explored.</p></div>`}<button class="btn btn-primary btn-block" style="margin-top:16px" data-action="open-visit-note">Add a shop note</button>`;
   }else if(tab==="stores"){
     const stores=state.savedStoreIds.map(getStoreById).filter(Boolean);
     content=stores.length?`<div class="note-list">${stores.map(compactProfileStore).join("")}</div>`:`<div class="empty-state"><h3>No saved shops yet</h3><p>Bookmark a shop to keep it here.</p></div>`;
+  }else if(tab==="visited"){
+    const voteOf = id=>{ const v=state.storeVotes[id]; return !v ? "" : v.up.includes(state.user.id) ? "Worth it" : v.down.includes(state.user.id) ? "Not lately" : ""; };
+    const ids=[...new Set([...state.visitedStoreIds, ...state.stores.filter(st=>voteOf(st.id)).map(st=>st.id)])];
+    const stores=ids.map(getStoreById).filter(Boolean).sort((a,b)=>a.name.localeCompare(b.name));
+    content=stores.length?`<div class="note-list">${stores.map(st=>compactProfileStore(st, voteOf(st.id))).join("")}</div>`:`<div class="empty-state"><h3>No visited stores yet</h3><p>Tap Mark as visited on a store page and it will show up here.</p></div>`;
+  }else if(tab==="routes"){
+    const routes=state.userRoutes.filter(r=>state.savedRouteIds.includes(r.id));
+    content=routes.length?`<div class="note-list">${routes.map(profileRouteCard).join("")}</div>`:state.user.isMember?`<div class="empty-state"><h3>No saved routes yet</h3><p>Build a route, then tap Save route to keep it here.</p><button class="btn btn-ghost btn-sm" style="margin-top:12px" data-action="nav" data-view="route">Build a route</button></div>`:`<div class="empty-state"><h3>No saved routes yet</h3><p>Saving routes comes with ATL Guide Insider.</p><button class="btn btn-ghost btn-sm" style="margin-top:12px" data-action="open-membership">See Insider perks</button></div>`;
   }else if(tab==="votes"){
     const mine = state.stores.filter(st=>{ const v=state.storeVotes[st.id]; return v && (v.up.includes(state.user.id)||v.down.includes(state.user.id)); });
     const yes = mine.filter(st=>state.storeVotes[st.id].up.includes(state.user.id));
@@ -2728,9 +2872,18 @@ function viewProfileLibrary(){
     const finds=getLikedFinds();
     content=finds.length?finds.map(postCard).join(""):`<div class="empty-state"><h3>No liked finds yet</h3><p>Like a community find and it will appear here.</p></div>`;
   }
+  const heads={
+    notes:["Shop Notes","Your private notes from store visits."],
+    visited:["Visited Stores","Stores you\u2019ve been to, with your \u201cStill worth the trip?\u201d answer."],
+    stores:["Saved Shops","Shops you saved to revisit."],
+    routes:["Saved Routes","Routes you saved for your next trip."],
+    liked:["Liked Finds","Finds you liked from the community."],
+    votes:["My Votes",'Stores you answered "Still worth the trip?" on.']
+  };
+  const head=heads[tab]||heads.liked;
   return `<div style="margin-top:6px">
     <button class="btn btn-ghost btn-sm" data-action="nav" data-view="profile" style="margin-bottom:16px">${ICONS.back}Back to profile</button>
-    <div class="profile-library-head"><div><h1>${tab==='stores'?'Saved Shops':tab==='liked'?'Liked Finds':tab==='votes'?'My Votes':'Visit Notes'}</h1><p>${tab==='stores'?'Shops you saved to revisit.':tab==='liked'?'Finds you liked from the community.':tab==='votes'?'Stores you answered "Still worth the trip?" on.':'Your private notes from store visits.'}</p></div></div>
+    <div class="profile-library-head"><div><h1>${head[0]}</h1><p>${head[1]}</p></div></div>
     ${content}
   </div>`;
 }
@@ -3006,8 +3159,11 @@ async function loadAdminData(){
 }
 function adminTargetLabel(r){
   if(r.target_type==="store"){ const s = getStoreById(r.target_id); return s ? s.name : "Store " + r.target_id; }
-  if(r.target_type==="post"){ const p = state.posts.find(x=>x.id===r.target_id); return p ? `Post: ${p.item} (@${p.user})` : "Post " + r.target_id.slice(0,8); }
-  if(r.target_type==="event"){ const e = state.events.find(x=>x.id===r.target_id); return e ? `Event: ${e.title}` : "Event " + r.target_id.slice(0,8); }
+  // Post and event text is already HTML-safe in state; the caller escapes this
+  // label, so it's decoded here to keep "&" from showing up as "&amp;".
+  if(r.target_type==="post"){ const p = state.posts.find(x=>x.id===r.target_id); return p ? `Post: ${decodeHtml(p.item)} (@${decodeHtml(p.user)})` : "Post " + String(r.target_id??"").slice(0,8); }
+  if(r.target_type==="event"){ const e = state.events.find(x=>x.id===r.target_id); return e ? `Event: ${decodeHtml(e.title)}` : "Event " + String(r.target_id??"").slice(0,8); }
+  if(r.target_type==="comment"){ const c = findComment(r.target_id); if(!c) return "Comment (not loaded here, may already be deleted)"; const t = decodeHtml(c.text); return `Comment: ${t.length>60 ? t.slice(0,60)+"…" : t} (@${decodeHtml(c.user)})`; }
   return r.target_type + " " + String(r.target_id).slice(0,8);
 }
 function adminReviewHtml(){
@@ -3017,18 +3173,18 @@ function adminReviewHtml(){
   const empty = t => `<div style="font-size:13px;color:var(--ink-soft);padding:6px 0 10px">${t}</div>`;
   const eventsHtml = pending.length ? pending.map(ev=>`
     <div class="admin-list-row" style="align-items:flex-start">
-      <div style="flex:1;min-width:0"><div class="ar-name">${ev.title}</div><div class="ar-sub">${ev.startDate||""}${ev.startTime?" · "+ev.startTime:""} · ${ev.venue||""}</div><div class="ar-sub">${ev.address||""}</div><div class="ar-sub">${[ev.priceLabel, ev.parking].filter(Boolean).join(" · ")}</div>${ev.sourceUrl?`<a class="ar-sub" href="${ev.sourceUrl}" target="_blank" rel="noopener" style="color:var(--royal)">Event link</a>`:""}<div class="ar-sub" style="margin-top:4px;white-space:normal">${ev.description||""}</div></div>
-      <div class="ar-actions" style="flex-direction:column;gap:6px"><button class="btn btn-royal btn-sm" data-action="admin-approve-event" data-id="${ev.id}">Publish</button><button class="btn btn-outline btn-sm" data-action="admin-edit-event" data-id="${ev.id}">Edit</button><button class="btn btn-ghost btn-sm" data-action="admin-decline-event" data-id="${ev.id}">Decline</button></div>
+      <div style="flex:1;min-width:0"><div class="ar-name">${ev.title}</div><div class="ar-sub">${escapeHtml(ev.startDate||"")}${ev.startTime?" · "+escapeHtml(formatEventTime(ev.startTime)||ev.startTime):""} · ${ev.venue||""}</div><div class="ar-sub">${ev.address||""}</div><div class="ar-sub">${[ev.priceLabel, ev.parking].filter(Boolean).join(" · ")}</div>${ev.sourceUrl?`<a class="ar-sub" href="${ev.sourceUrl}" target="_blank" rel="noopener" style="color:var(--royal)">Event link</a>`:""}<div class="ar-sub" style="margin-top:4px;white-space:normal">${ev.description||""}</div></div>
+      <div class="ar-actions" style="flex-direction:column;gap:6px"><button class="btn btn-royal btn-sm" data-action="admin-approve-event" data-id="${escapeHtml(ev.id)}">Publish</button><button class="btn btn-outline btn-sm" data-action="admin-edit-event" data-id="${escapeHtml(ev.id)}">Edit</button><button class="btn btn-ghost btn-sm" data-action="admin-decline-event" data-id="${escapeHtml(ev.id)}">Decline</button></div>
     </div>`).join("") : empty("No events waiting for review.");
   const subsHtml = a.loading ? empty("Loading…") : (a.storeSubs||[]).length ? a.storeSubs.map(st=>`
     <div class="admin-list-row" style="align-items:flex-start">
       <div style="flex:1;min-width:0"><div class="ar-name">${escapeHtml(st.name)}</div><div class="ar-sub">${escapeHtml(st.store_type||"")} · ${escapeHtml(st.neighborhood||"")}</div><div class="ar-sub">${escapeHtml(st.address||"")}</div><div class="ar-sub">${escapeHtml(st.categories||"")}</div>${st.link && /^https?:\/\//i.test(st.link)?`<a class="ar-sub" href="${escapeHtml(st.link)}" target="_blank" rel="noopener" style="color:var(--royal)">Link</a>`:""}<div class="ar-sub" style="margin-top:4px;white-space:normal">${escapeHtml(st.why||"")}</div><div class="ar-sub">From ${escapeHtml(st.submitter_email||"a member")}</div></div>
-      <div class="ar-actions" style="flex-direction:column;gap:6px"><button class="btn btn-royal btn-sm" data-action="admin-store-sub" data-id="${st.id}" data-status="added">Added</button><button class="btn btn-ghost btn-sm" data-action="admin-store-sub" data-id="${st.id}" data-status="declined">Decline</button></div>
+      <div class="ar-actions" style="flex-direction:column;gap:6px"><button class="btn btn-royal btn-sm" data-action="admin-store-sub" data-id="${escapeHtml(st.id)}" data-status="added">Added</button><button class="btn btn-ghost btn-sm" data-action="admin-store-sub" data-id="${escapeHtml(st.id)}" data-status="declined">Decline</button></div>
     </div>`).join("") : empty("No store suggestions waiting.");
   const repsHtml = a.loading ? empty("Loading…") : (a.reports||[]).length ? a.reports.map(r=>`
     <div class="admin-list-row" style="align-items:flex-start">
       <div style="flex:1;min-width:0"><div class="ar-name">${escapeHtml(r.reason)}</div><div class="ar-sub">${escapeHtml(adminTargetLabel(r))}</div>${r.details?`<div class="ar-sub" style="margin-top:4px;white-space:normal">${escapeHtml(r.details)}</div>`:""}<div class="ar-sub">${timeAgo((r.created_at||"").slice(0,10))}</div></div>
-      <div class="ar-actions"><button class="btn btn-ghost btn-sm" data-action="admin-resolve-report" data-id="${r.id}">Resolve</button></div>
+      <div class="ar-actions" style="flex-direction:column;gap:6px">${r.target_type==="comment" && r.target_id ? `<button class="btn btn-ghost btn-sm" data-action="admin-remove-comment" data-id="${escapeHtml(r.target_id)}" data-report="${escapeHtml(r.id)}">Remove</button>` : ""}<button class="btn btn-ghost btn-sm" data-action="admin-resolve-report" data-id="${escapeHtml(r.id)}">Resolve</button></div>
     </div>`).join("") : empty("No open reports.");
   const su = a.signups||[];
   const week = su.filter(x=>Date.now()-new Date(x.created_at).getTime() < 7*864e5).length;
@@ -3113,7 +3269,7 @@ function viewAdmin(){
       ${adminScanHtml()}
       <input type="search" id="admin-store-search" placeholder="Search stores by name, neighborhood, or category" value="${escapeHtml(state.adminStoreQuery||"")}" style="width:100%;margin-bottom:14px;border:1px solid var(--line-strong);border-radius:99px;padding:12px 16px;font-size:14px;background:var(--cream-card);color:var(--ink)">
       <div id="admin-store-results">
-      ${(()=>{ const q=(state.adminStoreQuery||"").toLowerCase().trim(); const list = q ? state.stores.filter(s=>[s.name,s.neighborhood,s.type,(s.categories||[]).join(" "),s.address].join(" ").toLowerCase().includes(q)) : state.stores; return `<div class="ar-sub" style="margin-bottom:8px">${list.length} of ${state.stores.length} stores</div>` + (list.length ? "" : `<div class="empty-state"><p>No stores match "${escapeHtml(state.adminStoreQuery||"")}".</p></div>`) + list.map(s=>`
+      ${(()=>{ const q=(state.adminStoreQuery||"").trim(); const list = q ? state.stores.filter(s=>matchesSearch(q, [s.name,s.neighborhood,s.type,...(s.categories||[]),s.address])) : state.stores; return `<div class="ar-sub" style="margin-bottom:8px">${list.length} of ${state.stores.length} stores</div>` + (list.length ? "" : `<div class="empty-state"><p>No stores match "${escapeHtml(state.adminStoreQuery||"")}".</p></div>`) + list.map(s=>`
         <div class="admin-list-row">
           <div><div class="ar-name">${s.name}${s.featured?'<span class="badge-featured">Featured</span>':''}${s.verified?' '+verifiedStamp(s,'margin-left:6px'):''}</div><div class="ar-sub">${s.neighborhood} · ${s.categories.join(", ")}</div></div>
           <div class="ar-actions">
@@ -3158,12 +3314,20 @@ function viewAdmin(){
       }).join("")}
     `;
   } else {
-    body = `<p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">Remove posts that violate community guidelines.</p>
+    body = `<p style="font-size:13px;color:var(--ink-soft);margin-bottom:14px">Remove posts and comments that violate community guidelines.</p>
       ${state.posts.map(p=>`
         <div class="admin-list-row">
           <div><div class="ar-name">${p.item}</div><div class="ar-sub">@${p.user} · ${timeAgo(p.date)}</div></div>
           <div class="ar-actions"><button data-action="admin-delete-post" data-id="${p.id}" aria-label="Remove">${ICONS.trash}</button></div>
-        </div>`).join("")}`;
+        </div>`).join("")}
+      <h3 style="margin:26px 0 12px">Comments</h3>
+      ${(()=>{ const list = Object.values(state.comments).flat().filter(c=>c.id).sort((a,b)=>String(b.createdAt).localeCompare(String(a.createdAt)));
+        if(!list.length) return `<div class="empty-state"><p>No comments yet.</p></div>`;
+        return list.map(c=>{ const post = state.posts.find(x=>x.id===c.postId); return `
+        <div class="admin-list-row" style="align-items:flex-start">
+          <div><div class="ar-name">@${c.user}</div><div class="ar-sub" style="white-space:normal;overflow-wrap:anywhere">${c.text}</div><div class="ar-sub">On ${post ? post.item : "a find"} · ${timeAgo(String(c.createdAt).slice(0,10))}</div></div>
+          <div class="ar-actions"><button data-action="admin-remove-comment" data-id="${escapeHtml(c.id)}" aria-label="Remove comment">${ICONS.trash}</button></div>
+        </div>`; }).join(""); })()}`;
   }
   return `
     <div style="margin-top:16px">
@@ -3223,10 +3387,10 @@ function visitNoteModal(params){
   const n=new Date(), today=`${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,"0")}-${String(n.getDate()).padStart(2,"0")}`;
   return `<div class="modal-overlay"><div class="modal-sheet">
     <div class="modal-handle"></div>
-    <div class="modal-title">${editing?'Edit visit note':'Add a visit note'}</div>
+    <div class="modal-title">${editing?'Edit shop note':'Add a shop note'}</div>
     <div class="modal-sub">Keep a private record of what you found, prices you noticed, or whether you want to return.</div>
     <div class="form-group"><label>Store visited</label><select id="vn-store"><option value="">Choose a store</option>${storeOptions}</select></div>
-    <div class="form-group"><label>Date visited</label><input type="date" id="vn-date" value="${editing?.visitedAt||today}"></div>
+    <div class="form-group"><label>Date visited</label><input type="date" id="vn-date" value="${escapeHtml(editing?.visitedAt||today)}"></div>
     <div class="form-group"><label>Private note</label><textarea id="vn-text" placeholder="What did you find? How were the prices? Would you return?">${escapeHtml(editing?.text||"")}</textarea></div>
     <button class="btn btn-primary btn-block" data-action="save-visit-note" data-id="${editing?.id||''}">${editing?'Save changes':'Save note'}</button>
     ${editing?`<button class="btn btn-ghost btn-block" style="margin-top:8px;color:var(--danger)" data-action="delete-visit-note" data-id="${editing.id}">Delete note</button>`:''}
@@ -3322,7 +3486,7 @@ function reportModal(params){
       <div class="form-group"><label>What's wrong?</label><select id="rp-reason"><option value="" selected disabled>Choose one</option>${REPORT_REASONS[type].map(r=>`<option>${r}</option>`).join("")}</select></div>
       <div class="form-group"><label>Details (optional)</label><textarea id="rp-details" maxlength="1000" placeholder="Anything that would help us fix it"></textarea></div>
       <button class="btn btn-royal btn-block" data-action="submit-report" data-type="${type}" data-id="${escapeHtml(params.id||"")}">Send report</button>
-      ${type==="post" && params.uid && (!state.user || params.uid!==state.user.id) ? `<div class="hairline" style="margin:16px 0"></div>
+      ${(type==="post" || type==="comment") && params.uid && (!state.user || params.uid!==state.user.id) ? `<div class="hairline" style="margin:16px 0"></div>
       <button class="btn btn-ghost btn-block" style="color:var(--danger)" data-action="block-user" data-uid="${escapeHtml(params.uid)}" data-uname="${escapeHtml(params.uname||"")}">Block @${escapeHtml(params.uname||"this user")}</button>
       <div style="font-size:12px;color:var(--ink-soft);text-align:center;margin-top:6px">You won't see their posts or comments. They won't be notified.</div>` : ""}
       <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
@@ -3390,6 +3554,31 @@ async function adminRemovePost(id){
   if(error){ toast("Couldn't remove that post — try again."); return; }
   state.posts = state.posts.filter(p=>p.id!==id);
   toast("Post removed.");
+  renderList();
+}
+// The comment's author, the owner of the find it's on, and admins can delete it.
+// Asking for the deleted row back shows whether the database actually allowed it.
+const commentDeletesInFlight = new Set();
+async function deleteComment(id, reportId){
+  if(!state.user || !id || commentDeletesInFlight.has(id)) return;
+  const c = findComment(id);
+  const post = c && state.posts.find(p=>p.id===c.postId);
+  if(!state.isAdmin && !(c && (c.userId===state.user.id || (post && post.userId===state.user.id)))) return;
+  const who = !c ? "this comment" : c.userId===state.user.id ? "your comment" : `@${decodeHtml(c.user)}'s comment`;
+  const said = c ? decodeHtml(c.text) : "";
+  if(!confirm(`Delete ${who}${said ? `: "${said.length>40 ? said.slice(0,40)+"…" : said}"` : ""}?`)) return;
+  commentDeletesInFlight.add(id);
+  let res = {};
+  try{ res = await sb.from("comments").delete().eq("id", id).select("id"); }
+  catch(err){ res = { error: err }; }
+  finally{ commentDeletesInFlight.delete(id); }
+  if(res.error || !(res.data||[]).length){ if(res.error) console.error("comment delete failed:", res.error.message); toast(!res.error && !c ? "Couldn't delete that comment. It may already be gone." : "Couldn't delete that comment — try again."); return; }
+  Object.keys(state.comments).forEach(k=>{ state.comments[k] = state.comments[k].filter(x=>x.id!==String(id)); });
+  if(reportId && state.isAdmin){
+    const { error } = await sb.from("reports").update({ status:"resolved" }).eq("id", reportId);
+    if(!error && state.admin) state.admin.reports = (state.admin.reports||[]).filter(x=>x.id!==reportId);
+  }
+  toast("Comment deleted.");
   renderList();
 }
 
@@ -3488,7 +3677,7 @@ function editProfileModal(){
         ${ICONS.camera}<div>${u.avatarUrl ? 'Tap to change your profile photo' : 'Tap to add a profile photo'}</div>
         <input type="file" accept="image/*" id="ep-avatar">
       </div>
-      <div class="form-group"><label>Bio</label><textarea id="ep-bio" placeholder="A line about your thrifting style">${u.bio||''}</textarea></div>
+      <div class="form-group"><label>Bio</label><textarea id="ep-bio" placeholder="A line about your thrifting style">${escapeHtml(u.bio||'')}</textarea></div>
       <div class="form-group"><label>Favorite category</label>
         <select id="ep-cat">${CATEGORIES.map(c=>`<option ${u.favCategory===c?'selected':''}>${c}</option>`).join("")}</select>
       </div>
@@ -3634,6 +3823,7 @@ function handleClick(e){
     case "like-post": toggleLike(t.dataset.id); break;
     case "toggle-comments": state.openComments = state.openComments===t.dataset.id?null:t.dataset.id; renderList(); break;
     case "add-comment": submitComment(t.dataset.id); break;
+    case "delete-comment": deleteComment(t.dataset.id); break;
     case "follow-user": toggleFollowUser(t.dataset.uid, t.dataset.u); break;
     case "share-post": {
       const p = state.posts.find(x=>x.id===t.dataset.id);
@@ -3667,6 +3857,7 @@ function handleClick(e){
     case "toggle-hide-chains": state.hideChains = !state.hideChains; saveState(); renderList(); break;
     case "set-start": state.startPickedByUser = true; state.geoReqId = (state.geoReqId||0) + 1; state.builderChoice.start = t.dataset.n; if(state.builderChoice.destination===t.dataset.n) state.builderChoice.destination=null; state.locationDetected=false; state.builderChoice.startCoords=null; renderList(); break;
     case "use-my-location": tryDetectLocation(true); break;
+    case "home-use-location": useLocationForHome(); break;
     case "toggle-destination-picker": state.showDestinationPicker = !state.showDestinationPicker; renderList(); break;
     case "set-destination": state.builderChoice.destination = t.dataset.n || null; state.builderChoice.destinationAddress = null; state.builderChoice.destinationName = null; state.builderChoice.destinationCoords = null; state.showDestinationPicker=false; renderList(); break;
     case "clear-destination-address": state.builderChoice.destinationAddress = null; state.builderChoice.destinationName = null; state.builderChoice.destinationCoords = null; renderList(); break;
@@ -3693,6 +3884,7 @@ function handleClick(e){
     case "open-share-find": pendingFindPhotoData = null; openModal("shareFind", {store: t.dataset.store}); break;
     case "set-saved-tab": state.savedTab = t.dataset.t; renderList(); break;
     case "load-saved-route": { const r0 = state.userRoutes.find(r=>r.id===t.dataset.id); if(r0){ ensureBrowsePace(r0); const live = r0.stops.filter(sid=>getStoreById(sid)); if(live.length !== r0.stops.length){ r0.stops = live; recomputeRoute(r0); persistRouteEdits(r0); } state.currentRoute = r0; go("routeResults"); } break; }
+    case "remove-saved-route": removeSavedRoute(t.dataset.id); break;
     case "open-login": openModal("login"); break;
     case "open-forgot-password": openModal("forgotPassword"); break;
     case "submit-forgot-password": submitForgotPassword(); break;
@@ -3725,6 +3917,7 @@ function handleClick(e){
     case "open-blocked": openModal("blocked"); break;
     case "submit-report": submitReport(t.dataset.type, t.dataset.id); break;
     case "admin-remove-post": adminRemovePost(t.dataset.id); break;
+    case "admin-remove-comment": if(state.isAdmin) deleteComment(t.dataset.id, t.dataset.report); break;
     case "submit-login": submitLogin(); break;
     case "open-edit-profile": openModal("editProfile"); break;
     case "open-profile-library": state.profileLibraryTab=t.dataset.tab||"notes"; go("profileLibrary"); break;
@@ -3748,7 +3941,7 @@ function handleClick(e){
     case "admin-delete-post": adminDeletePost(t.dataset.id); break;
     case "admin-add-event": openModal("adminEditEvent", {}); break;
     case "admin-refresh-google": adminRefreshFromGoogle(); break;
-    case "admin-edit-event": openModal("adminEditEvent", {id:t.dataset.id}); break;
+    case "admin-edit-event": openModal("adminEditEvent", {id:t.dataset.id}); loadAdminEventContact(t.dataset.id); break;
     case "admin-save-event": adminSaveEvent(t.dataset.id, t.dataset.publish==="1"); break;
     case "admin-delete-event": adminDeleteEvent(t.dataset.id); break;
     case "delete-own-event": deleteOwnEvent(t.dataset.id); break;
@@ -3918,13 +4111,25 @@ function confirmAddStop(id){
   closeModal();
   renderList();
 }
+// The saved copy of a route with the same start, the same stops in the same
+// order, and the same end — so reopening a curated route and saving it
+// again doesn't store a second copy.
+function findSavedRoute(r){
+  if(!r) return null;
+  const key = x => JSON.stringify([x.start||"", x.destination||"", x.destinationAddress||"", (x.stops||[]).filter(sid=>getStoreById(sid))]);
+  const k = key(r);
+  return state.userRoutes.find(x=>state.savedRouteIds.includes(x.id) && key(x)===k) || null;
+}
+let savingRoute = false;
 function saveCurrentRoute(){
   requireAuth(async ()=>{
     if(!state.user.isMember){ openModal("membership"); return; }
     const r = state.currentRoute;
-    if(state.savedRouteIds.includes(r.id)){ toast("This route is already saved."); return; }
-    if(r.saving) return;
-    r.saving = true;
+    if(!r) return;
+    if(state.savedRouteIds.includes(r.id) || findSavedRoute(r)){ toast("Already in your saved routes."); return; }
+    // One save at a time, so a double tap can't store the route twice.
+    if(savingRoute) return;
+    savingRoute = true;
     const stopsAtSave = JSON.stringify(r.stops);
     let data, error;
     try{
@@ -3939,16 +4144,33 @@ function saveCurrentRoute(){
       start_lng: r.startCoords ? r.startCoords.lng : null
     }).select().single());
     } catch(err){ error = err; }
-    finally { r.saving = false; }
+    finally { savingRoute = false; }
     if(error){ toast("Couldn't save that route — try again."); return; }
     r.id = data.id; // swap the client-generated id for the real database one
-    state.userRoutes.push(r);
-    state.savedRouteIds.push(r.id);
+    state.userRoutes.unshift(r);
+    state.savedRouteIds.unshift(r.id);
     // Stops edited while the save was in flight: send them now.
     if(JSON.stringify(r.stops) !== stopsAtSave) persistRouteEdits(r);
     toast("Route saved.");
     renderList();
   });
+}
+async function removeSavedRoute(id){
+  if(!state.user) return;
+  const r = state.userRoutes.find(x=>x.id===id);
+  if(!r || r.removing) return;
+  if(!confirm(`Remove "${r.title||"this route"}" from your saved routes?`)) return;
+  r.removing = true;
+  // Asking for the deleted row back shows whether the database actually allowed it.
+  let data, error;
+  try{ ({ data, error } = await sb.from("routes").delete().eq("id", id).eq("user_id", state.user.id).select("id")); }
+  catch(err){ error = err; }
+  finally { r.removing = false; }
+  if(error || !(data||[]).length){ toast("Couldn't remove that route — try again."); return; }
+  state.userRoutes = state.userRoutes.filter(x=>x.id!==id);
+  state.savedRouteIds = state.savedRouteIds.filter(x=>x!==id);
+  toast("Route removed.");
+  renderList();
 }
 let signingOut = false;
 async function signOutNow(){
@@ -4080,12 +4302,12 @@ function submitComment(id){
     if(commentsInFlight.has(id)) return;
     commentsInFlight.add(id);
     let res;
-    try{ res = await sb.from("comments").insert({post_id:id, user_id:state.user.id, text}); }
+    try{ res = await sb.from("comments").insert({post_id:id, user_id:state.user.id, text}).select("id,created_at").single(); }
     finally{ commentsInFlight.delete(id); }
-    const { error } = res;
+    const { data, error } = res;
     if(error){ toast("Couldn't post that comment — try again."); return; }
     if(!state.comments[id]) state.comments[id]=[];
-    state.comments[id].push({user: escapeHtml(state.user.username), text: escapeHtml(text)});
+    state.comments[id].push({id: data?.id ? String(data.id) : "", postId: id, user: escapeHtml(state.user.username), userId: state.user.id, text: escapeHtml(text), createdAt: data?.created_at || new Date().toISOString()});
     state.openComments = id;
     renderList();
   });
@@ -4186,13 +4408,16 @@ async function acceptTerms(){
   closeModal();
   render();
   if(pendingPasswordRecovery){ openModal("setNewPassword"); return; }
+  // The one-time location question comes right after this screen, before
+  // the welcome tour, so the two never stack.
+  await askLocationOnce();
   maybeStartMemberTour();
 }
 // ---- Style quiz data -----------------------------------------------------
 const HOME_STYLES = {
   mcm:{name:"Mid-Century Modern", look:"Clean lines, organic curves, and honest materials from design's postwar golden age. Furniture that feels sculptural and easy to live with.", pieces:["Teak or walnut credenza","Tapered-leg side tables","Sculptural ceramic lamps","Molded plastic or bentwood chairs"], lookFor:["Danish teak and walnut veneers","Tapered, angled legs","Maker stamps under drawers and seats (Lane, Broyhill, Drexel)"]},
   deco:{name:"Art Deco", look:"The geometry and glamour of the 1920s and '30s: symmetry, lacquer, and luxe metallics that make a room feel like an evening out.", pieces:["Brass bar carts","Fan-shaped and stepped mirrors","Lacquered cabinets","Glass and chrome lighting"], lookFor:["Stepped and sunburst motifs","Burled wood and lacquer finishes","Etched or frosted glass"]},
-  postmodern:{name:"Postmodern", look:"The '80s Memphis spirit: primary color, squiggles, and playful geometry that refuses to take itself too seriously.", pieces:["Squiggle and confetti-print textiles","Chunky geometric lamps","Glass-block and laminate furniture","Bold sculptural vases"], lookFor:["Laminate and terrazzo surfaces","Primary color blocking","Asymmetric, playful shapes"]},
+  postmodern:{name:"Postmodern", look:"The spirit of '80s Memphis design: primary color, squiggles, and playful geometry that refuses to take itself too seriously.", pieces:["Squiggle and confetti-print textiles","Chunky geometric lamps","Glass-block and laminate furniture","Bold sculptural vases"], lookFor:["Laminate and terrazzo surfaces","Primary color blocking","Asymmetric, playful shapes"]},
   quietlux:{name:"Quiet Luxury", look:"Understated rooms where quality speaks softly: natural stone, fine textiles, and a palette that never shouts.", pieces:["Travertine and marble tables","Linen and cashmere throws","Heavy crystal and silver","Solid wood furniture with clean profiles"], lookFor:["Solid wood, not veneer","Real stone and natural fibers","Weight and craftsmanship over logos"]},
   boho:{name:"Bohemian Revival", look:"'70s warmth reimagined: rattan, layered textiles, plants, and collected treasures that feel lived-in and free.", pieces:["Rattan and wicker chairs","Macramé and woven wall hangings","Kilim and layered rugs","Floor cushions and poufs"], lookFor:["Natural cane and rattan in good shape","Handwoven textiles","Brass and carved-wood accents"]},
   english:{name:"English Country", look:"Layered antiques, chintz, and heirloom charm (the roots of today's grandmillennial style). Gracious, floral, and endlessly collected.", pieces:["Chintz armchairs","Needlepoint pillows","Blue-and-white porcelain","Brass candlesticks and gilt frames"], lookFor:["Hand-stitched needlepoint","Porcelain maker's marks on the base","Solid brass (a magnet won't stick)"]},
@@ -4216,7 +4441,7 @@ const HOME_STYLES = {
 const FASHION_STYLES = {
   min90s:{name:"'90s Minimalism", look:"Jil Sander and Helmut Lang energy: clean tailoring, fluid layers, and a palette of black, white, and gray.", pieces:["Slip dresses and fluid button-ups","Straight-leg trousers","Crisp white shirts","Minimal leather bags"], lookFor:["Labels like Calvin Klein, DKNY, Jil Sander","Silk and fine wool","Clean seams and simple cuts"]},
   quietlux:{name:"Quiet Luxury", look:"Cashmere, perfect tailoring, and no logos in sight. The style of people who don't need to announce it.", pieces:["Cashmere sweaters","Camel coats","Tailored trousers","Unbranded leather goods"], lookFor:["100% cashmere and merino","Italian and Scottish mills on the label","Quality stitching and lining"]},
-  parisian:{name:"Parisian Chic", look:"Breton stripes, a perfect trench, and effortless polish. Looks like you didn't try (you did).", pieces:["Breton striped tops","Trench coats","Ballet flats","High-waisted jeans"], lookFor:["Classic trench details (storm flaps, belts)","Natural fibers","Timeless shapes over trends"]},
+  parisian:{name:"Parisian Chic", look:"Breton stripes, a perfect trench, and effortless polish. Looks like you didn't try (you did).", pieces:["Breton striped tops","Trench coats","Ballet flats or loafers","High-waisted jeans"], lookFor:["Classic trench details (storm flaps, belts)","Natural fibers","Timeless shapes over trends"]},
   mod:{name:"Mod", look:"1960s London: slim tailoring, shift dresses, graphic prints, and sharp, youthful energy.", pieces:["Shift dresses and slim suits","Graphic op-art prints","Chelsea and go-go boots","Bold mod accessories"], lookFor:["Slim, clean cuts","Geometric prints","'60s labels and union tags"]},
   newlook:{name:"New Look", look:"1950s Dior and postwar polish: nipped waists, full shapes, and sharp structure. Pure mid-century glamour.", pieces:["Full skirts or pleated trousers","Fitted dresses or structured jackets","Structured handbags and briefcases","Pearls, gloves, and tie clips"], lookFor:["Metal zippers and handmade seams","Structured bodices","Vintage dressmaker labels"]},
   boheme70s:{name:"'70s Bohème", look:"Saint Laurent's '70s: suede, flares, open collars, and free-spirited glamour.", pieces:["Suede and fringe jackets","Flared jeans","Peasant blouses and open-collar shirts","Layered gold and turquoise jewelry"], lookFor:["Real suede and leather","Embroidery and crochet","Era labels and wide collars"]},
@@ -4228,13 +4453,13 @@ const FASHION_STYLES = {
   academia:{name:"Dark Academia", look:"Tweed, knits, and plaid: scholarly layers in moody, autumnal tones.", pieces:["Tweed blazers","Cable-knit sweaters","Plaid trousers and skirts","Leather satchels and loafers"], lookFor:["Harris Tweed and wool labels","Real leather","Elbow patches and quality knits"]},
   y2k:{name:"Y2K Revival", look:"Low-rise denim, logomania, and tinted shades: 2000s pop nostalgia at full volume.", pieces:["Baby tees and graphic tees","Low-rise and baggy jeans","Logo bags and trucker hats","Tinted sunglasses"], lookFor:["2000s designer logos","Velour and rhinestones","Original era tags"]},
   dandy:{name:"Black Dandyism", look:"Sharp tailoring, bold color, and self-expression through style, rooted in the Harlem Renaissance and celebrated at the 2025 Met Gala.", pieces:["Tailored suits in bold colors","Pocket squares and ties","Statement hats","Polished dress shoes"], lookFor:["Quality suiting fabrics","Interesting linings","Vintage hats and accessories"]},
-  african:{name:"African Modernism", look:"Wax print, kente, and mudcloth in modern silhouettes, with statement jewelry to match.", pieces:["Wax-print separates","Kente and mudcloth pieces","Statement beaded jewelry","Headwraps"], lookFor:["Authentic wax print and handwoven cloth","African designer labels","Handmade jewelry"]},
-  latin:{name:"Latin American Modernism", look:"Saturated color, embroidery, and artisan textiles with bold, joyful jewelry.", pieces:["Embroidered blouses and dresses","Guayaberas","Woven bags","Bold artisan jewelry"], lookFor:["Hand embroidery","Artisan-made textiles","Silver and handmade jewelry"]},
+  african:{name:"African Modernism", look:"Bold African wax prints, handwoven kente, and earthy mudcloth in modern silhouettes, with statement jewelry to match.", pieces:["Wax-print separates","Kente and mudcloth pieces","Statement beaded jewelry","Headwraps and kufi caps"], lookFor:["Authentic wax print and handwoven cloth","African designer labels","Handmade jewelry"]},
+  latin:{name:"Latin American Modernism", look:"Saturated color, embroidery, and artisan textiles with bold, joyful jewelry.", pieces:["Embroidered blouses and dresses","Guayabera shirts and embroidered tops","Woven bags","Bold artisan jewelry"], lookFor:["Hand embroidery","Artisan-made textiles","Silver and handmade jewelry"]},
   streetwear:{name:"Streetwear", look:"The everyday classics: vintage sportswear, team jackets, graphic tees, and sneakers, rooted in Black and hip-hop culture.", pieces:["Vintage team and starter jackets","Graphic tees","Hoodies and track pants","Classic sneakers"], lookFor:["Vintage sports brands","Single-stitch graphic tees","Classic sneakers in good shape"]},
   luxstreet:{name:"Luxury Streetwear", look:"Where designer houses meet the street: logo pieces, grail sneakers, and high-fashion collabs. Atlanta's signature high-low look.", pieces:["Designer logo pieces","Grail and collab sneakers","Luxury bags","High-end hoodies and outerwear"], lookFor:["Authenticity details (stitching, tags, date codes)","Designer-brand collaborations","Condition and original packaging"]},
   punk:{name:"Punk", look:"Vivienne Westwood and DIY attitude: leather, tartan, safety pins, and rules meant to be broken.", pieces:["Leather jackets","Tartan pieces","Band and slogan tees","Studded boots and belts"], lookFor:["Real leather","Vintage band merch","Customizable basics"]},
   romantic:{name:"Romanticism", look:"Lace, ruffles, and high necklines: Victorian-inspired softness with a poetic heart.", pieces:["Poet shirts and lace blouses","Ruffled shirts and dresses","Cameo and pearl jewelry","Velvet jackets and capes"], lookFor:["Real lace and silk","Pin-tucking and handwork","Antique and vintage jewelry"]},
-  southernprep:{name:"Southern Prep", look:"Seersucker, pastels, monograms, and game-day polish: classic Southern style.", pieces:["Seersucker and linen","Game-day dresses and button-downs","Monogrammed accessories","Loafers and boat shoes"], lookFor:["Natural cotton and linen","Classic preppy labels","Pearls and monogram details"]},
+  southernprep:{name:"Southern Prep", look:"Crisp button-downs, pastels, monograms, and game-day polish: classic Southern style.", pieces:["Linen shirts and khakis","Game-day dresses and button-downs","Monogrammed accessories","Loafers and boat shoes"], lookFor:["Natural cotton and linen","Classic preppy labels","Pearls and monogram details"]},
   sportluxe:{name:"Sport Luxe", look:"Athletic pieces styled with polish: matching sets, vintage track jackets, and retro runners. Gym energy, dressed up.", pieces:["Matching knit sets","Vintage track jackets","Retro running sneakers","Sleek leggings and joggers"], lookFor:["Vintage athletic brands","Quality technical fabrics","Clean, well-kept sneakers"]},
   casual:{name:"Elevated Casual", look:"Everyday staples done well: good denim, crisp tees, knit sweaters, and clean sneakers. Simple, but make it nice.", pieces:["Great-fitting jeans","Quality tees","Knit sweaters","Clean white sneakers"], lookFor:["Heavyweight cotton","Natural-fiber knits","Classic fits that last"]}
 };
@@ -4252,7 +4477,7 @@ const HOME_ARCH_QUESTIONS = [
 ];
 const FASHION_ARCH_QUESTIONS = [
   {q:"You walk into a thrift store. First move?", options:[["Head straight for what fits my vision","curator"],["Check tags, labels, and stamps","archivist"],["Start at one end and dig through everything","forager"],["Look for pieces that just need a little love","restorer"],["Scan for the best-made thing in the room","connoisseur"]]},
-  {q:"You find something amazing, but it's $150.",options:[["Buy it if it completes the look","curator"],["Research it first: is it the real thing?","archivist"],["Pass. The thrill is the $5 find.","forager"],["Point out the wobbly leg and ask for a deal","restorer"],["Worth it. Quality lasts.","connoisseur"]]},
+  {q:"You find something amazing, but it's $150.",options:[["Buy it if it completes the look","curator"],["Research it first: is it the real thing?","archivist"],["Pass. The thrill is the $5 find.","forager"],["Point out the missing button and ask for a deal","restorer"],["Worth it. Quality lasts.","connoisseur"]]},
   {q:"Your proudest find?", options:[["A piece that tied everything together","curator"],["A signed or labeled piece from a specific era","archivist"],["Something incredible for almost nothing","forager"],["Something I fixed or transformed","restorer"],["An heirloom-quality piece that'll last forever","connoisseur"]]}
 ];
 function archQs(kind){ return kind==="home" ? HOME_ARCH_QUESTIONS : FASHION_ARCH_QUESTIONS; }
@@ -4261,19 +4486,19 @@ const HOME_QUESTIONS = [
   {q:"Choose a material.", options:[["Brass and lacquer",{deco:3,harlem:1,moorish:1,victorian:1}],["Reclaimed wood and enamelware",{farmhouse:3,americana:2,industrial:1}],["Hand-thrown ceramics and raw linen",{wabisabi:3,japandi:1,minimalist:1}],["Chrome and translucent acrylic",{y2k:3,postmodern:2}],["Carved hardwood and handwoven textiles",{african:3,latin:1,tropical:1}],["Cashmere throws and travertine",{quietlux:3,minimalist:1,mcm:1}]]},
   {q:"Your color palette.", options:[["Warm neutrals: cream, oat, and stone",{minimalist:3,quietlux:2,japandi:1,wabisabi:1}],["Jewel tones: emerald, sapphire, and gold",{deco:2,maximalist:2,moorish:1,harlem:1}],["Primary brights and candy pastels",{postmodern:3,y2k:2,maximalist:1}],["Earth tones: terracotta, ochre, and olive",{african:2,boho:2,spanish:1,latin:1,mcm:1}],["Moody: oxblood, forest green, and walnut",{academia:3,victorian:1,english:1}],["Washed blue, barn red, and white",{americana:3,farmhouse:2,english:1}]]},
   {q:"Pick an era to time-travel to.", options:[["The 1890s",{victorian:3,english:1}],["The 1920s",{harlem:3,deco:2}],["The 1950s and '60s",{mcm:3,latin:1,tropical:1}],["The 1970s",{boho:3,maximalist:1}],["The 1980s",{postmodern:3}],["The 2000s",{y2k:3}]]},
-  {q:"Your splurge piece.", options:[["An antique library ladder or steamer trunk",{academia:2,victorian:1,industrial:1}],["A chintz armchair with needlepoint pillows",{english:3,maximalist:1}],["A brass lantern or tiled side table",{moorish:3,spanish:1}],["Factory pendant lights or a metal locker cabinet",{industrial:3}],["A farmhouse table with mismatched chairs",{farmhouse:3,americana:1}],["A bold original painting or sculpture",{harlem:2,african:2,maximalist:1}]]},
-  {q:"How do you feel about pattern?", options:[["None needed; texture says it all",{minimalist:3,japandi:1,wabisabi:1,quietlux:1}],["Florals on florals, please",{maximalist:3,english:2,boho:1}],["Bold geometry",{postmodern:2,latin:2,deco:1,african:1}],["Palm and botanical prints",{tropical:3,boho:1}],["Plaid and quilts",{americana:3,farmhouse:1,academia:1}],["Intricate tile and arabesque",{moorish:2,spanish:2,victorian:1}]]},
+  {q:"Your splurge piece.", options:[["An antique library ladder or steamer trunk",{academia:2,victorian:1,industrial:1}],["A floral armchair with hand-stitched pillows",{english:3,maximalist:1}],["A brass lantern or tiled side table",{moorish:3,spanish:1}],["Factory pendant lights or a metal locker cabinet",{industrial:3}],["A farmhouse table with mismatched chairs",{farmhouse:3,americana:1}],["A bold original painting or sculpture",{harlem:2,african:2,maximalist:1}]]},
+  {q:"How do you feel about pattern?", options:[["None needed; texture says it all",{minimalist:3,japandi:1,wabisabi:1,quietlux:1}],["Florals on florals, please",{maximalist:3,english:2,boho:1}],["Bold geometry",{postmodern:2,latin:2,deco:1,african:1}],["Palm and botanical prints",{tropical:3,boho:1}],["Plaid and quilts",{americana:3,farmhouse:1,academia:1}],["Intricate tile and ornate scrollwork",{moorish:2,spanish:2,victorian:1}]]},
   {q:"Where do you find inspiration?", options:[["Old libraries and museums",{academia:2,victorian:1,deco:1}],["Mexico City, Havana, and Seville",{latin:2,spanish:2,tropical:1}],["Marrakech and the Mediterranean",{moorish:2,boho:1,spanish:1}],["Tokyo and Copenhagen",{japandi:3,minimalist:1,mcm:1}],["Lagos, Dakar, and Accra",{african:3,maximalist:1}],["Atlanta's Westside warehouses",{industrial:2,americana:1}]]},
   {q:"Pick a word for your home.", options:[["Serene",{wabisabi:2,japandi:1,minimalist:1,quietlux:1}],["Glamorous",{deco:2,harlem:1,moorish:1}],["Playful",{maximalist:2,y2k:2,postmodern:1}],["Cozy",{farmhouse:1,english:1,boho:1,americana:1}],["Refined",{quietlux:2,mcm:1,victorian:1}],["Soulful",{african:1,harlem:1,latin:1,tropical:1,boho:1}]]}
 ];
 const FASHION_QUESTIONS = [
-  {q:"Your Saturday thrift-run outfit.", options:[["Vintage tee, broken-in jeans, clean sneakers",{casual:3,streetwear:1,workwear:1}],["A matching knit set and retro runners",{sportluxe:3,streetwear:1}],["A white tee with a perfect trench",{min90s:2,parisian:2,quietlux:1}],["Flares, a suede jacket, and layered necklaces",{boheme70s:3,disco:1}],["Flannel, a band tee, and combat boots",{grunge:3,punk:1}],["A tailored blazer, pocket square, and great shoes",{dandy:2,power:1,southernprep:1,academia:1}]]},
-  {q:"The piece you'd splurge on.", options:[["A designer bag or grail sneakers",{luxstreet:3,quietlux:1}],["A sculptural piece from an avant-garde designer",{avantgarde:3}],["A cashmere coat with no logo anywhere",{quietlux:3,min90s:1}],["A sequin or metallic showstopper",{disco:3,power:1,y2k:1}],["A hand-embroidered or wax-print statement piece",{african:2,latin:2,romantic:1}],["Vintage Western boots",{workwear:3,boheme70s:1}]]},
+  {q:"Your Saturday thrift-run outfit.", options:[["Vintage tee, broken-in jeans, clean sneakers",{casual:3,streetwear:1,workwear:1}],["A matching knit set with retro sneakers",{sportluxe:3,streetwear:1}],["A white tee with a perfect trench",{min90s:2,parisian:2,quietlux:1}],["Flares, a suede jacket, and layered jewelry",{boheme70s:3,disco:1}],["Flannel, a band tee, and combat boots",{grunge:3,punk:1}],["A tailored blazer, pocket square, and great shoes",{dandy:2,power:1,southernprep:1,academia:1}]]},
+  {q:"The piece you'd splurge on.", options:[["A designer bag or grail sneakers",{luxstreet:3,quietlux:1}],["A sculptural piece from an avant-garde designer",{avantgarde:3}],["A cashmere coat with no logo anywhere",{quietlux:3,min90s:1}],["A sequin or metallic showstopper",{disco:3,power:1,y2k:1}],["Bold embroidery or a colorful print",{african:2,latin:2,romantic:1}],["Vintage Western boots",{workwear:3,boheme70s:1}]]},
   {q:"Your color story.", options:[["Black, white, and gray",{min90s:2,avantgarde:2,punk:1}],["Camel, cream, and navy",{quietlux:2,parisian:2,academia:1,casual:1}],["Pastels and gingham",{southernprep:3,newlook:1,romantic:1}],["Saturated brights",{latin:2,african:2,mod:1,y2k:1}],["Earthy rust and olive",{boheme70s:2,workwear:2,grunge:1}],["Bold, head-to-toe color",{dandy:2,power:1,disco:1,mod:1}]]},
   {q:"Pick a decade.", options:[["The 1950s",{newlook:3,romantic:1}],["The 1960s",{mod:3}],["The 1970s",{boheme70s:2,disco:2}],["The 1980s",{power:3,punk:1}],["The 1990s",{min90s:2,grunge:2,streetwear:2}],["The 2000s",{y2k:3,luxstreet:1}]]},
-  {q:"Your go-to shoe.", options:[["Loafers or boat shoes",{southernprep:2,academia:1,parisian:1,dandy:1}],["Classic sneakers, kept fresh",{streetwear:3,casual:1}],["Retro running shoes, styled with intention",{sportluxe:3}],["Platforms or go-go boots",{mod:1,disco:1,y2k:1,punk:1}],["Polished vintage dress shoes",{newlook:2,romantic:2,parisian:1}],["Boots that have seen things",{workwear:2,punk:2,grunge:1}]]},
+  {q:"Your go-to shoe.", options:[["Loafers or boat shoes",{southernprep:2,academia:1,parisian:1,dandy:1}],["Classic sneakers, kept fresh",{streetwear:3,casual:1}],["Retro running shoes, styled with intention",{sportluxe:3}],["Platforms or chunky '70s boots",{mod:1,disco:1,y2k:1,punk:1}],["Polished vintage dress shoes",{newlook:2,romantic:2,parisian:1}],["Boots that have seen things",{workwear:2,punk:2,grunge:1}]]},
   {q:"Whose closet would you raid?", options:[["A Harlem Renaissance gentleman's",{dandy:3}],["A Lagos street-style star's",{african:3}],["A Mexico City gallerist's",{latin:3}],["A Tokyo designer's, all in black",{avantgarde:2,min90s:1}],["A Parisian on a bicycle's",{parisian:3}],["A rock star's at a basement show",{punk:2,grunge:1}]]},
-  {q:"The fabric you reach for.", options:[["Crisp cotton poplin and seersucker",{southernprep:2,casual:1,newlook:1}],["Tweed and wool",{academia:3,quietlux:1}],["Lace and silk ruffles",{romantic:3,newlook:1}],["Denim and canvas",{workwear:2,casual:1,streetwear:1}],["Technical knits and nylon",{sportluxe:2,streetwear:1,y2k:1}],["Leather and studs",{punk:2,grunge:1,luxstreet:1}]]},
+  {q:"The fabric you reach for.", options:[["Crisp cotton button-downs and breezy linen",{southernprep:2,casual:1,newlook:1}],["Tweed and wool",{academia:3,quietlux:1}],["Velvet, lace, and flowy silk",{romantic:3,newlook:1}],["Denim and canvas",{workwear:2,casual:1,streetwear:1}],["Athletic knits and nylon",{sportluxe:2,streetwear:1,y2k:1}],["Leather and studs",{punk:2,grunge:1,luxstreet:1}]]},
   {q:"Pick a word for your style.", options:[["Effortless",{casual:2,parisian:1,min90s:1}],["Sharp",{power:2,dandy:1,mod:1}],["Comfortable",{streetwear:2,sportluxe:1,casual:1,grunge:1}],["Dramatic",{avantgarde:1,disco:1,romantic:1}],["Iconic",{luxstreet:3,y2k:1,mod:1}],["Proper",{southernprep:2,academia:1,newlook:1,quietlux:1}]]}
 ];
 
@@ -4304,11 +4529,11 @@ const HOME_EXTRA = {
   farmhouse:{essence:"shiplap warmth, enamelware, and honest country comfort", era:"1880s–1950s", material:"Shiplap and enamelware", motif:"The long farm table", palette:["#F5F1E8","#A3B18A","#6B4F3A","#C9B79C","#3E4A3D"], hood:["Serenbe","Just outside the city, a farm-centered community with gardens, trails, and country calm."], pairs:"americana", twin:"casual"}
 };
 const FASHION_EXTRA = {
-  min90s:{essence:"'90s minimalism and clean, quiet silhouettes", era:"1990s", material:"Silk and fine wool", motif:"The slip dress", palette:["#111111","#F5F5F5","#9E9E9E","#D8CFC4","#3C3C3C"], hood:["The Westside","Design studios, clean architecture, and a sleek, edited cool."], pairs:"quietlux", twin:"minimalist"},
+  min90s:{essence:"'90s minimalism and clean, quiet silhouettes", era:"1990s", material:"Silk and fine wool", motif:"The slip dress or the crisp white shirt", palette:["#111111","#F5F5F5","#9E9E9E","#D8CFC4","#3C3C3C"], hood:["The Westside","Design studios, clean architecture, and a sleek, edited cool."], pairs:"quietlux", twin:"minimalist"},
   quietlux:{essence:"cashmere, perfect tailoring, and logo-free polish", era:"Timeless", material:"Cashmere", motif:"The camel coat", palette:["#C19A6B","#F3EDE4","#1F2A44","#8E8E8E","#5A4632"], hood:["Tuxedo Park, Buckhead","Old-money grace where the best things never need a label."], pairs:"parisian", twin:"quietlux"},
   parisian:{essence:"effortless Parisian polish", era:"1950s to today", material:"Cotton and wool gabardine", motif:"The Breton stripe", palette:["#1F2A44","#F7F4EE","#C1272D","#C8B69E","#2E2E2E"], hood:["Virginia-Highland","Walkable streets, sidewalk cafés, and boutiques made for a slow, stylish afternoon."], pairs:"min90s", twin:"english"},
   mod:{essence:"graphic '60s energy and youthful, sharp shapes", era:"1960s", material:"Wool crepe and vinyl", motif:"The target", palette:["#000000","#FFFFFF","#E63946","#F4A261","#1D3557"], hood:["Midtown's Arts District","Galleries, theaters, and modern lines with a youthful, creative pulse."], pairs:"y2k", twin:"mcm"},
-  newlook:{essence:"1950s structure and mid-century glamour", era:"1947–1959", material:"Taffeta and satin", motif:"The cinched waist", palette:["#F2D0D9","#1C1C3C","#E8DCCA","#A4243B","#C9A227"], hood:["Ansley Park","Gracious, polished, and timeless, perfect for gloves, pearls, and a full skirt."], pairs:"romantic", twin:"deco"},
+  newlook:{essence:"1950s structure and mid-century glamour", era:"1947–1959", material:"Taffeta and satin", motif:"The cinched waist", palette:["#F2D0D9","#1C1C3C","#E8DCCA","#A4243B","#C9A227"], hood:["Ansley Park","Gracious, polished, and timeless, perfect for a full skirt or a sharp suit."], pairs:"romantic", twin:"deco"},
   boheme70s:{essence:"'70s suede, flares, and free-spirited glamour", era:"1970s", material:"Suede", motif:"The fringe", palette:["#A0522D","#D2A35B","#6B8E23","#F3E5C8","#7B3F00"], hood:["Candler Park","Laid-back, leafy, and just a little hippie, in the best way."], pairs:"latin", twin:"boho"},
   disco:{essence:"sequins, jersey, and dance-floor shine", era:"1975–1981", material:"Lamé and sequins", motif:"The mirror ball", palette:["#C0C0C0","#D4AF37","#8A2BE2","#111111","#FF4F79"], hood:["Edgewood Avenue","Atlanta's after-dark playground, where the night always has something shiny in store."], pairs:"power", twin:"maximalist"},
   power:{essence:"strong shoulders and boardroom confidence", era:"1980s", material:"Structured wool", motif:"The shoulder pad", palette:["#1A1A1A","#B22222","#F5F5F5","#C9A227","#2F3E5C"], hood:["Downtown","Skyscrapers, big deals, and an energy that walks in first."], pairs:"dandy", twin:"postmodern"},
@@ -4324,7 +4549,7 @@ const FASHION_EXTRA = {
   luxstreet:{essence:"designer houses meeting street style", era:"2010s to today", material:"Leather and luxury knits", motif:"The grail sneaker", palette:["#000000","#C9A227","#FFFFFF","#5E3A87","#8E8E8E"], hood:["Buckhead's Lenox and Phipps","Where Atlanta's high-low style shops, and the city's music scene comes to flex."], pairs:"streetwear", twin:"deco"},
   punk:{essence:"leather, tartan, and DIY rebellion", era:"1976 to today", material:"Leather", motif:"The safety pin", palette:["#000000","#B3001B","#D9D9D9","#2F4F2F","#FFD300"], hood:["Little Five Points","Atlanta's alternative heart, with record stores, vintage shops, and attitude to spare."], pairs:"grunge", twin:"maximalist"},
   romantic:{essence:"lace, ruffles, and poetic softness", era:"Victorian-inspired", material:"Lace and silk", motif:"The ruffle", palette:["#F4E1E6","#E8DCCA","#9B6A6C","#FFFFFF","#6D4C57"], hood:["Inman Park","Painted Victorian homes and gingerbread trim, made for lace and romance."], pairs:"newlook", twin:"victorian"},
-  southernprep:{essence:"seersucker, pastels, and polished Southern charm", era:"1950s to today", material:"Seersucker and linen", motif:"The monogram", palette:["#9ECAE1","#F7C6C7","#FFFFFF","#1F3A5F","#7FB77E"], hood:["Chastain Park","Picnic concerts, tennis whites, and classic Southern polish."], pairs:"academia", twin:"english"},
+  southernprep:{essence:"breezy linen, pastels, and polished Southern charm", era:"1950s to today", material:"Cotton and linen", motif:"The monogram", palette:["#9ECAE1","#F7C6C7","#FFFFFF","#1F3A5F","#7FB77E"], hood:["Chastain Park","Picnic concerts, tennis whites, and classic Southern polish."], pairs:"academia", twin:"english"},
   sportluxe:{essence:"athletic pieces styled with polish", era:"1980s to today", material:"Technical knits", motif:"The matching set", palette:["#E5E5E5","#1C1C1C","#7A9E9F","#D9C3A5","#FF6F59"], hood:["Piedmont Park and the BeltLine","Morning runs, weekend strolls, and the city's most stylish workout gear."], pairs:"streetwear", twin:"tropical"},
   casual:{essence:"everyday staples done beautifully", era:"Timeless", material:"Heavyweight cotton", motif:"The perfect white tee", palette:["#2B3A55","#F5F3EF","#B9A58A","#7D8C8F","#1F1F1F"], hood:["Decatur","Easygoing, walkable, and stylish without trying too hard."], pairs:"parisian", twin:"japandi"}
 };
@@ -4763,7 +4988,7 @@ const TOURS = {
     {icon:"bookmark", eyebrow:"Insider perk", title:"Save your favorite stores", body:"Tap the bookmark on any store to keep your favorites in one place.", perk:true},
     {icon:"map", eyebrow:"Insider perk", title:"Check out curated events", body:"Vintage markets, clothing swaps, estate sales, and special store events, hunted down for you. Find them right on your home page.", perk:true},
     {icon:"route", eyebrow:"Routes", title:"Build a route in seconds", body:"Pick a starting point, what you're hunting for, and how much time you have. We'll map out the best order of stops."},
-    {icon:"bookmark", eyebrow:"Insider perk", title:"Save routes for later", body:"Plan a trip now, save it, and pull it up when you're ready to shop.", perk:true},
+    {icon:"bookmark", eyebrow:"Insider perk", title:"Save routes for later", body:"Plan a trip now, save it, and pull it up from your profile when you're ready to shop.", perk:true},
     {icon:"users", eyebrow:"Community", title:"Share your finds", body:"Post your best scores, see what other thrifters are finding, and swap tips on where to shop. Know about an event? Submit it anytime."}
   ]
 };
@@ -4934,7 +5159,7 @@ function deleteAccountModal(){
     <div class="modal-sheet center">
       <div class="modal-handle"></div>
       <div class="modal-title">Delete your account?</div>
-      <div class="modal-sub">This permanently deletes your account, profile, posts, photos, comments, likes, saved stores and routes, and visit notes. It can't be undone.</div>
+      <div class="modal-sub">This permanently deletes your account, profile, posts, photos, comments, likes, saved stores and routes, and shop notes. It can't be undone.</div>
       ${state.user?.isMember && !state.user?.isAdmin ? `<div style="font-size:12.5px;line-height:1.5;color:var(--body-text);background:var(--cream-card);border-radius:14px;padding:12px 14px;margin-bottom:14px">Deleting your account doesn't cancel an Insider subscription. If you subscribed through the App Store, cancel it in your iPhone's Settings → your name → Subscriptions.</div>` : ""}
       <div class="form-group"><label>Type DELETE to confirm</label><input type="text" id="delete-confirm" autocapitalize="characters" autocomplete="off" placeholder="DELETE"></div>
       <button class="btn btn-block" style="background:var(--danger);color:#FFFFFF" data-action="confirm-delete-account">Delete my account</button>
@@ -4991,7 +5216,7 @@ function adminEditEventModal(params){
     <div class="modal-sheet">
       <div class="modal-handle"></div>
       <div class="modal-title">${params.id ? 'Edit event' : 'Add a sale'}</div>
-      <div class="modal-sub">${ev.status==="new" ? "This shows up in the events row once published." : ev.status==="pending" ? "Fill in anything missing, then save or publish." : `Status: ${v(ev.status)}.`}${ev.submitterEmail?` Submitted by ${v(ev.submitterEmail)}.`:""}</div>
+      <div class="modal-sub">${ev.status==="new" ? "This shows up in the events row once published." : ev.status==="pending" ? "Fill in anything missing, then save or publish." : `Status: ${v(ev.status)}.`}<span id="ae-contact">${params.contact?` Submitted by ${escapeHtml(params.contact)}.`:""}</span></div>
       <div class="form-group"><label>Event name</label><input type="text" id="ae-title" value="${v(ev.title)}"></div>
       <div class="form-group"><label>Event type</label>${sel("ae-type", types, ev.eventType && types.includes(ev.eventType) ? ev.eventType : "Other")}</div>
       <div class="form-row">
@@ -5014,6 +5239,19 @@ function adminEditEventModal(params){
       <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
     </div>
   </div>`;
+}
+// The submitter's email isn't loaded with events (it's private), so the
+// edit form asks for it separately; admins only, and quietly skipped if it fails.
+async function loadAdminEventContact(id){
+  if(!state.isAdmin || !id) return;
+  try{
+    const { data, error } = await sb.rpc("admin_event_contact", { p_event_id: id });
+    if(error || typeof data!=="string" || !data) return;
+    if(activeModal?.name!=="adminEditEvent" || activeModal.params.id!==id) return;
+    activeModal.params.contact = data;
+    const el = document.getElementById("ae-contact");
+    if(el) el.textContent = ` Submitted by ${data}.`;
+  }catch(e){}
 }
 let savingAdminEvent = false;
 async function adminSaveEvent(id, publish){
@@ -5306,7 +5544,7 @@ function saveVisitNote(id){
     }
     closeModal();
     renderList();
-    toast(existing?"Visit note updated.":"Visit note saved.");
+    toast(existing?"Shop note updated.":"Shop note saved.");
     } finally { savingNote = false; }
   });
 }
@@ -5317,7 +5555,7 @@ function deleteVisitNote(id){
     state.visitNotes = state.visitNotes.filter(n=>n.id!==id);
     closeModal();
     renderList();
-    toast("Visit note deleted.");
+    toast("Shop note deleted.");
   });
 }
 let adminPlacePickSeq = 0;
@@ -5494,12 +5732,16 @@ function attachModalHandlers(){
   }
 }
 // Enter in any comment box posts the comment, wherever the box was rendered.
+// Enter in a search box just closes the keyboard; results are already showing.
 document.addEventListener("keydown", e=>{
   // Skip held-key repeats and the Enter that confirms an Asian-language
   // keyboard's word choice (isComposing / keyCode 229).
   if(e.key==="Enter" && !e.repeat && !e.isComposing && e.keyCode!==229 && e.target && e.target.dataset && e.target.dataset.commentInput){
     e.preventDefault();
     submitComment(e.target.dataset.commentInput);
+  } else if(e.key==="Enter" && !e.isComposing && e.keyCode!==229 && e.target && (e.target.dataset?.action==="search-input" || e.target.id==="admin-store-search")){
+    e.preventDefault();
+    e.target.blur();
   }
 });
 
