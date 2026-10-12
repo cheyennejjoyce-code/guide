@@ -1274,13 +1274,24 @@ async function locationPermission(){
   try{ if(navigator.permissions){ const p = await navigator.permissions.query({name:"geolocation"}); return p.state; } }catch(e){}
   return "prompt";
 }
-function getPosition(){
+// precise: the phone's high-accuracy GPS and a fix no more than 15 seconds
+// old, for building routes. Otherwise a quick approximate fix is enough (the
+// home list's sort and the weather).
+function getPosition(precise){
+  const opts = precise ? {enableHighAccuracy:true, timeout:12000, maximumAge:15000}
+                       : {enableHighAccuracy:false, timeout:8000, maximumAge:600000};
   const g = nativeGeo();
-  if(g) return g.getCurrentPosition({enableHighAccuracy:false, timeout:8000, maximumAge:600000});
+  if(g) return g.getCurrentPosition(opts);
   return new Promise((resolve,reject)=>{
     if(!("geolocation" in navigator)) return reject(new Error("unavailable"));
-    navigator.geolocation.getCurrentPosition(resolve, reject, {timeout:8000, maximumAge:600000});
+    navigator.geolocation.getCurrentPosition(resolve, reject, opts);
   });
+}
+// Remembers where you are, when, and whether it was a high-accuracy fix.
+function setUserCoords(pos, precise){
+  state.userCoords = {lat:pos.coords.latitude, lng:pos.coords.longitude};
+  state.userCoordsAt = Date.now();
+  state.userCoordsPrecise = !!precise;
 }
 let locating = null;
 // Gets a fresh position (asking iOS the first time) and remembers it for
@@ -1288,7 +1299,7 @@ let locating = null;
 function refreshUserLocation(){
   if(locating) return locating;
   locating = getPosition().then(pos=>{
-    state.userCoords = {lat:pos.coords.latitude, lng:pos.coords.longitude};
+    setUserCoords(pos, false);
     // The route builder starts from where you are unless you picked a start.
     if(!state.startPickedByUser) applyStartLocation(state.userCoords);
     loadOutdoorTemperature();
@@ -1420,8 +1431,14 @@ function bestStopOrder(startPos, stops, endPos){
   return best.map(i=>stops[i-1]);
 }
 async function tryDetectLocation(manual){
-  if(state.geoAttempted && !manual) return;
-  state.geoAttempted = true;
+  // Opening the route builder gets a fresh, high-accuracy fix every time,
+  // unless you picked a start yourself. A precise fix from the last minute
+  // is reused rather than asked for again.
+  if(!manual && state.startPickedByUser) return;
+  if(!manual && state.userCoordsPrecise && Date.now()-(state.userCoordsAt||0) < 60000){
+    if(!state.locationDetected && applyStartLocation(state.userCoords)) renderList();
+    return;
+  }
   const perm = await locationPermission();
   if(perm === "denied"){ if(manual) locationOffToast(); return; }
   // In the iPhone app, opening the route builder only uses location that was
@@ -1430,7 +1447,7 @@ async function tryDetectLocation(manual){
   if(!manual && perm !== "granted" && nativeGeo()) return;
   const reqId = state.geoReqId = (state.geoReqId||0) + 1;
   let pos;
-  try{ pos = await getPosition(); }
+  try{ pos = await getPosition(true); }
   catch(err){
     if(manual && reqId === state.geoReqId) toast("Couldn't get your location — pick a starting point below.");
     return;
@@ -1438,7 +1455,7 @@ async function tryDetectLocation(manual){
   // A newer request, or a start the person picked while this one was
   // pending, wins over this answer.
   if(reqId !== state.geoReqId) return;
-  state.userCoords = {lat: pos.coords.latitude, lng: pos.coords.longitude};
+  setUserCoords(pos, true);
   if(!manual && state.startPickedByUser) return;
   if(applyStartLocation(state.userCoords)){
     if(manual){ state.startPickedByUser = false; toast(outsideGuideArea(state.userCoords) ? `You're outside the Atlanta area, so stops are planned from ${state.builderChoice.start}.` : "Starting from your location."); }
@@ -1679,7 +1696,8 @@ async function loadMyData(){
     totalTime:(r.total_travel||0)+(r.total_browse||0),
     destinationAddress:r.destination_address||null, destinationName:r.destination_name||null,
     destinationCoords:(r.destination_lat!=null && r.destination_lng!=null)?{lat:r.destination_lat,lng:r.destination_lng}:null,
-    startCoords:(r.start_lat!=null && r.start_lng!=null)?{lat:r.start_lat,lng:r.start_lng}:null
+    startCoords:(r.start_lat!=null && r.start_lng!=null)?{lat:r.start_lat,lng:r.start_lng}:null,
+    startFromLocation: !!r.start_from_location
   }));
   state.savedRouteIds = state.userRoutes.map(r=>r.id);
 }
@@ -1944,7 +1962,7 @@ function go(view, params, fromHistory){
   render();
   if(spot){ window.scrollTo(0, spot.scrollY||0); restoreRowScroll(document.getElementById("view-root"), spot.rows); }
   if(view==="route" && state.userCoords && !state.startPickedByUser && !state.locationDetected){ applyStartLocation(state.userCoords); renderList(); }
-  if(view==="route" && !state.geoAttempted){ tryDetectLocation(false); }
+  if(view==="route"){ tryDetectLocation(false); }
 }
 function toast(msg){
   const t = document.createElement("div");
@@ -3311,6 +3329,24 @@ async function wizardStep(dir){
   }
   state.builderStep = Math.max(0, Math.min(3, state.builderStep + dir));
   renderList();
+}
+// A route that starts from your location is built from where you are right
+// now: if the last fix is more than two minutes old (or wasn't a precise
+// one), get a fresh high-accuracy fix first.
+let buildingRoute = false;
+async function buildRouteFromHere(){
+  if(buildingRoute) return;
+  const c = state.builderChoice;
+  const fromHere = state.locationDetected && !state.startPickedByUser && c.startCoords;
+  buildingRoute = true;
+  try{
+    if(fromHere && (!state.userCoordsPrecise || Date.now()-(state.userCoordsAt||0) > 120000)){
+      toast("Getting your exact location…");
+      try{ setUserCoords(await getPosition(true), true); applyStartLocation(state.userCoords); }
+      catch(e){ /* no fresh fix: build from the last known spot */ }
+    }
+    generateRoute();
+  } finally { buildingRoute = false; }
 }
 function generateRoute(){
   const c = state.builderChoice;
@@ -5159,7 +5195,7 @@ function handleClick(e){
     case "set-min-rating": state.builderChoice.minRating = parseFloat(t.dataset.r)||0; renderList(); break;
     case "wizard-next": wizardStep(1); break;
     case "wizard-back": wizardStep(-1); break;
-    case "build-route": if(!routeTapTooSoon("wizard")) generateRoute(); break;
+    case "build-route": if(!routeTapTooSoon("wizard")) buildRouteFromHere(); break;
     case "move-stop": moveStop(parseInt(t.dataset.i), t.dataset.dir); break;
     case "remove-stop": removeStop(parseInt(t.dataset.i)); break;
     case "open-in-maps": {
@@ -5175,7 +5211,7 @@ function handleClick(e){
     case "set-community-filter": state.communityFilter = t.dataset.f; state.findsShown = FINDS_PAGE_SIZE; renderList(); break;
     case "open-share-find": pendingFindPhotoData = null; openModal("shareFind", {store: t.dataset.store}); break;
     case "set-saved-tab": state.savedTab = t.dataset.t; renderList(); break;
-    case "load-saved-route": { const r0 = state.userRoutes.find(r=>r.id===t.dataset.id); if(r0){ ensureBrowsePace(r0); const live = r0.stops.filter(sid=>getStoreById(sid)); if(live.length !== r0.stops.length){ r0.stops = live; recomputeRoute(r0); persistRouteEdits(r0); } state.currentRoute = r0; go("routeResults"); } break; }
+    case "load-saved-route": { const r0 = state.userRoutes.find(r=>r.id===t.dataset.id); if(r0){ ensureBrowsePace(r0); const live = r0.stops.filter(sid=>getStoreById(sid)); if(live.length !== r0.stops.length){ r0.stops = live; recomputeRoute(r0); persistRouteEdits(r0); } startSavedRouteHere(r0); state.currentRoute = r0; go("routeResults"); } break; }
     case "remove-saved-route": removeSavedRoute(t.dataset.id); break;
     case "open-login": openModal("login"); break;
     case "open-forgot-password": openModal("forgotPassword"); break;
@@ -5356,6 +5392,23 @@ function recomputeRoute(r){
 }
 // A route that's already saved keeps its saved copy in sync with edits,
 // so reopening it later shows exactly what you left.
+// A saved route that started from "your location" starts from wherever you
+// are now: the last known spot right away, then a fresh, exact fix.
+function startSavedRouteHere(r){
+  if(!r.startFromLocation) return;
+  const use = coords=>{
+    r.startCoords = {lat:coords.lat, lng:coords.lng};
+    r.start = nearestNeighborhood(coords.lat, coords.lng) || r.start;
+    recomputeRoute(r);
+  };
+  if(state.userCoords) use(state.userCoords);
+  getPosition(true).then(pos=>{
+    setUserCoords(pos, true);
+    if(state.currentRoute !== r) return;
+    use(state.userCoords);
+    if(state.view==="routeResults") renderList();
+  }).catch(()=>{});
+}
 function persistRouteEdits(r){
   if(!state.user || !r || !state.savedRouteIds.includes(r.id)) return;
   // One update at a time per route; edits made meanwhile are sent right
@@ -5460,13 +5513,14 @@ function saveCurrentRoute(){
       destination_address: r.destinationAddress || null, destination_name: r.destinationName || null,
       destination_lat: r.destinationCoords ? r.destinationCoords.lat : null,
       destination_lng: r.destinationCoords ? r.destinationCoords.lng : null,
-      start_lat: r.startCoords ? r.startCoords.lat : null,
-      start_lng: r.startCoords ? r.startCoords.lng : null
+      // Never your exact spot: just that the route started from your location.
+      start_from_location: !!(r.startCoords || r.startFromLocation)
     }).select().single());
     } catch(err){ error = err; }
     finally { savingRoute = false; }
     if(error){ toast("Couldn't save that route — try again."); return; }
     r.id = data.id; // swap the client-generated id for the real database one
+    r.startFromLocation = !!(r.startCoords || r.startFromLocation);
     state.userRoutes.unshift(r);
     state.savedRouteIds.unshift(r.id);
     // Stops edited while the save was in flight: send them now.
@@ -5566,7 +5620,7 @@ function buildGoogleMapsUrl(r){
   // middle of the first stop's neighborhood. (Your coordinates never go in
   // the link itself, so a shared link doesn't give away where you were.)
   const IN_CITY = ["Downtown","Midtown","Buckhead","Cheshire Bridge","Virginia-Highland","Poncey-Highland","Little Five Points","Reynoldstown","West End","Upper Westside","South Atlanta"];
-  const origin = (r.startCoords || r.curated) ? null : encodeURIComponent(IN_CITY.includes(r.start) ? `${r.start}, Atlanta, GA` : `${r.start}, GA`);
+  const origin = (r.startCoords || r.curated || r.startFromLocation) ? null : encodeURIComponent(IN_CITY.includes(r.start) ? `${r.start}, Atlanta, GA` : `${r.start}, GA`);
   // Stops are separated by an encoded "|" (%7C), as Google's docs ask. A bare
   // "|" can cut the link short once it's handed to another app or pasted
   // into a message, which quietly drops every stop after it.
