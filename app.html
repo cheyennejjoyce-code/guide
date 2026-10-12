@@ -1653,24 +1653,44 @@ async function loadPosts(){
   // handled; postCard hides them from the feed either way.
   (commentRows||[]).filter(c=>state.isAdmin || !state.blockedIds.includes(c.user_id)).forEach(c=>{ (state.comments[c.post_id] = state.comments[c.post_id]||[]).push({id:String(c.id), postId:c.post_id, user:escapeHtml(c.profiles?.username||"unknown"), userId:c.user_id, text:escapeHtml(c.text), createdAt:c.created_at||""}); });
 }
+// Vote totals per store as {store_id, up, down}, with no account ids. The
+// database hands these out through store_vote_counts(); a database that
+// doesn't have that function yet falls back to counting the table here.
+async function loadStoreVoteCounts(){
+  try{
+    const res = await sb.rpc("store_vote_counts");
+    if(!res.error) return (res.data||[]).map(r=>({ store_id:r.store_id, up:Number(r.up)||0, down:Number(r.down)||0 }));
+    const old = await sb.from("store_votes").select("store_id,direction");
+    const tally = {};
+    (old.data||[]).forEach(v=>{
+      if(v.direction!=="up" && v.direction!=="down") return;
+      const t = tally[v.store_id] = tally[v.store_id] || { store_id:v.store_id, up:0, down:0 };
+      t[v.direction]++;
+    });
+    return Object.values(tally);
+  }catch(e){ return []; }
+}
 async function loadMyData(){
-  // Vote and follow counts are public — everyone browsing should see them,
-  // signed in or not. Only the personal lists below actually require an account.
-  const [votes, follows] = await Promise.all([
-    sb.from("store_votes").select("*"),
-    sb.from("store_follows").select("*")
+  // Vote totals are public — everyone browsing sees them, signed in or not.
+  // Who voted or follows is private: you only ever load your own.
+  const me = state.user ? state.user.id : null;
+  const [voteCounts, myVotes, myStoreFollows] = await Promise.all([
+    loadStoreVoteCounts(),
+    me ? sb.from("store_votes").select("store_id,direction").eq("user_id",me) : null,
+    me ? sb.from("store_follows").select("store_id,frequency").eq("user_id",me) : null
   ]);
   state.storeVotes = {};
-  (votes.data||[]).forEach(v=>{
-    if(v.direction!=="up" && v.direction!=="down") return;
-    if(!state.storeVotes[v.store_id]) state.storeVotes[v.store_id] = {up:[],down:[]};
-    state.storeVotes[v.store_id][v.direction].push(v.user_id);
-  });
+  voteCounts.forEach(c=>{ state.storeVotes[c.store_id] = { up:c.up, down:c.down, mine:null }; });
   state.storeFollows = {};
-  (follows.data||[]).forEach(f=>{
-    if(!state.storeFollows[f.store_id]) state.storeFollows[f.store_id] = {};
-    state.storeFollows[f.store_id][f.user_id] = f.frequency;
-  });
+  if(me && state.user && state.user.id===me){
+    ((myVotes && myVotes.data)||[]).forEach(v=>{
+      if(v.direction!=="up" && v.direction!=="down") return;
+      const t = getStoreVotes(v.store_id);
+      t.mine = v.direction;
+      if(!t[v.direction]) t[v.direction] = 1; // your own vote always counts, even if the totals didn't load
+    });
+    ((myStoreFollows && myStoreFollows.data)||[]).forEach(f=>{ state.storeFollows[f.store_id] = { [me]: f.frequency }; });
+  }
 
   if(!state.user){
     state.savedStoreIds=[]; state.visitedStoreIds=[]; state.savedPostIds=[]; state.savedRouteIds=[]; state.userRoutes=[]; state.visitNotes=[]; state.myUserFollows=[];
@@ -1989,7 +2009,7 @@ const ALREADY_ON_AFTER_SIGN_IN = {
   "like-post": d => (state.likes[d.id]||[]).includes(state.user.id),
   "follow-user": d => state.myUserFollows.includes(d.uid),
   "toggle-follow-store": d => !!getFollowPref(d.id),
-  "vote-store": d => (getStoreVotes(d.id)[d.dir]||[]).includes(state.user.id)
+  "vote-store": d => getStoreVotes(d.id).mine === d.dir
 };
 function requireAuth(actionFn){
   if(state.user){ actionFn(); return; }
@@ -2132,8 +2152,9 @@ async function toggleLike(id){
     if(error){ apply(already); refresh(); toast(already ? "Couldn't unlike that — try again." : dbErrorMessage(error, "Couldn't like that — try again.")); }
   }));
 }
+// {up, down} are vote totals; mine is your own vote ("up", "down" or null).
 function getStoreVotes(id){
-  if(!state.storeVotes[id]) state.storeVotes[id] = {up:[],down:[]};
+  if(!state.storeVotes[id]) state.storeVotes[id] = {up:0, down:0, mine:null};
   return state.storeVotes[id];
 }
 function getFollowPref(storeId){
@@ -2141,6 +2162,8 @@ function getFollowPref(storeId){
   if(!f || !state.user) return null;
   return f[state.user.id] || null;
 }
+// Not shown anywhere. storeFollows only holds your own follows, so a real
+// follower count would need a count function in the database first.
 function followerCount(storeId){
   const f = state.storeFollows[storeId];
   return f ? Object.keys(f).length : 0;
@@ -2165,20 +2188,24 @@ async function toggleStoreVote(id, dir){
     if(votesInFlight.has(id)) return;
     votesInFlight.add(id);
     try{
-    const v = getStoreVotes(id);
     const u = state.user.id;
-    const other = dir==="up" ? v.down : v.up;
-    const mine = dir==="up" ? v.up : v.down;
-    const wasMine = mine.includes(u);
-    if(wasMine){
+    const was = getStoreVotes(id).mine;
+    // Skips the tally change if a refresh already loaded it from the database.
+    const apply = (from, to) => {
+      const v = getStoreVotes(id);
+      if(v.mine !== from) return;
+      if(from) v[from] = Math.max(0, v[from]-1);
+      if(to) v[to]++;
+      v.mine = to;
+    };
+    if(was===dir){
       const { error } = await sb.from("store_votes").delete().eq("user_id",u).eq("store_id",id);
       if(error){ toast("Couldn't remove that vote — try again."); return; }
-      const mi = mine.indexOf(u); if(mi>-1) mine.splice(mi,1);
+      apply(was, null);
     } else {
       const { error } = await sb.from("store_votes").upsert({user_id:u, store_id:id, direction:dir});
       if(error){ toast("Couldn't record that vote — try again."); return; }
-      const oi = other.indexOf(u); if(oi>-1) other.splice(oi,1);
-      mine.push(u);
+      apply(was, dir);
     }
     renderList();
     } finally { votesInFlight.delete(id); }
@@ -2412,7 +2439,7 @@ function storeCard(s, wide){
     <div class="store-body">
       <div class="store-name">${s.name}</div>
       ${s.verified ? `<div style="margin:4px 0 2px">${verifiedStamp(s)}</div>` : ''}
-      <div class="store-meta"><span>${s.neighborhood}</span><span class="dot-sep">${priceStr(s.priceLevel)}</span>${s.rating != null ? `<span class="dot-sep">${ICONS.star.replace('<svg','<svg style="width:11px;height:11px;fill:var(--gold);vertical-align:-1px"')}${s.rating}</span>` : ''}${s.chain?`<span class="dot-sep">Chain</span>`:''}${(votes.up.length||votes.down.length)?`<span class="dot-sep">${ICONS.thumbsUp.replace('<svg','<svg style="width:11px;height:11px;fill:var(--ink-soft);vertical-align:-1px"')}${votes.up.length} ${ICONS.thumbsDown.replace('<svg','<svg style="width:11px;height:11px;fill:var(--ink-soft);vertical-align:-1px;margin-left:3px"')}${votes.down.length}</span>`:''}${visited?`<span class="dot-sep">✓ Visited</span>`:''}</div>
+      <div class="store-meta"><span>${s.neighborhood}</span><span class="dot-sep">${priceStr(s.priceLevel)}</span>${s.rating != null ? `<span class="dot-sep">${ICONS.star.replace('<svg','<svg style="width:11px;height:11px;fill:var(--gold);vertical-align:-1px"')}${s.rating}</span>` : ''}${s.chain?`<span class="dot-sep">Chain</span>`:''}${(votes.up||votes.down)?`<span class="dot-sep">${ICONS.thumbsUp.replace('<svg','<svg style="width:11px;height:11px;fill:var(--ink-soft);vertical-align:-1px"')}${votes.up} ${ICONS.thumbsDown.replace('<svg','<svg style="width:11px;height:11px;fill:var(--ink-soft);vertical-align:-1px;margin-left:3px"')}${votes.down}</span>`:''}${visited?`<span class="dot-sep">✓ Visited</span>`:''}</div>
       ${openState!==null ? `<div style="margin-top:6px"><span class="open-badge ${openState?'open':'closed'}">${openState?'Open now':'Closed now'}</span></div>` : ''}
       ${s.description ? `<div class="store-desc">${s.description}</div>` : ''}
       <div class="pill-row">${s.categories.slice(0,3).map(c=>`<span class="pill">${c}</span>`).join("")}</div>
@@ -3127,8 +3154,8 @@ function viewStoreDetail(id){
   const openState = isOpenNow(s);
   const storePosts = state.posts.filter(p=>p.store===s.id);
   const votes = getStoreVotes(s.id);
-  const myUp = state.user && votes.up.includes(state.user.id);
-  const myDown = state.user && votes.down.includes(state.user.id);
+  const myUp = state.user && votes.mine==="up";
+  const myDown = state.user && votes.mine==="down";
   return `
     <div class="detail-photo">
       ${photoOrArt(s)}
@@ -3158,8 +3185,8 @@ function viewStoreDetail(id){
     <div class="vote-block" style="display:block">
       <div class="design-eyebrow" style="margin-bottom:10px">Still worth the trip?</div>
       <div style="display:flex;gap:8px">
-        <button class="vote-btn up ${myUp?'active':''}" style="flex:1;justify-content:center" data-action="vote-store" data-id="${s.id}" data-dir="up">Yes · ${votes.up.length}</button>
-        <button class="vote-btn down ${myDown?'active':''}" style="flex:1;justify-content:center" data-action="vote-store" data-id="${s.id}" data-dir="down">Not lately · ${votes.down.length}</button>
+        <button class="vote-btn up ${myUp?'active':''}" style="flex:1;justify-content:center" data-action="vote-store" data-id="${s.id}" data-dir="up">Yes · ${votes.up}</button>
+        <button class="vote-btn down ${myDown?'active':''}" style="flex:1;justify-content:center" data-action="vote-store" data-id="${s.id}" data-dir="down">Not lately · ${votes.down}</button>
       </div>
     </div>
 
@@ -3299,6 +3326,7 @@ function viewRouteBuilder(){
       ${manualHtml}
       <div class="wizard-card">
         ${body}
+        ${step===3 && state.routeBuildError && state.routeBuildError.key===JSON.stringify(c) ? `<div role="alert" style="background:var(--cream-card);border:1.5px solid var(--danger-text, var(--danger));border-radius:16px;padding:12px 14px;font-size:13.5px;line-height:1.5;color:var(--ink);margin-top:14px">${escapeHtml(state.routeBuildError.msg)}</div>` : ""}
         <div class="wizard-nav">
           ${step>0 ? `<button class="btn btn-ghost" data-action="wizard-back">Back</button>` : `<button class="btn btn-ghost" disabled aria-hidden="true" tabindex="-1">Back</button>`}
           ${step<3 ? `<button class="btn btn-primary btn-block" data-action="wizard-next">Next</button>` : `<button class="btn btn-primary btn-block" data-action="build-route">Build my route</button>`}
@@ -3348,7 +3376,85 @@ async function buildRouteFromHere(){
     generateRoute();
   } finally { buildingRoute = false; }
 }
-function generateRoute(){
+// How long each trip length can run, driving and shopping together.
+const ROUTE_TIME_BUDGET = {"2 hours":120, "Half day":240, "Full day":420};
+// How good a shop is, for choosing between shops that are all convenient:
+// its Google rating, how many people reviewed it, and the Verified stamp.
+// Shops that are open (or opening within the hour) win over ones whose
+// hours we can't read, and those win over closed ones.
+function storeQuality(s){
+  let q = (s.rating || 4) + 0.15*Math.log10(1 + (s.reviewCount || 0)) + (s.verified ? 0.15 : 0);
+  if(!openSoon(s, 60)) q -= isOpenNow(s)===null ? 0.6 : 3;
+  return q;
+}
+// Picks `want` stops. With an end point: shops that are on the way (adding
+// under about a mile, a little more on long trips) count as equally
+// convenient, and the trip is split into stretches from start to finish
+// with the best shop in each, so stops spread along the whole drive instead
+// of bunching at one end. Without an end point: the best shops among the
+// closest ones, each mile away costing a little.
+// `seen` holds shops already shown (Shuffle stops); they're used again only
+// when nothing else fits. `preferred` marks shops that match every filter.
+function pickRouteStops(cands, want, startPos, endPos, seen, preferred){
+  if(want <= 0) return [];
+  const out = [];
+  // Chains can repeat (several Goodwills is fine); "Independent shops only"
+  // already leaves them out when that's what you want.
+  const score = s => storeQuality(s) - (seen.has(s.id) ? 10 : 0) - (preferred && !preferred.has(s.id) ? 20 : 0);
+  if(endPos){
+    const direct = milesBetween(startPos, endPos);
+    const detour = s => milesBetween(startPos, s) + milesBetween(s, endPos) - direct;
+    // How far along the trip a shop sits: 0 at the start, 1 at the end.
+    const kx = Math.cos(startPos.lat*Math.PI/180);
+    const vx = (endPos.lng-startPos.lng)*kx, vy = endPos.lat-startPos.lat, len2 = (vx*vx + vy*vy) || 1e-9;
+    const along = s => Math.min(1, Math.max(0, ((s.lng-startPos.lng)*kx*vx + (s.lat-startPos.lat)*vy)/len2));
+    let limit = Math.max(1, 0.12*direct), onWay = [];
+    for(;;){
+      onWay = cands.filter(s=>detour(s) <= limit);
+      if(onWay.length >= want || limit > 8) break;
+      limit *= 1.5;
+    }
+    if(onWay.length < want) onWay = cands.slice().sort((a,b)=>detour(a)-detour(b)).slice(0, want);
+    const better = (a,b)=>score(b)-score(a) || detour(a)-detour(b);
+    for(let i=0;i<want;i++){
+      const lo = i/want, hi = (i+1)/want;
+      const stretch = onWay.filter(s=>!out.includes(s)).filter(s=>{ const t = along(s); return t >= lo && (t < hi || (i === want-1 && t <= 1)); });
+      if(stretch.length) out.push(stretch.sort(better)[0]);
+    }
+    // A stretch with no shop: the best remaining on-the-way shops fill in.
+    while(out.length < want){
+      const rest = onWay.filter(s=>!out.includes(s)).sort(better);
+      if(!rest.length) break;
+      out.push(rest[0]);
+    }
+  } else {
+    const near = cands.slice().sort((a,b)=>milesBetween(startPos,a)-milesBetween(startPos,b)).slice(0, Math.max(want*3, 8));
+    const value = s => score(s) - 0.25*milesBetween(startPos, s);
+    while(out.length < want){
+      const rest = near.filter(s=>!out.includes(s)).sort((a,b)=>value(b)-value(a));
+      if(!rest.length) break;
+      out.push(rest[0]);
+    }
+  }
+  return out;
+}
+// "Shuffle stops": the same trip with a different set of good shops. Shops
+// already shown are used again only when nothing else fits, and your own
+// hand-picked stops always stay.
+function shuffleRoute(){
+  const r = state.currentRoute;
+  if(!r || !r.createdFrom || r.curated) return;
+  const seen = [...new Set([...(r.shuffleSeen||[]), ...r.stops])];
+  const before = JSON.stringify(r.stops.slice().sort());
+  state.builderChoice = Object.assign({}, r.createdFrom);
+  generateRoute({seen});
+  const now = state.currentRoute;
+  if(JSON.stringify(now.stops.slice().sort()) === before){
+    now.shuffleSeen = [];
+    toast("That's every good combo for this trip, so here it is again.");
+  } else now.shuffleSeen = seen;
+}
+function generateRoute(opts){
   const c = state.builderChoice;
   const budget = c.budget||[], minRating = c.minRating||0;
   const count = c.time==="2 hours"?2 : c.time==="Half day"?4 : 6;
@@ -3379,21 +3485,73 @@ function generateRoute(){
     .map(x=>x.s);
   const passes = s => (!budget.length || budget.includes(s.priceLevel))
     && (!minRating || (s.rating||0) >= minRating);
-  let candidates = pool.filter(passes);
-  // Safety net: too few exact matches -> keep them first, then fill with the
-  // closest other shops, and tell the person which choice was limiting.
+  // Only shops that match every choice you made: no padding with shops
+  // below your minimum rating or outside your budget.
+  const matching = pool.filter(passes);
+  // Closed shops are left out whenever enough open ones match (open now or
+  // opening within the hour); late at night, when most are closed, all count.
+  const openMatching = matching.filter(s=>isOpenNow(s)!==false || openSoon(s, 60));
+  const candidates = openMatching.length >= Math.max(1, count - manual.length) ? openMatching : matching;
   state.routeFilterNote = null;
   const wantNew = Math.max(0, count - manual.length);
-  if((budget.length || minRating) && candidates.length < wantNew){
-    const limiting = [];
-    if(budget.length && pool.filter(s=>budget.includes(s.priceLevel)).length < wantNew) limiting.push("budget");
-    if(minRating && pool.filter(s=>(s.rating||0) >= minRating).length < wantNew) limiting.push("rating");
-    state.routeFilterNote = `${candidates.length ? "Only "+candidates.length+" shop"+(candidates.length===1?"":"s") : "No shops"} matched ${limiting.length ? "your "+limiting.join(" and ") : "all your choices"}, so we added the closest other shops.`;
-    candidates = candidates.concat(pool.filter(s=>!passes(s)));
+  const browseMin = c.time==="2 hours"?40 : c.time==="Half day"?35 : 30;
+  // The whole trip, driving plus shopping, has to fit the time you picked.
+  const budgetMin = ROUTE_TIME_BUDGET[c.time] || 240;
+  const tripMinutes = list => {
+    let prev = startPos, t = 0;
+    list.forEach(s=>{ t += driveMinutes(milesBetween(prev, s)); prev = s; });
+    if(endPos) t += driveMinutes(milesBetween(prev, endPos));
+    return t + browseMin*list.length;
+  };
+  let ordered = bestStopOrder(startPos, manual.concat(pickRouteStops(candidates, wantNew, startPos, endPos, new Set((opts && opts.seen) || []))), endPos);
+  // Too long: drop the shop whose removal saves the most time (never one you
+  // added yourself) until the trip fits...
+  while(tripMinutes(ordered) > budgetMin){
+    const droppable = ordered.filter(s=>!manualIds.includes(s.id));
+    if(!droppable.length) break;
+    let best = null, bestT = Infinity;
+    droppable.forEach(s=>{ const rest = bestStopOrder(startPos, ordered.filter(x=>x!==s), endPos); const t = tripMinutes(rest); if(t < bestT){ bestT = t; best = rest; } });
+    ordered = best;
   }
-  let picked = manual.concat(candidates.slice(0, wantNew));
-  if(picked.length===0) picked = state.stores.slice(0,2);
-  const ordered = bestStopOrder(startPos, picked, endPos);
+  // ...then fill any open slots with the best shops that still fit, each
+  // extra minute of driving counting against a shop.
+  while(ordered.length < manual.length + wantNew){
+    const now = tripMinutes(ordered);
+    let pick = null, pickVal = -Infinity;
+    candidates.forEach(s=>{
+      if(ordered.includes(s)) return;
+      const trial = bestStopOrder(startPos, ordered.concat([s]), endPos);
+      const t = tripMinutes(trial);
+      if(t > budgetMin) return;
+      const val = storeQuality(s) - (t - now)/20;
+      if(val > pickVal){ pickVal = val; pick = trial; }
+    });
+    if(!pick) break;
+    ordered = pick;
+  }
+  const timeLabel = c.time==="2 hours" ? "2 hours" : c.time==="Half day" ? "a half day" : "a full day";
+  // Nothing fits: say so instead of building a route that doesn't work.
+  if(!ordered.length){
+    const tips = [];
+    if(c.time !== "Full day") tips.push("a longer time");
+    if(minRating) tips.push("a lower minimum rating");
+    if(budget.length) tips.push("another budget");
+    if(c.categories.length) tips.push("fewer categories");
+    if(state.hideChains) tips.push("turning off Independent shops only");
+    if(endPos) tips.push("a closer end point");
+    const tryThese = tips.length > 1 ? tips.slice(0,-1).join(", ")+", or "+tips[tips.length-1] : tips[0];
+    state.routeBuildError = { key: JSON.stringify(c), msg: `We couldn't fit a good route into ${timeLabel} with these choices.${tryThese ? " Try "+tryThese+"." : ""}` };
+    toast("We couldn't fit a good route with these choices.");
+    renderList();
+    return;
+  }
+  state.routeBuildError = null;
+  if(tripMinutes(ordered) > budgetMin){
+    const t = tripMinutes(ordered);
+    state.routeFilterNote = `Your own stops take about ${Math.floor(t/60)}h ${t%60}m, more than ${timeLabel}.`;
+  } else if(ordered.length < manual.length + wantNew){
+    state.routeFilterNote = `Only ${ordered.length} ${ordered.length===1?"stop fits":"stops fit"} ${timeLabel} with these choices. For more stops, pick a longer time or loosen your filters.`;
+  }
   // Say so when a stop isn't open right now, so nobody drives to a locked door.
   const closed = ordered.filter(s=>isOpenNow(s)===false && !openSoon(s, 60));
   const closedNote = !closed.length ? "" : closed.length===ordered.length
@@ -3401,7 +3559,6 @@ function generateRoute(){
     : `${closed.map(s=>s.name).join(", ")} ${closed.length===1?"is":"are"} closed right now, so check ${closed.length===1?"its":"their"} hours before you go.`;
   const outsideNote = (c.startCoords && outsideGuideArea(c.startCoords))
     ? `You're starting outside the Atlanta area, so drive times start from ${c.start}. Google Maps will start from where you are.` : "";
-  const browseMin = c.time==="2 hours"?40 : c.time==="Half day"?35 : 30;
   const legs = [];
   let prev = startPos, totalTravel = 0;
   ordered.forEach(s=>{
@@ -3447,9 +3604,10 @@ function viewRouteResults(){
       ${r.filterNote ? `<div style="background:var(--cream-card);border:1px solid var(--line);border-radius:16px;padding:11px 14px;font-size:13px;line-height:1.5;color:var(--body-text);margin-bottom:14px">${r.filterNote}</div>` : ""}
       <div class="route-summary-bar">
         <div class="rsb-item"><div class="rsb-num gold">${stores.length}</div><div class="rsb-lbl">stops</div></div>
-        <div class="rsb-item"><div class="rsb-num">${hrs}h ${mins}m</div><div class="rsb-lbl">time</div></div>
+        <div class="rsb-item"><div class="rsb-num">${hrs}h ${mins}m</div><div class="rsb-lbl">total time</div></div>
         <div class="rsb-item"><div class="rsb-num">${r.totalTravel}m</div><div class="rsb-lbl">drive</div></div>
       </div>
+      <div style="font-size:12.5px;color:var(--ink-soft);margin:-6px 0 14px">Includes about ${r.totalBrowse} min of shopping and ${r.totalTravel} min of driving.</div>
       <div class="route-map-wrap">${routeMap(stores)}</div>
       <div style="margin-bottom:16px">
         ${stores.map((s,i)=>`
@@ -3469,7 +3627,10 @@ function viewRouteResults(){
           </div>
         `).join("")}
       </div>
-      <button class="btn btn-outline btn-block" style="margin-bottom:12px" data-action="open-add-stop">${ICONS.plus}Add another stop</button>
+      ${r.createdFrom && !r.curated ? `<div style="display:flex;gap:8px;margin-bottom:12px">
+        <button class="btn btn-outline" style="flex:1" data-action="shuffle-route">${ICONS.route}Shuffle stops</button>
+        <button class="btn btn-outline" style="flex:1" data-action="open-add-stop">${ICONS.plus}Add a stop</button>
+      </div>` : `<button class="btn btn-outline btn-block" style="margin-bottom:12px" data-action="open-add-stop">${ICONS.plus}Add another stop</button>`}
       ${(()=>{ const dropped = mapsDroppedStops(r); return dropped.length ? `<div style="background:var(--cream-card);border:1px solid var(--line);border-radius:16px;padding:11px 14px;font-size:13px;line-height:1.5;color:var(--body-text);margin-bottom:10px">Google Maps only takes 9 stops between your start and end, so the directions will leave out ${dropped.map(x=>escapeHtml(x.name)).join(", ")}. Remove ${dropped.length===1?"a stop":dropped.length+" stops"} to fit them all.</div>` : ""; })()}
       <button class="btn btn-primary btn-block" style="margin-bottom:12px" data-action="open-in-maps">Open in Google Maps</button>
       ${mapsWebNote(r)}
@@ -3704,7 +3865,7 @@ function viewProfile(){
       </button>
     </div>
     ${u.isMember ? "" : `<div class="events-submit-card" style="margin:6px 0 22px">
-      <h3>Upgrade to Insider</h3>
+      <h3>ATL Guide Insider</h3>
       <p>Get curated Atlanta events, and save your favorite stores and routes for your next trip.</p>
       <button class="btn" data-action="open-membership">See Insider perks</button>
     </div>`}
@@ -3819,7 +3980,7 @@ function viewProfileLibrary(){
     const stores=state.savedStoreIds.map(getStoreById).filter(Boolean);
     content=stores.length?`<div class="note-list">${stores.map(compactProfileStore).join("")}</div>`:`<div class="empty-state"><h3>No saved shops yet</h3><p>Bookmark a shop to keep it here.</p></div>`;
   }else if(tab==="visited"){
-    const voteOf = id=>{ const v=state.storeVotes[id]; return !v ? "" : v.up.includes(state.user.id) ? "Worth it" : v.down.includes(state.user.id) ? "Not lately" : ""; };
+    const voteOf = id=>{ const v=state.storeVotes[id]; return !v ? "" : v.mine==="up" ? "Worth it" : v.mine==="down" ? "Not lately" : ""; };
     const ids=[...new Set([...state.visitedStoreIds, ...state.stores.filter(st=>voteOf(st.id)).map(st=>st.id)])];
     const stores=ids.map(getStoreById).filter(Boolean).sort((a,b)=>a.name.localeCompare(b.name));
     content=stores.length?`<div class="note-list">${stores.map(st=>compactProfileStore(st, voteOf(st.id))).join("")}</div>`:`<div class="empty-state"><h3>No visited stores yet</h3><p>Tap Mark as visited on a store page and it will show up here.</p></div>`;
@@ -3827,9 +3988,9 @@ function viewProfileLibrary(){
     const routes=state.userRoutes.filter(r=>state.savedRouteIds.includes(r.id));
     content=routes.length?`<div class="note-list">${routes.map(profileRouteCard).join("")}</div>`:state.user.isMember?`<div class="empty-state"><h3>No saved routes yet</h3><p>Build a route, then tap Save route to keep it here.</p><button class="btn btn-ghost btn-sm" style="margin-top:12px" data-action="nav" data-view="route">Build a route</button></div>`:`<div class="empty-state"><h3>No saved routes yet</h3><p>Saving routes comes with ATL Guide Insider.</p><button class="btn btn-ghost btn-sm" style="margin-top:12px" data-action="open-membership">See Insider perks</button></div>`;
   }else if(tab==="votes"){
-    const mine = state.stores.filter(st=>{ const v=state.storeVotes[st.id]; return v && (v.up.includes(state.user.id)||v.down.includes(state.user.id)); });
-    const yes = mine.filter(st=>state.storeVotes[st.id].up.includes(state.user.id));
-    const no = mine.filter(st=>state.storeVotes[st.id].down.includes(state.user.id));
+    const mine = state.stores.filter(st=>{ const v=state.storeVotes[st.id]; return v && !!v.mine; });
+    const yes = mine.filter(st=>state.storeVotes[st.id].mine==="up");
+    const no = mine.filter(st=>state.storeVotes[st.id].mine==="down");
     const sect = (label, arr) => arr.length?`<div style="font-family:var(--font-mono);font-size:9.5px;letter-spacing:.14em;text-transform:uppercase;color:var(--royal);margin:18px 0 10px">${label}</div><div class="note-list">${arr.map(compactProfileStore).join("")}</div>`:"";
     content = mine.length ? sect("Still worth the trip", yes)+sect("Not lately", no) : `<div class="empty-state"><h3>No votes yet</h3><p>Answer "Still worth the trip?" on a store page and it will be collected here.</p></div>`;
   }else{
@@ -3920,7 +4081,7 @@ function previewToursModal(){
     <div class="modal-sheet">
       <div class="modal-handle"></div>
       <div class="modal-title">Preview welcome tours</div>
-      <div class="modal-sub">See what new people see. Members get the first tour after creating an account; Insiders get the second after subscribing.</div>
+      <div class="modal-sub">See what new people see. Members get the first tour after creating an account; Insiders get the second after the team makes them an Insider.</div>
       <button class="btn btn-outline btn-block" data-action="preview-tour" data-tour="member">Member welcome (5 slides)</button>
       <button class="btn btn-outline btn-block" style="margin-top:8px" data-action="preview-tour" data-tour="insider">Insider welcome (7 slides)</button>
       <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
@@ -4382,7 +4543,7 @@ function viewAdmin(){
         </div>`).join(""); })()}
       </div>
       ${(()=>{ const t = Object.entries(state.storeVotes)
-          .map(([sid,v])=>({ s:getStoreById(sid), up:v.up.length, down:v.down.length }))
+          .map(([sid,v])=>({ s:getStoreById(sid), up:v.up, down:v.down }))
           .filter(x=>x.s && (x.up||x.down))
           .sort((a,b)=>(b.down-a.down)||(b.up-a.up));
         if(!t.length) return "";
@@ -4553,7 +4714,7 @@ function membershipModal(){
   return `<div class="modal-overlay">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
-      <div class="modal-title">Become an ATL Guide Insider</div>
+      <div class="modal-title">ATL Guide Insider</div>
       <div class="modal-sub">${isMember ? "You're an ATL Guide Member. Here's what Insiders get:" : "Here's what each membership includes:"}</div>
       <div style="overflow-x:auto;margin-bottom:18px">
         <table style="width:100%;border-collapse:collapse">
@@ -4573,8 +4734,8 @@ function membershipModal(){
           </tbody>
         </table>
       </div>
-      <div style="font-family:var(--font-display);font-size:22px;color:var(--ink);margin-bottom:4px">Insider: $7/month or $60/year</div>
-      <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:18px">Insider memberships are opening soon, with a 3-day free trial and founding-member pricing for early supporters.</div>
+      <div style="font-family:var(--font-display);font-size:22px;color:var(--ink);margin-bottom:4px">Coming soon</div>
+      <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:18px">Insider isn't open to everyone yet. For now, the 2nd Studio team adds Insiders by hand, and there's nothing to buy.</div>
       <button class="btn btn-royal btn-block" data-action="close-modal">Got it</button>
     </div>
   </div>`;
@@ -5196,6 +5357,7 @@ function handleClick(e){
     case "wizard-next": wizardStep(1); break;
     case "wizard-back": wizardStep(-1); break;
     case "build-route": if(!routeTapTooSoon("wizard")) buildRouteFromHere(); break;
+    case "shuffle-route": if(!routeTapTooSoon("shuffle")) shuffleRoute(); break;
     case "move-stop": moveStop(parseInt(t.dataset.i), t.dataset.dir); break;
     case "remove-stop": removeStop(parseInt(t.dataset.i)); break;
     case "open-in-maps": {
@@ -5842,7 +6004,7 @@ const USERNAME_RULE = /^[a-z0-9._]{3,20}$/;
 const RESERVED_USERNAME = /(admin|atlthriftguide|atlguide|2ndstudio|secondstudio|official|support|moderator)/i;
 // Bump this date whenever the Terms or Privacy Policy change, so everyone
 // is asked to agree to the new version.
-const TERMS_VERSION = "2026-10-05";
+const TERMS_VERSION = "2026-10-12";
 let termsAcceptedThisSession = false;
 function hasAcceptedTerms(){
   if(termsAcceptedThisSession) return true;
@@ -6817,7 +6979,7 @@ function deleteAccountModal(){
       <div class="modal-handle"></div>
       <div class="modal-title">Delete your account?</div>
       <div class="modal-sub">This permanently deletes your account, profile, posts, photos, comments, likes, saved stores and routes, and shop notes. It can't be undone.</div>
-      ${state.user?.isMember && !state.user?.isAdmin ? `<div style="font-size:12.5px;line-height:1.5;color:var(--body-text);background:var(--cream-card);border-radius:14px;padding:12px 14px;margin-bottom:14px">Deleting your account doesn't cancel an Insider subscription. If you subscribed through the App Store, cancel it in your iPhone's Settings → your name → Subscriptions.</div>` : ""}
+      ${state.user?.isMember && !state.user?.isAdmin ? `<div style="font-size:12.5px;line-height:1.5;color:var(--body-text);background:var(--cream-card);border-radius:14px;padding:12px 14px;margin-bottom:14px">Your Insider access ends when your account is deleted. There's no subscription or payment to cancel.</div>` : ""}
       <div class="form-group"><label>Type DELETE to confirm</label><input type="text" id="delete-confirm" autocapitalize="characters" autocomplete="off" placeholder="DELETE"></div>
       <button class="btn btn-block" style="background:var(--danger);color:#FFFFFF" data-action="confirm-delete-account">Delete my account</button>
       <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
