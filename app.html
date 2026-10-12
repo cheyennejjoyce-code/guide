@@ -459,6 +459,10 @@ main.view{padding:0 20px 116px;}
 @media (hover:hover){.btn-royal:hover{background:var(--royal);}}
 /* The one colored call to action: "Build a route" on Home, in the brand terracotta. */
 .btn-accent{background:var(--royal);color:#FFFFFF;}
+/* Adjust photo: the circle you drag your photo inside. */
+.crop-frame{position:relative;width:260px;height:260px;margin:14px auto 0;border-radius:50%;overflow:hidden;background:var(--cream-card);border:2px solid var(--line-strong);touch-action:none;cursor:grab;}
+.crop-frame img{position:absolute;left:50%;top:50%;max-width:none;-webkit-user-select:none;user-select:none;pointer-events:none;}
+.form-group input[type="range"]{padding:0;border:none;background:none;height:36px;accent-color:var(--royal);}
 @media (hover:hover){.btn-accent:hover{background:#B84A3E;}}
 .btn-ghost{border:1.5px solid var(--line);background:transparent;}
 .hscroll{gap:10px;margin-left:-20px;margin-right:-20px;padding-left:20px;padding-right:20px;}
@@ -2218,6 +2222,9 @@ function getStoreById(id){ return state.stores.find(s=>s.id===id); }
 
 let activeModal = null;
 let pendingAvatarData = null;
+// The photo being adjusted in "Adjust photo", and what was typed in Edit
+// profile while it was open (so switching sheets doesn't lose it).
+let cropAvatar = null, editProfileDraft = null;
 let pendingFindPhotoData = null; // now holds a re-encoded image file (no hidden location data)
 // Find photos are big, so each one only downloads as it nears the screen.
 function postPhotoHtml(post){
@@ -4619,6 +4626,7 @@ function renderModal(){
   let html = "";
   if(name==="login") html = loginModal();
   else if(name==="editProfile") html = editProfileModal();
+  else if(name==="cropAvatar") html = cropAvatarModal();
   else if(name==="shareFind") html = shareFindModal(params);
   else if(name==="addStop") html = addStopModal();
   else if(name==="adminStoreForm") html = adminStoreFormModal(params);
@@ -5024,26 +5032,95 @@ function editProfileModal(){
   // A photo picked in this sheet (not saved yet) stays in the preview if the
   // sheet is redrawn, so the preview always matches what Save will keep.
   const shownAvatar = pendingAvatarData || u.avatarUrl;
+  const d = editProfileDraft || {};
   return `<div class="modal-overlay">
     <div class="modal-sheet">
       <div class="modal-handle"></div>
       ${sheetHeadHtml("Edit profile")}
       <div id="ep-avatar-preview" style="text-align:center;margin-bottom:14px">${shownAvatar ? `<div style="width:84px;height:84px;border-radius:50%;overflow:hidden;margin:0 auto"><img src="${shownAvatar}" style="width:100%;height:100%;object-fit:cover"></div>` : ''}</div>
+      ${shownAvatar ? `<button class="btn btn-ghost btn-sm" style="display:flex;margin:-4px auto 14px" data-action="adjust-avatar">Adjust photo</button>` : ""}
       <div class="photo-upload-box" style="margin-bottom:16px">
-        ${ICONS.camera}<div>${u.avatarUrl ? 'Tap to change your profile photo' : 'Tap to add a profile photo'}</div>
+        ${ICONS.camera}<div>${shownAvatar ? 'Tap to change your profile photo' : 'Tap to add a profile photo'}</div>
         <input type="file" accept="image/*" id="ep-avatar">
       </div>
-      <div class="form-group"><label>Bio</label><textarea id="ep-bio" maxlength="${BIO_MAX}" placeholder="A line about your thrifting style">${escapeHtml(u.bio||'')}</textarea></div>
+      <div class="form-group"><label>Bio</label><textarea id="ep-bio" maxlength="${BIO_MAX}" placeholder="A line about your thrifting style">${escapeHtml(d.bio ?? (u.bio||''))}</textarea></div>
       <div class="form-group"><label>Favorite category</label>
-        <select id="ep-cat">${CATEGORIES.map(c=>`<option ${u.favCategory===c?'selected':''}>${c}</option>`).join("")}</select>
+        <select id="ep-cat">${CATEGORIES.map(c=>`<option ${(d.cat ?? u.favCategory)===c?'selected':''}>${c}</option>`).join("")}</select>
       </div>
       <div class="form-group"><label>Atlanta neighborhood</label>
-        <select id="ep-n">${Object.keys(NEIGHBORHOODS).map(n=>`<option ${u.neighborhood===n?'selected':''}>${n}</option>`).join("")}</select>
+        <select id="ep-n">${Object.keys(NEIGHBORHOODS).map(n=>`<option ${(d.n ?? u.neighborhood)===n?'selected':''}>${n}</option>`).join("")}</select>
       </div>
       <button class="btn btn-royal btn-block" data-action="submit-edit-profile">Save changes</button>
       <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
     </div>
   </div>`;
+}
+
+// "Adjust photo": drag the picture to put your face in the circle and use
+// the slider to zoom. Done saves a square photo cropped to the circle.
+const CROP_FRAME = 260, CROP_OUT = 400;
+function cropAvatarModal(){
+  const c = cropAvatar || {zoom:1};
+  return `<div class="modal-overlay">
+    <div class="modal-sheet">
+      <div class="modal-handle"></div>
+      <div class="modal-title">Adjust photo</div>
+      <div class="modal-sub">Drag to move your photo. Use the slider to zoom.</div>
+      <div class="crop-frame" id="crop-frame">${c.src ? `<img id="crop-img" src="${c.src}" alt="" draggable="false">` : ""}</div>
+      <div class="form-group" style="margin-top:16px"><label for="crop-zoom">Zoom</label><input type="range" id="crop-zoom" min="1" max="3" step="0.01" value="${c.zoom}"></div>
+      <button class="btn btn-royal btn-block" data-action="crop-done">Done</button>
+      <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="crop-cancel">Cancel</button>
+    </div>
+  </div>`;
+}
+// Keeps what was typed in Edit profile, then opens Adjust photo on `src`.
+function startAvatarCrop(src){
+  if(!src) return;
+  const v = id => { const el = document.getElementById(id); return el ? el.value : undefined; };
+  if(document.getElementById("ep-bio")) editProfileDraft = { bio:v("ep-bio"), cat:v("ep-cat"), n:v("ep-n") };
+  const img = new Image();
+  img.onload = ()=>{ cropAvatar = { src, w:img.naturalWidth, h:img.naturalHeight, zoom:1, x:0, y:0 }; openModal("cropAvatar"); };
+  img.onerror = ()=>toast("Couldn't open that photo — try a different one.");
+  img.src = src;
+}
+function setupAvatarCrop(){
+  const frame = document.getElementById("crop-frame"), img = document.getElementById("crop-img"), zoom = document.getElementById("crop-zoom");
+  if(!frame || !img || !zoom || !cropAvatar) return;
+  const F = CROP_FRAME;
+  // The photo always covers the whole circle: it can't be dragged past an edge.
+  const apply = ()=>{
+    const c = cropAvatar, sc = Math.max(F/c.w, F/c.h) * c.zoom;
+    const dw = c.w*sc, dh = c.h*sc, mx = (dw-F)/2, my = (dh-F)/2;
+    c.x = Math.max(-mx, Math.min(mx, c.x)); c.y = Math.max(-my, Math.min(my, c.y));
+    img.style.width = dw+"px"; img.style.height = dh+"px";
+    img.style.transform = `translate(calc(-50% + ${c.x}px), calc(-50% + ${c.y}px))`;
+  };
+  let drag = null;
+  frame.addEventListener("pointerdown", e=>{ drag = { id:e.pointerId, sx:e.clientX, sy:e.clientY, x:cropAvatar.x, y:cropAvatar.y }; try{ frame.setPointerCapture(e.pointerId); }catch(err){} });
+  frame.addEventListener("pointermove", e=>{ if(!drag || e.pointerId!==drag.id) return; cropAvatar.x = drag.x + (e.clientX-drag.sx); cropAvatar.y = drag.y + (e.clientY-drag.sy); apply(); });
+  const end = e=>{ if(drag && e.pointerId===drag.id) drag = null; };
+  frame.addEventListener("pointerup", end); frame.addEventListener("pointercancel", end);
+  zoom.addEventListener("input", ()=>{ cropAvatar.zoom = Number(zoom.value) || 1; apply(); });
+  apply();
+}
+function finishAvatarCrop(){
+  const c = cropAvatar; if(!c) return;
+  const F = CROP_FRAME, sc = Math.max(F/c.w, F/c.h) * c.zoom;
+  // Where the circle sits on the original photo, in its own pixels.
+  const sx = (c.w*sc/2 - F/2 - c.x)/sc, sy = (c.h*sc/2 - F/2 - c.y)/sc, side = F/sc;
+  const img = new Image();
+  img.onload = ()=>{
+    try{
+      const canvas = document.createElement("canvas");
+      canvas.width = canvas.height = CROP_OUT;
+      canvas.getContext("2d").drawImage(img, sx, sy, side, side, 0, 0, CROP_OUT, CROP_OUT);
+      pendingAvatarData = canvas.toDataURL("image/jpeg", 0.85);
+    }catch(err){ toast("Couldn't adjust that photo — try picking it again."); return; }
+    cropAvatar = null;
+    openModal("editProfile");
+  };
+  img.onerror = ()=>toast("Couldn't adjust that photo — try picking it again.");
+  img.src = c.src;
 }
 
 function shareFindModal(params){
@@ -5412,7 +5489,10 @@ function handleClick(e){
     case "admin-remove-post": adminRemovePost(t.dataset.id); break;
     case "admin-remove-comment": if(state.isAdmin) deleteComment(t.dataset.id, t.dataset.report); break;
     case "submit-login": submitLogin(); break;
-    case "open-edit-profile": pendingAvatarData = null; openModal("editProfile"); break;
+    case "open-edit-profile": pendingAvatarData = null; editProfileDraft = null; cropAvatar = null; openModal("editProfile"); break;
+    case "adjust-avatar": startAvatarCrop(pendingAvatarData || (state.user && state.user.avatarUrl)); break;
+    case "crop-done": finishAvatarCrop(); break;
+    case "crop-cancel": cropAvatar = null; openModal("editProfile"); break;
     case "open-profile-library": state.profileLibraryTab=t.dataset.tab||"notes"; go("profileLibrary"); break;
     case "open-visit-note": openModal("visitNote", {storeId:t.dataset.store||""}); break;
     case "edit-visit-note": openModal("visitNote", {id:t.dataset.id}); break;
@@ -7254,6 +7334,7 @@ async function submitEditProfile(){
   if(error){ toast("Couldn't save your profile — try again."); return; }
   state.user.bio = bio; state.user.favCategory = favCategory; state.user.neighborhood = neighborhood;
   if(pendingAvatarData){ state.user.avatarUrl = pendingAvatarData; pendingAvatarData = null; }
+  editProfileDraft = null;
   closeModal();
   render();
 }
@@ -7657,6 +7738,7 @@ document.addEventListener("compositionstart", e=>{ if(e.target && e.target.datas
 document.addEventListener("compositionend", e=>{ if(e.target && e.target.dataset){ delete e.target.dataset.composing; handleSearchTyping(e); } });
 function attachModalHandlers(){
   renderTurnstile();
+  setupAvatarCrop();
   const unameInput = document.getElementById("login-username");
   if(unameInput) unameInput.addEventListener("input", onUsernameInput);
   const codeInput = document.getElementById("verify-code");
@@ -7706,13 +7788,11 @@ function attachModalHandlers(){
     avatarInput.addEventListener("change", async e=>{
       const file = e.target.files[0];
       if(!file) return;
-      let small;
-      try{ small = await blobToDataURL(await compressImageToBlob(file, 400, 0.85)); }
+      let picked;
+      try{ picked = await blobToDataURL(await compressImageToBlob(file, 1200, 0.9)); }
       catch(err){ toast("Couldn't read that image — try a different one."); return; }
-      {
-        pendingAvatarData = small;
-        document.getElementById("ep-avatar-preview").innerHTML = `<div style="width:84px;height:84px;border-radius:50%;overflow:hidden;margin:0 auto"><img src="${pendingAvatarData}" style="width:100%;height:100%;object-fit:cover"></div>`;
-      }
+      // Straight to "Adjust photo", so the face can be placed in the circle.
+      startAvatarCrop(picked);
     });
   }
 }
