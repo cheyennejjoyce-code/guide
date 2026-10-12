@@ -1534,7 +1534,7 @@ function saveState(){ saveUIPrefs(); }
 // Whether you're signed in comes from the session saved on this phone; the
 // server only confirms it. Returns false, and leaves everything as it was,
 // when the server couldn't be reached, so a weak signal never looks like
-// being signed out (or like losing Insider or admin).
+// being signed out (or like losing admin).
 async function refreshSessionAndProfile(){
   const failuresBefore = netFailures;
   const unreachable = (err, status) => netFailures !== failuresBefore || isNetworkError(err, status);
@@ -1544,11 +1544,11 @@ async function refreshSessionAndProfile(){
   const { data:{ user }, error: userErr } = await sb.auth.getUser();
   if(unreachable(userErr)) return false;
   if(!user){ state.user = null; state.isAdmin = false; return true; }
-  const [profileRes, adminRes, memberRes] = await Promise.all([
+  const [profileRes, adminRes] = await Promise.all([
     sb.from("profiles").select("*").eq("id", user.id).single(),
-    sb.rpc("is_admin"), sb.rpc("is_member")
+    sb.rpc("is_admin")
   ]);
-  if(unreachable(profileRes.error, profileRes.status) || unreachable(adminRes.error, adminRes.status) || unreachable(memberRes.error, memberRes.status)) return false;
+  if(unreachable(profileRes.error, profileRes.status) || unreachable(adminRes.error, adminRes.status)) return false;
   const profile = profileRes.data;
   const next = {
     id: user.id, email: user.email,
@@ -1561,11 +1561,13 @@ async function refreshSessionAndProfile(){
     styleDetails: profile?.style_details || {},
     followers:[], following:[] // not shown per your call to drop follower counts — kept as empty for any leftover UI references
   };
-  // Admin and membership status come from private lists in Supabase,
-  // which only the database can change (no passcodes in the app).
-  const adminFlag = adminRes.data, memberFlag = memberRes.data;
+  // Admin status comes from a private list in Supabase, which only the
+  // database can change (no passcodes in the app).
+  const adminFlag = adminRes.data;
   next.isAdmin = !!adminFlag;
-  next.isMember = !!memberFlag || !!adminFlag;
+  // Every signed-in member gets every feature (there's no paid tier), so
+  // this is always true. Kept so any check that still reads it works.
+  next.isMember = true;
   next.termsVersion = user.user_metadata?.terms_version || null;
   next.toursSeen = { member: !!user.user_metadata?.tour_member_seen, insider: !!user.user_metadata?.tour_insider_seen };
   state.user = next;
@@ -1777,7 +1779,7 @@ async function boot(){
   // First open: the terms gate asks once it's accepted (acceptTerms). Anyone
   // who accepted on an earlier version gets the one-time ask here instead.
   if(hasAcceptedTerms()) askLocationOnce();
-  checkUnreadFromTeam().then(()=>{ if(state.unreadFromTeam) renderList(); });
+  checkUnreadFromTeam().then(()=>{ if(state.unreadFromTeam || state.openReportCount) renderList(); });
   syncTermsToAccount();
   savePendingStyleForSignedIn().then(saved=>{ if(saved && !userIsBusy()) renderList(); }).catch(()=>{});
 }
@@ -1815,8 +1817,8 @@ function waitForRunningBoot(){
 
 // ---- Coming back to the app -------------------------------------------------
 // iOS keeps the app alive in the background. Coming back after a few minutes
-// refreshes new finds, events, your lists, the message badge and Insider
-// status, and redraws so the date line and open/closed badges are current.
+// refreshes new finds, events, your lists and the message badge, and
+// redraws so the date line and open/closed badges are current.
 // Nothing reloads or redraws while a sheet is open or you're typing.
 const REFRESH_AFTER_MS = 5*60*1000;
 let refreshingOnReturn = false;
@@ -1844,7 +1846,6 @@ async function refreshAfterAway(){
   const KEEP = ["user","isAdmin","events","posts","likes","comments","blockedIds","storeVotes","storeFollows","savedStoreIds","visitedStoreIds","savedPostIds","savedRouteIds","userRoutes","visitNotes","myUserFollows","unreadFromTeam"];
   const before = {}; KEEP.forEach(k=>{ before[k] = state[k]; });
   const wasUserId = state.user ? state.user.id : null;
-  const wasMember = !!(state.user && state.user.isMember);
   const failuresBefore = netFailures;
   try{
     if(!(await refreshSessionAndProfile())) return; // still no signal: keep what's showing
@@ -1867,17 +1868,15 @@ async function refreshAfterAway(){
     Object.assign(state, before);
     return;
   }finally{ refreshingOnReturn = false; }
-  redrawAfterRefresh(wasMember);
+  redrawAfterRefresh();
 }
-function redrawAfterRefresh(wasMember){
-  if(userIsBusy()){ retryWhenFree(()=>redrawAfterRefresh(wasMember)); return; }
+function redrawAfterRefresh(){
+  if(userIsBusy()){ retryWhenFree(redrawAfterRefresh); return; }
   // Redrawing a map would lose your place on it; it picks up the new data
   // the next time it's drawn.
   // Keeps comments and messages you typed but haven't sent.
   if(!document.getElementById("gmap-canvas")) renderListKeepingDrafts();
   if(state.view==="messages" && state.user) loadThread(state.thread ? state.thread.userId : null);
-  // Made an Insider while you were away: the Insider welcome, once.
-  if(!wasMember && state.user && state.user.isMember) maybeStartMemberTour();
 }
 document.addEventListener("visibilitychange", onAppReturn);
 window.addEventListener("pageshow", e=>{ if(e.persisted) onAppReturn(); });
@@ -2096,7 +2095,6 @@ async function toggleSaveStore(id){
   requireAuth(()=>runToggleOnce("save-store:"+id, async ()=>{
     const me = state.user.id;
     const already = state.savedStoreIds.includes(id);
-    if(!already && !state.user.isMember){ openModal("membership"); return; }
     const apply = on => { state.savedStoreIds = state.savedStoreIds.filter(x=>x!==id); if(on) state.savedStoreIds.push(id); };
     const refresh = () => refreshAfterToggle(()=>patchSaveStoreButtons(id), v=>["saved","profile","profileLibrary"].includes(v));
     apply(!already); refresh();
@@ -2286,23 +2284,23 @@ function navItem(view, icon, label){
   return `<button class="nav-item ${active?'active':''}" data-action="nav" data-view="${view}" aria-label="${label}"${active?' aria-current="page"':''}>${ICONS[icon]||''}<span class="sr-only">${label}</span></button>`;
 }
 
-// Signed-out visitors can only see the home page (nearby stores and
-// curated routes), plus the store pages and curated routes they open from it.
-const PUBLIC_VIEWS = ["home","storeDetail","routeResults","styleQuiz"];
+// Signed-out visitors can browse the whole guide: the home page, Discover
+// (every store, search, filters and the map), every store page, curated
+// routes and the style quiz. Building a route, saving, finds, events and
+// the profile need a free account.
+const PUBLIC_VIEWS = ["home","discover","storeDetail","routeResults","styleQuiz"];
 // What signed-out visitors see on each members-only tab, so they know
-// exactly what they're missing.
+// exactly what a free account adds.
 const GATED_TAB_INFO = {
-  discover: {tier:"Account", title:"Browse every store", body:()=>`Search all ${state.stores.length ? state.stores.length+" " : ""}thrift, vintage, and antique stores, filter by category or what's open now, and see them on a map. See hours, insider tips, and what each store is best for.`},
-  route: {tier:"Account", title:"Build your own route", body:()=>"Choose where you're starting, what you're hunting for, and how much time you have. We'll plan an efficient route through the best stores, with travel times and directions in Google Maps."},
-  community: {tier:"Account", title:"Join the community", body:()=>"See what Atlanta thrifters are finding, share your own finds, and swap tips on where to shop."},
-  events: {tier:"Membership", title:"Curated Atlanta events", body:()=>"Vintage markets, clothing swaps, estate sales, and special store events, hunted down by 2nd Studio so you don't have to. Included with ATL Guide Insider."},
-  saved: {tier:"Membership", title:"Save your favorites", body:()=>"Keep your favorite stores and routes in one place for your next trip. Included with ATL Guide Insider."},
-  profile: {tier:"Account", title:"Your thrift profile", body:()=>"Set up your profile, track the stores you've visited, and keep private notes on each one."},
-  profileLibrary: {tier:"Account", title:"Your thrift profile", body:()=>"Set up your profile, track the stores you've visited, and keep private notes on each one."}
+  route: {tier:"Account", title:"Build your own route", body:()=>"Choose where you're starting, what you're hunting for, and how much time you have. We'll plan an efficient route through the best stores, with travel times and directions in Google Maps. Free with an account."},
+  community: {tier:"Account", title:"Join the community", body:()=>"See what Atlanta thrifters are finding, share your own finds, and swap tips on where to shop. Free with an account."},
+  events: {tier:"Account", title:"Curated Atlanta events", body:()=>"Vintage markets, clothing swaps, estate sales, and special store events, hunted down by 2nd Studio so you don't have to. Free with an account."},
+  saved: {tier:"Account", title:"Save your favorites", body:()=>"Keep your favorite stores and routes in one place for your next trip. Free with an account."},
+  profile: {tier:"Account", title:"Your thrift profile", body:()=>"Set up your profile, track the stores you've visited, and keep private notes on each one. Free with an account."},
+  profileLibrary: {tier:"Account", title:"Your thrift profile", body:()=>"Set up your profile, track the stores you've visited, and keep private notes on each one. Free with an account."}
 };
 function viewSignInRequired(){
-  const info = GATED_TAB_INFO[state.view] || {tier:"Account", title:"Members only", body:()=>"Create an account to browse every store, build your own routes, and join the community."};
-  const paid = info.tier === "Membership";
+  const info = GATED_TAB_INFO[state.view] || {tier:"Account", title:"Members only", body:()=>"Create a free account to build your own routes, save stores and routes, and join the community."};
   return `<div class="empty-state" style="margin-top:60px">
     <h2 style="font-family:var(--font-display);font-size:36px;line-height:1.05;letter-spacing:-.02em;color:var(--ink);margin:0 0 14px">Members only</h2>
     <div style="font-family:var(--font-body);font-size:12.5px;letter-spacing:.1em;text-transform:uppercase;font-weight:800;color:var(--royal);margin-bottom:8px">${info.title}</div>
@@ -2379,25 +2377,24 @@ function viewHome(){
         <h1>A better way<br>to discover.</h1>
         <p class="sub">A discovery and route planning guide to Atlanta's ${verifiedCount ? `${verifiedCount} verified` : state.stores.length} thrift, vintage, and antique stores.</p>
       </div>
-      ${state.user ? `<div class="hero-btns" style="margin-bottom:32px">
+      <div class="hero-btns" style="margin-bottom:32px">
         <button class="btn btn-accent" style="flex:1;justify-content:center;padding:17px 20px" data-action="nav" data-view="route">Build a route</button>
         <button class="btn btn-secondary-hero" style="padding:15px 20px" data-action="nav" data-view="discover">Browse</button>
-      </div>` : `<div style="margin-bottom:24px"></div>`}
+      </div>
 
       <div class="section" style="margin-top:0">
-        <div class="section-head"><h2>${openNow.length?(here?'Open now near you':'Open now'):'Featured shops'}</h2><span style="display:flex;gap:16px">${openNow.length && !here?`<button class="see-all" style="padding:10px 0;margin:-10px 0" data-action="home-use-location">Near me</button>`:""}${state.user?`<button class="see-all" data-action="nav" data-view="discover">See all</button>`:""}</span></div>
+        <div class="section-head"><h2>${openNow.length?(here?'Open now near you':'Open now'):'Featured shops'}</h2><span style="display:flex;gap:16px">${openNow.length && !here?`<button class="see-all" style="padding:10px 0;margin:-10px 0" data-action="home-use-location">Near me</button>`:""}<button class="see-all" data-action="nav" data-view="discover">See all</button></span></div>
         <div class="hscroll">${displayStores.map(s=>homeStoreCard(s)).join("")}</div>
       </div>
 
-      ${state.user && !state.user.isMember ? memberEventsInvite() : ""}
-      ${state.user && state.user.isMember ? `<div class="events-section">
+      ${state.user ? `<div class="events-section">
         <div class="section-head"><h2>Upcoming in ATL</h2><button class="see-all" data-action="open-events">See all</button></div>
         ${EVENTS_PREVIEW_MODE?`<div class="preview-note">Preview only. Supabase is unchanged.</div>`:""}
-        ${upcomingEvents.length?`<div class="hscroll">${upcomingEvents.slice(0,4).map(saleCard).join("")}</div>`:`<div class="empty-state" style="padding:24px 12px"><h3>Events are coming soon</h3><p>Know about one? Send it for review.</p></div>`}
+        ${upcomingEvents.length?`<div class="hscroll">${upcomingEvents.slice(0,4).map(saleCard).join("")}</div>`:`<div class="empty-state" style="padding:24px 12px"><h3>No events coming up right now</h3><p>Know about one? Send it for review.</p></div>`}
         <div class="events-actions"><p>Markets, swaps, estate sales, and special store events.</p><button class="see-all" data-action="open-event-submission">Submit an event</button></div>
       </div>` : (!state.user ? `<div class="events-submit-card" style="margin-bottom:28px">
         <h3>Your thrift trip starts here</h3>
-        <p>Create an account to browse every store, build your own routes, join the community, and get curated local events.</p>
+        <p>Browse every store, no account needed. Create a free account to build your own routes, save stores and routes, share finds and comments, and get curated local events.</p>
         <button class="btn" data-action="open-signup">Create account</button>
       </div>` : "")}
 
@@ -2568,6 +2565,8 @@ function getUpcomingEvents(){
   const source = EVENTS_PREVIEW_MODE ? SAMPLE_EVENTS : state.events;
   return source.filter(ev=>{
     if(ev.status && ev.status!=="published") return false;
+    // Placeholder sample events stay out of the guide (admin tools still list them).
+    if(ev.isSample) return false;
     const end = eventDateValue(ev.endDate || ev.startDate);
     return !end || end >= today;
   }).sort((a,b)=>{
@@ -2641,7 +2640,7 @@ function eventStatusPill(ev, forAdmin){
   return `<span class="ev-status ev-status-${s.cls}">${s.label}</span>`;
 }
 // Events this member sent in. The database lets submitters read their own
-// rows whatever their status or membership, so loadEvents already has them.
+// rows whatever their status, so loadEvents already has them.
 function mySubmittedEvents(){
   if(!state.user || state.isAdmin) return [];
   return state.events.filter(ev=>ev.submittedBy===state.user.id && !ev.isSample)
@@ -2660,7 +2659,6 @@ function mySubmissionsHtml(){
   </div>`;
 }
 function viewEvents(){
-  if(!state.user.isMember) return `<div class="events-page" style="margin-top:20px">${memberEventsInvite()}</div>`;
   const allEvents = getUpcomingEvents();
   const filtered = filterEvents(allEvents,state.eventFilter||"All");
   const filters = ["All","This weekend","Markets","Sales","Swaps"];
@@ -3771,7 +3769,7 @@ function postCard(p){
         <button class="${liked?'liked':''}" data-action="like-post" data-id="${p.id}">${ICONS.heart}${likes.length}</button>
         <button data-action="toggle-comments" data-id="${p.id}">${ICONS.comment}${comments.length}</button>
         <button data-action="share-post" data-id="${p.id}">${ICONS.share}</button>
-        ${state.isAdmin || own ? "" : `<button data-action="open-report" data-type="post" data-id="${p.id}" data-uid="${p.userId||""}" data-uname="${p.user}" style="margin-left:auto;font-size:12px;color:var(--ink-soft)">Report</button>`}
+        ${state.isAdmin || own ? "" : `<button data-action="open-report" data-type="post" data-id="${p.id}" data-uid="${p.userId||""}" data-uname="${p.user}" style="margin-left:auto;font-size:12px;color:var(--ink-soft);white-space:nowrap">Report / Block</button>`}
         ${own ? `<button class="post-del" data-action="delete-own-post" data-id="${p.id}" aria-label="Delete this find">Delete</button>` : ""}
         ${state.isAdmin && !own ? `<button data-action="admin-remove-post" data-id="${p.id}" style="font-size:12px;color:var(--danger-text)">Remove</button>` : ""}
       </div>
@@ -3786,12 +3784,12 @@ function postCard(p){
   </div>`;
 }
 // Comment text and names are already HTML-safe in state. Others' comments get
-// Report (not for admins, like posts); the author, the find's owner and admins get Delete.
+// Report / Block (not for admins, like posts); the author, the find's owner and admins get Delete.
 function commentRow(c, p){
   const mine = !!(state.user && c.userId===state.user.id);
   const canReport = !!(state.user && c.id && !mine && !state.isAdmin);
   const canDelete = !!(state.user && c.id && (mine || p.userId===state.user.id || state.isAdmin));
-  const acts = (canReport ? `<button data-action="open-report" data-type="comment" data-id="${escapeHtml(c.id)}" data-uid="${escapeHtml(c.userId||"")}" data-uname="${c.user}" aria-label="Report this comment">Report</button>` : "")
+  const acts = (canReport ? `<button data-action="open-report" data-type="comment" data-id="${escapeHtml(c.id)}" data-uid="${escapeHtml(c.userId||"")}" data-uname="${c.user}" aria-label="Report this comment or block its author">Report / Block</button>` : "")
     + (canDelete ? `<button data-action="delete-comment" data-id="${escapeHtml(c.id)}" aria-label="Delete this comment">Delete</button>` : "");
   return `<div class="comment-row"><b>@${c.user}</b><span>${c.text}</span>${acts ? `<div class="c-acts">${acts}</div>` : ""}</div>`;
 }
@@ -3858,7 +3856,7 @@ function viewProfile(){
       <div class="profile-avatar">${state.user.avatarUrl ? `<img src="${state.user.avatarUrl}" style="width:100%;height:100%;object-fit:cover;border-radius:50%">` : initials(u.username)}</div>
       <h2>@${escapeHtml(u.username)}</h2>
       <div class="pmeta">${escapeHtml(u.neighborhood||'Atlanta')} · Loves ${escapeHtml(u.favCategory||'thrifting')}</div>
-      <div style="margin:8px 0 4px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;padding:5px 11px;border-radius:99px;display:inline-block;${u.isMember ? 'background:var(--gold);color:#221D24' : 'background:var(--cream-card);color:var(--ink-soft);border:1px solid var(--line)'}">${u.isMember ? 'ATL Guide Insider' : 'ATL Guide Member'}</div>
+      <div style="margin:8px 0 4px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;padding:5px 11px;border-radius:99px;display:inline-block;background:var(--cream-card);color:var(--ink-soft);border:1px solid var(--line)">ATL Guide Member</div>
       ${u.bio ? `<p style="font-size:13px;color:var(--ink-soft);max-width:280px">${escapeHtml(u.bio)}</p>` : ''}
       <div class="profile-stats">
         <div><div class="pnum gold">${myPosts.length}</div><div class="plbl">finds</div></div>
@@ -3874,11 +3872,6 @@ function viewProfile(){
         </span>
       </button>
     </div>
-    ${u.isMember ? "" : `<div class="events-submit-card" style="margin:6px 0 22px">
-      <h3>ATL Guide Insider</h3>
-      <p>Get curated Atlanta events, and save your favorite stores and routes for your next trip.</p>
-      <button class="btn" data-action="open-membership">See Insider perks</button>
-    </div>`}
     ${profileStyleHtml(u)}
     <div class="profile-shortcuts">
       <button class="profile-shortcut" data-action="open-profile-library" data-tab="notes">${ICONS.edit}<span><span class="ps-title">Shop Notes</span><span class="ps-count">${state.visitNotes.length} ${state.visitNotes.length===1?'note':'notes'}</span></span></button>
@@ -3896,10 +3889,10 @@ function viewProfile(){
         <span class="sr-left">${ICONS.edit}Edit profile</span>${ICONS.chevronR}
       </button>
     ${state.isAdmin ? `<button class="settings-row" style="width:100%;background:none;border:none;text-align:left" data-action="nav" data-view="admin">
-      <span class="sr-left">${ICONS.shield}Admin tools</span>${ICONS.chevronR}
+      <span class="sr-left">${ICONS.shield}Admin tools${state.openReportCount ? `<span style="margin-left:8px;background:var(--danger);color:#fff;border-radius:99px;font-family:var(--font-mono);font-size:9px;padding:3px 7px">${state.openReportCount}<span class="sr-only"> open ${state.openReportCount===1?'report':'reports'}</span></span>` : ""}</span>${ICONS.chevronR}
     </button>
     <button class="settings-row" style="width:100%;background:none;border:none;text-align:left" data-action="admin-preview-tours">
-      <span class="sr-left">Preview welcome tours</span>${ICONS.chevronR}
+      <span class="sr-left">Preview welcome tour</span>${ICONS.chevronR}
     </button>` : `<button class="settings-row" style="width:100%;background:none;border:none;text-align:left" data-action="nav" data-view="messages">
       <span class="sr-left">Message the team${state.unreadFromTeam ? `<span style="margin-left:8px;background:var(--royal);color:#fff;border-radius:99px;font-family:var(--font-mono);font-size:9px;padding:3px 7px">${state.unreadFromTeam}</span>` : ""}</span>${ICONS.chevronR}
     </button>
@@ -3996,7 +3989,7 @@ function viewProfileLibrary(){
     content=stores.length?`<div class="note-list">${stores.map(st=>compactProfileStore(st, voteOf(st.id))).join("")}</div>`:`<div class="empty-state"><h3>No visited stores yet</h3><p>Tap Mark as visited on a store page and it will show up here.</p></div>`;
   }else if(tab==="routes"){
     const routes=state.userRoutes.filter(r=>state.savedRouteIds.includes(r.id));
-    content=routes.length?`<div class="note-list">${routes.map(profileRouteCard).join("")}</div>`:state.user.isMember?`<div class="empty-state"><h3>No saved routes yet</h3><p>Build a route, then tap Save route to keep it here.</p><button class="btn btn-ghost btn-sm" style="margin-top:12px" data-action="nav" data-view="route">Build a route</button></div>`:`<div class="empty-state"><h3>No saved routes yet</h3><p>Saving routes comes with ATL Guide Insider.</p><button class="btn btn-ghost btn-sm" style="margin-top:12px" data-action="open-membership">See Insider perks</button></div>`;
+    content=routes.length?`<div class="note-list">${routes.map(profileRouteCard).join("")}</div>`:`<div class="empty-state"><h3>No saved routes yet</h3><p>Build a route, then tap Save route to keep it here.</p><button class="btn btn-ghost btn-sm" style="margin-top:12px" data-action="nav" data-view="route">Build a route</button></div>`;
   }else if(tab==="votes"){
     const mine = state.stores.filter(st=>{ const v=state.storeVotes[st.id]; return v && !!v.mine; });
     const yes = mine.filter(st=>state.storeVotes[st.id].mine==="up");
@@ -4025,9 +4018,23 @@ function viewProfileLibrary(){
 
 // ---- Messages: members chat with the team inside the app ----------------
 async function checkUnreadFromTeam(){
-  if(!state.user){ state.unreadFromTeam = 0; return; }
-  const { data } = await sb.from("support_messages").select("id").eq("user_id", state.user.id).eq("sender","admin").eq("read_by_member", false);
+  if(!state.user){ state.unreadFromTeam = 0; state.openReportCount = 0; return; }
+  // Admins also get how many reports are still open, for the red count on
+  // Admin tools. Only the number comes back, not the reports.
+  const [{ data }, reports] = await Promise.all([
+    sb.from("support_messages").select("id").eq("user_id", state.user.id).eq("sender","admin").eq("read_by_member", false),
+    state.isAdmin ? sb.from("reports").select("id", { count:"exact", head:true }).eq("status","open") : null
+  ]);
   state.unreadFromTeam = (data||[]).length;
+  if(!state.isAdmin) state.openReportCount = 0;
+  else if(reports && !reports.error) state.openReportCount = reports.count || 0;
+}
+// A report was just resolved: off the Review list, and one less on the red count.
+function forgetOpenReport(id){
+  if(!state.admin) return;
+  const before = (state.admin.reports||[]).length;
+  state.admin.reports = (state.admin.reports||[]).filter(x=>x.id!==id);
+  if(state.admin.reports.length < before) state.openReportCount = Math.max(0, (state.openReportCount||0) - 1);
 }
 // Each load gets a number; a load that finishes after a newer one started, or
 // after you've left this conversation, is dropped, including its mark-as-read.
@@ -4082,18 +4089,6 @@ function externalLinkModal(params){
       <div class="modal-title">You're leaving ATL Thrift Guide</div>
       <div class="modal-sub">This link opens <b style="color:var(--ink)">${escapeHtml(host)}</b>, an outside website. ATL Thrift Guide does not operate it and is not responsible for its content, accuracy, or security.</div>
       <a class="btn btn-royal btn-block" href="${escapeHtml(url)}" target="_blank" rel="noopener noreferrer" data-action="close-modal">Continue</a>
-      <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
-    </div>
-  </div>`;
-}
-function previewToursModal(){
-  return `<div class="modal-overlay">
-    <div class="modal-sheet">
-      <div class="modal-handle"></div>
-      <div class="modal-title">Preview welcome tours</div>
-      <div class="modal-sub">See what new people see. Members get the first tour after creating an account; Insiders get the second after the team makes them an Insider.</div>
-      <button class="btn btn-outline btn-block" data-action="preview-tour" data-tour="member">Member welcome (5 slides)</button>
-      <button class="btn btn-outline btn-block" style="margin-top:8px" data-action="preview-tour" data-tour="insider">Insider welcome (7 slides)</button>
       <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
     </div>
   </div>`;
@@ -4332,6 +4327,7 @@ async function loadAdminData(){
   state.admin.scanHiddenDb = (hiddenScan.data||[]).map(r=>r.place_id);
   state.admin.storeSubs = subs.data || [];
   state.admin.reports = reps.data || [];
+  if(!reps.error) state.openReportCount = state.admin.reports.length;
   state.admin.signups = signups.data || [];
   state.admin.loading = false; state.admin.loaded = true;
   redrawAdmin();
@@ -4436,7 +4432,7 @@ async function adminResolveReport(id){
   if(!state.isAdmin) return;
   const { error } = await sb.from("reports").update({ status:"resolved" }).eq("id", id);
   if(error){ toast("Couldn't resolve that report."); return; }
-  state.admin.reports = (state.admin.reports||[]).filter(x=>x.id!==id);
+  forgetOpenReport(id);
   toast("Report resolved."); renderList();
 }
 // Remove a reported post or event for everyone, then close its report.
@@ -4460,7 +4456,7 @@ async function adminRemoveReported(type, id, reportId){
     else await loadEvents();
     if(reportId){
       const { error: rErr } = await sb.from("reports").update({ status:"resolved" }).eq("id", reportId);
-      if(!rErr && state.admin) state.admin.reports = (state.admin.reports||[]).filter(x=>x.id!==reportId);
+      if(!rErr) forgetOpenReport(reportId);
     }
     toast((data||[]).length ? (type==="post" ? "Post removed." : "Event removed.") : `That ${what} was already gone. Report resolved.`);
     renderList();
@@ -4607,7 +4603,7 @@ function viewAdmin(){
       <button class="btn btn-ghost btn-sm" data-action="nav" data-view="profile" style="margin-bottom:14px">${ICONS.back}Back to profile</button>
       <h2 style="font-size:24px;margin-bottom:16px">Admin tools</h2>
       <div class="tab-wrap"><div class="tab-row">
-        <button class="${tab==='review'?'active':''}" data-action="set-admin-tab" data-t="review">Review</button>
+        <button class="${tab==='review'?'active':''}" data-action="set-admin-tab" data-t="review">Review${state.openReportCount ? `<span style="margin-left:6px;background:var(--danger);color:#fff;border-radius:99px;font-family:var(--font-mono);font-size:9px;padding:2px 6px">${state.openReportCount}<span class="sr-only"> open ${state.openReportCount===1?'report':'reports'}</span></span>` : ""}</button>
         <button class="${tab==='stores'?'active':''}" data-action="set-admin-tab" data-t="stores">Stores</button>
         <button class="${tab==='routes'?'active':''}" data-action="set-admin-tab" data-t="routes">Routes</button>
         <button class="${tab==='sales'?'active':''}" data-action="set-admin-tab" data-t="sales">Events</button>
@@ -4637,12 +4633,10 @@ function renderModal(){
   else if(name==="suggestStore") html = suggestStoreModal();
   else if(name==="adminEditEvent") html = adminEditEventModal(params);
   else if(name==="feedback") html = feedbackModal();
-  else if(name==="previewTours") html = previewToursModal();
   else if(name==="externalLink") html = externalLinkModal(params);
   else if(name==="blocked") html = blockedModal();
   else if(name==="termsGate") html = termsGateModal();
   else if(name==="tour") html = tourModal(params);
-  else if(name==="membership") html = membershipModal();
   else if(name==="report") html = reportModal(params);
   else if(name==="visitNote") html = visitNoteModal(params);
   else if(name==="forgotPassword") html = forgotPasswordModal();
@@ -4674,8 +4668,8 @@ function visitNoteModal(params){
 
 function eventDetailModal(params){
   let ev = getUpcomingEvents().find(e=>e.id===params.id);
-  // Submitters can open their own events whatever the status or their
-  // membership, and admins can open any event (review, reports, Sales).
+  // Submitters can open their own events whatever the status, and admins
+  // can open any event (review, reports, Sales, samples).
   if(!ev && state.user) ev = state.events.find(e=>e.id===params.id && (state.isAdmin || (e.submittedBy && e.submittedBy===state.user.id)));
   if(!ev) return "";
   const store = ev.linkedStoreId ? getStoreById(ev.linkedStoreId) : null;
@@ -4707,54 +4701,10 @@ function eventDetailModal(params){
   </div>`;
 }
 
-function memberEventsInvite(){
-  return `<div class="events-submit-card" style="margin-bottom:28px">
-    <h3>Curated events are for Insiders</h3>
-    <p>We hunt down Atlanta's markets, swaps, and estate sales so you don't have to. ATL Guide Insiders also save stores and routes for later.</p>
-    <button class="btn" data-action="open-membership">See Insider perks</button>
-    <button class="see-all" style="display:block;margin-top:4px;padding:14px 0;color:var(--on-ink-block)" data-action="open-event-submission">Know about an event? Submit it</button>
-  </div>${mySubmissionsHtml()}`;
-}
-function membershipModal(){
-  const row = (label, member, insider) => `<tr>
-    <td style="padding:10px 6px 10px 0;border-bottom:1px solid var(--line);font-size:13.5px;color:var(--body-text)">${label}</td>
-    <td style="padding:10px 6px;border-bottom:1px solid var(--line);text-align:center;font-size:15px;color:${member?'var(--ink)':'var(--line-strong)'}">${member?'✓':'–'}</td>
-    <td style="padding:10px 0 10px 6px;border-bottom:1px solid var(--line);text-align:center;font-size:15px;font-weight:700;color:var(--royal)">✓</td>
-  </tr>`;
-  const isMember = !!state.user;
-  return `<div class="modal-overlay">
-    <div class="modal-sheet">
-      <div class="modal-handle"></div>
-      <div class="modal-title">ATL Guide Insider</div>
-      <div class="modal-sub">${isMember ? "You're an ATL Guide Member. Here's what Insiders get:" : "Here's what each membership includes:"}</div>
-      <div style="overflow-x:auto;margin-bottom:18px">
-        <table style="width:100%;border-collapse:collapse">
-          <thead><tr>
-            <th style="text-align:left;padding:0 6px 8px 0"></th>
-            <th style="padding:0 6px 8px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--ink-soft);font-weight:500;text-align:center">Member</th>
-            <th style="padding:0 0 8px 6px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--royal);font-weight:500;text-align:center">Insider</th>
-          </tr></thead>
-          <tbody>
-            ${row("Browse every store", true)}
-            ${row("Build your own routes", true)}
-            ${row("Community finds and posts", true)}
-            ${row("Submit events", true)}
-            ${row("<b>Curated Atlanta events</b>", false)}
-            ${row("<b>Save favorite stores</b>", false)}
-            ${row("<b>Save routes for later</b>", false)}
-          </tbody>
-        </table>
-      </div>
-      <div style="font-family:var(--font-display);font-size:22px;color:var(--ink);margin-bottom:4px">Coming soon</div>
-      <div style="font-size:12.5px;color:var(--ink-soft);margin-bottom:18px">Insider isn't open to everyone yet. For now, the 2nd Studio team adds Insiders by hand, and there's nothing to buy.</div>
-      <button class="btn btn-royal btn-block" data-action="close-modal">Got it</button>
-    </div>
-  </div>`;
-}
 const REPORT_REASONS = {
   store: ["Wrong hours","Permanently closed","Wrong address or details","Something else"],
   post: ["Inappropriate","Spam","Not their photo","Something else"],
-  event: ["Wrong details","Cancelled","Spam or not a real event","Something else"],
+  event: ["Wrong details","Cancelled","Spam or not a real event","Inappropriate or offensive","Something else"],
   comment: ["Inappropriate","Spam","Something else"],
   user: ["Inappropriate profile","Spam account","Something else"]
 };
@@ -4764,22 +4714,29 @@ function reportModal(params){
     <div class="modal-sheet">
       <div class="modal-handle"></div>
       <div class="modal-title">${type==="store" ? "Report an issue" : "Report"}</div>
-      <div class="modal-sub">Thanks for helping keep the guide accurate and safe. Reports go privately to the 2nd Studio team.</div>
+      <div class="modal-sub">Thanks for helping keep the guide accurate and safe. Reports go privately to the 2nd Studio team, and we review them within 24 hours.</div>
       <div class="form-group"><label>What's wrong?</label><select id="rp-reason"><option value="" selected disabled>Choose one</option>${REPORT_REASONS[type].map(r=>`<option>${r}</option>`).join("")}</select></div>
       <div class="form-group"><label>Details (optional)</label><textarea id="rp-details" maxlength="1000" placeholder="Anything that would help us fix it"></textarea></div>
       <button class="btn btn-royal btn-block" data-action="submit-report" data-type="${type}" data-id="${escapeHtml(params.id||"")}">Send report</button>
       ${(type==="post" || type==="comment") && params.uid && (!state.user || params.uid!==state.user.id) ? `<div class="hairline" style="margin:16px 0"></div>
-      <button class="btn btn-ghost btn-block" style="color:var(--danger-text)" data-action="block-user" data-uid="${escapeHtml(params.uid)}" data-uname="${escapeHtml(params.uname||"")}">Block @${escapeHtml(params.uname||"this user")}</button>
-      <div style="font-size:12px;color:var(--ink-soft);text-align:center;margin-top:6px">You won't see their posts or comments. They won't be notified.</div>` : ""}
+      <button class="btn btn-ghost btn-block" style="color:var(--danger-text)" data-action="block-user" data-uid="${escapeHtml(params.uid)}" data-uname="${escapeHtml(params.uname||"")}" data-type="${type}" data-id="${escapeHtml(params.id||"")}">Block @${escapeHtml(params.uname||"this user")}</button>
+      <div style="font-size:12px;color:var(--ink-soft);text-align:center;margin-top:6px">You won't see their posts or comments. They won't be notified, and our team will take a look.</div>` : ""}
       <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
     </div>
   </div>`;
 }
-async function blockUser(uid, uname){
+async function blockUser(uid, uname, type, id){
   if(!state.user || !uid || uid===state.user.id) return;
   if(!confirm(`Block @${uname||"this user"}? You won't see their posts or comments.`)) return;
   const { error } = await sb.from("blocks").insert({ blocked_id: uid });
   if(error && !/duplicate/i.test(error.message)){ console.error("block failed:", error.message); toast("Couldn't block — try again."); return; }
+  // A block also sends the team a report on the find or comment it came
+  // from, so we hear about it. Runs in the background; a daily-limit
+  // refusal (or any other miss) doesn't undo the block.
+  if((type==="post" || type==="comment") && id){
+    sb.from("reports").insert({ target_type:type, target_id:String(id), reason:"Blocked this member", details:null })
+      .then(({ error: rErr })=>{ if(rErr && !String(rErr.message||"").startsWith("LIMIT:")) console.error("block report failed:", rErr.message); });
+  }
   if(!state.blockedIds.includes(uid)) state.blockedIds.push(uid);
   state.posts = state.posts.filter(p=>p.userId!==uid);
   Object.keys(state.comments).forEach(k=>{ state.comments[k] = state.comments[k].filter(c=>c.userId!==uid); });
@@ -4913,7 +4870,7 @@ async function deleteComment(id, reportId){
   Object.keys(state.comments).forEach(k=>{ state.comments[k] = state.comments[k].filter(x=>x.id!==String(id)); });
   if(reportId && state.isAdmin){
     const { error } = await sb.from("reports").update({ status:"resolved" }).eq("id", reportId);
-    if(!error && state.admin) state.admin.reports = (state.admin.reports||[]).filter(x=>x.id!==reportId);
+    if(!error) forgetOpenReport(reportId);
   }
   toast("Comment deleted.");
   renderListKeepingDrafts();
@@ -5159,8 +5116,8 @@ function addStopModal(){
     </div>
   </div>`;
 }
-// "Add another stop" shows the whole store list, so like Discover it needs
-// an account.
+// "Add another stop" changes a route you're building, so like the route
+// builder it needs an account.
 function openAddStop(){
   requireAuth(()=>{
     if(!state.currentRoute) return;
@@ -5349,8 +5306,7 @@ function handleClick(e){
     case "quiz-share": shareStyleResult(); break;
     case "send-message": sendMessage(); break;
     case "open-feedback": requireAuth(()=>openModal("feedback")); break;
-    case "admin-preview-tours": openModal("previewTours"); break;
-    case "preview-tour": closeModal(); if(t.dataset.tour==="insider") showInsiderWelcome(); else startTour("member"); break;
+    case "admin-preview-tours": startTour("member"); break;
     case "open-external": openModal("externalLink", {href:t.dataset.href}); break;
     case "submit-feedback": submitFeedback(); break;
     case "open-thread": go("messages", {userId:t.dataset.uid}); break;
@@ -5466,10 +5422,7 @@ function handleClick(e){
     case "tour-next": if(tourTapLocked()) break; activeModal.params.i++; renderModal(); break;
     case "tour-back": if(tourTapLocked()) break; activeModal.params.i = Math.max(0, activeModal.params.i-1); renderModal(); break;
     case "tour-finish": { if(tourTapLocked()) break; const k = activeModal?.params?.kind || "member"; markTourSeen(k); closeModal(); break; }
-    case "tour-upsell": if(tourTapLocked()) break; markTourSeen("member"); openModal("membership"); break;
-    case "replay-member-tour": startTour(state.user && state.user.isMember ? "insider" : "member"); break;
-    case "admin-preview-insider": showInsiderWelcome(); break;
-    case "open-membership": openModal("membership"); break;
+    case "replay-member-tour": startTour("member"); break;
     case "open-suggest-store": requireAuth(()=>openModal("suggestStore")); break;
     case "submit-suggest-store": submitSuggestStore(); break;
     case "admin-approve-event": adminSetEventStatus(t.dataset.id, "published"); break;
@@ -5482,7 +5435,7 @@ function handleClick(e){
     case "resend-verify-code": resendVerifyCode(); break;
     case "verify-use-different-email": state.verifyEmail=null; openModal("login"); state.authMode="signup"; renderModal(); break;
     case "open-report": requireAuth(()=>openModal("report",{type:t.dataset.type, id:t.dataset.id, uid:t.dataset.uid, uname:t.dataset.uname})); break;
-    case "block-user": blockUser(t.dataset.uid, t.dataset.uname); break;
+    case "block-user": blockUser(t.dataset.uid, t.dataset.uname, t.dataset.type, t.dataset.id); break;
     case "unblock-user": unblockUser(t.dataset.uid); break;
     case "open-blocked": openModal("blocked"); break;
     case "submit-report": submitReport(t.dataset.type, t.dataset.id); break;
@@ -5740,7 +5693,6 @@ function findSavedRoute(r){
 let savingRoute = false;
 function saveCurrentRoute(){
   requireAuth(async ()=>{
-    if(!state.user.isMember){ openModal("membership"); return; }
     const r = state.currentRoute;
     if(!r) return;
     if(!r.stops.some(sid=>getStoreById(sid))){ toast("Add a stop before you save this route."); return; }
@@ -5955,8 +5907,9 @@ function markButtonBusy(action, busyLabel){
 // have been saved after all.
 function dbRefused(error){ return /^(P0001|23|42501)/.test(String(error && error.code || "")); }
 // Plain words when the database turns down something new. Its daily limits
-// send a sentence after "LIMIT:" (shown as is, since trying again won't help
-// until tomorrow), and a too-long entry breaks one of its length rules.
+// and its blocked-words check send a sentence after "LIMIT:" (shown as is,
+// since trying the same thing again won't help), and a too-long entry
+// breaks one of its length rules.
 function dbErrorMessage(error, fallback){
   const msg = String(error && error.message || "");
   if(msg.startsWith("LIMIT:")) return msg.slice(6).trim() || fallback;
@@ -6086,8 +6039,9 @@ const USERNAME_RULE = /^[a-z0-9._]{3,20}$/;
 // Names kept for the 2nd Studio team; the database refuses them too.
 const RESERVED_USERNAME = /(admin|atlthriftguide|atlguide|2ndstudio|secondstudio|official|support|moderator)/i;
 // Bump this date whenever the Terms or Privacy Policy change, so everyone
-// is asked to agree to the new version.
-const TERMS_VERSION = "2026-10-12";
+// is asked to agree to the new version. A second change on the same day
+// adds a letter ("2026-10-12b"), so it still sorts after the old one.
+const TERMS_VERSION = "2026-10-12b";
 let termsAcceptedThisSession = false;
 function hasAcceptedTerms(){
   if(termsAcceptedThisSession) return true;
@@ -6843,19 +6797,11 @@ function profileStyleHtml(u){
 const TOURS = {
   member: [
     {icon:"pin", eyebrow:"Welcome, ATL Guide Member", title:"Discover what's open near you", body:"See which thrift and antique stores are open right now, then search every store and filter by category."},
-    {icon:"map", eyebrow:"Events", title:"Markets, swaps, and estate sales", body:"Insiders get our curated calendar of Atlanta events. Know about one? Anyone can submit an event, and we review every one."},
+    {icon:"bookmark", eyebrow:"Favorites", title:"Save your favorite stores", body:"Tap the bookmark on any store to keep your favorites in one place.", perk:true},
+    {icon:"map", eyebrow:"Events", title:"Markets, swaps, and estate sales", body:"Vintage markets, clothing swaps, estate sales, and special store events, hunted down for you. Find them right on your home page. Know about one? Send it in, and we review every one.", perk:true},
     {icon:"route", eyebrow:"Routes", title:"Build a route in seconds", body:"Pick a starting point, what you're hunting for, and how much time you have. We'll map out the best order of stops."},
-    {icon:"users", eyebrow:"Community", title:"Share your finds", body:"Post your best scores, see what other thrifters are finding, and swap tips on where to shop."},
-    {icon:"star", eyebrow:"Want more?", title:"Become an Insider", body:"ATL Guide Insiders get curated Atlanta events and can save their favorite stores and routes for later.", upsell:true}
-  ],
-  insider: [
-    {icon:"star", eyebrow:"You're in", title:"Welcome, Insider!", body:"Your ATL Guide Insider membership is active. Here's a quick look around, including everything you just unlocked.", celebrate:true},
-    {icon:"pin", eyebrow:"Home", title:"Discover what's open near you", body:"See which thrift and antique stores are open right now, then search every store and filter by category."},
-    {icon:"bookmark", eyebrow:"Insider perk", title:"Save your favorite stores", body:"Tap the bookmark on any store to keep your favorites in one place.", perk:true},
-    {icon:"map", eyebrow:"Insider perk", title:"Check out curated events", body:"Vintage markets, clothing swaps, estate sales, and special store events, hunted down for you. Find them right on your home page.", perk:true},
-    {icon:"route", eyebrow:"Routes", title:"Build a route in seconds", body:"Pick a starting point, what you're hunting for, and how much time you have. We'll map out the best order of stops."},
-    {icon:"bookmark", eyebrow:"Insider perk", title:"Save routes for later", body:"Plan a trip now, save it, and pull it up from your profile when you're ready to shop.", perk:true},
-    {icon:"users", eyebrow:"Community", title:"Share your finds", body:"Post your best scores, see what other thrifters are finding, and swap tips on where to shop. Know about an event? Submit it anytime."}
+    {icon:"bookmark", eyebrow:"Routes", title:"Save routes for later", body:"Plan a trip now, save it, and pull it up from your profile when you're ready to shop.", perk:true},
+    {icon:"users", eyebrow:"Community", title:"Share your finds", body:"Post your best scores, see what other thrifters are finding, and swap tips on where to shop."}
   ]
 };
 function tourSeenKey(kind){ return `atlThrift_tour_${kind}_${state.user ? state.user.id : "guest"}`; }
@@ -6885,13 +6831,10 @@ function maybeStartMemberTour(){
   // Never on top of "Set a new password", the terms screen, or anything else
   // that's already open.
   if(!state.user || pendingPasswordRecovery || activeModal || !hasAcceptedTerms()) return;
-  if(state.user.isMember){
-    // Insiders get the Insider welcome once, even if they saw the free tour
-    // before being made an Insider.
-    if(hasSeenTour("insider")) return;
-    if(!hasSeenTour("member")) markTourSeen("member");
-    startTour("insider");
-  } else if(!hasSeenTour("member")) startTour("member");
+  // One welcome tour per account. Anyone who already saw a tour (including
+  // the old Insider one) doesn't get it again; Replay the tour still works.
+  if(hasSeenTour("member") || hasSeenTour("insider")) return;
+  startTour("member");
 }
 function tourModal(params){
   const slides = TOURS[params.kind] || TOURS.member;
@@ -6904,8 +6847,7 @@ function tourModal(params){
     : sl.perk ? `<div style="width:88px;height:88px;border-radius:26px;background:var(--gold);color:#221D24;display:flex;align-items:center;justify-content:center;margin:6px auto 22px">${ICONS[sl.icon].replace('<svg','<svg style="width:38px;height:38px"')}</div>`
     : `<div style="width:88px;height:88px;border-radius:26px;background:var(--cream-card);color:var(--royal);display:flex;align-items:center;justify-content:center;margin:6px auto 22px">${ICONS[sl.icon].replace('<svg','<svg style="width:38px;height:38px"')}</div>`;
   let primary;
-  if(last && sl.upsell) primary = `<button class="btn btn-royal btn-block" data-action="tour-upsell">See Insider perks</button><button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="tour-finish">Start exploring</button>`;
-  else if(last) primary = `<button class="btn btn-royal btn-block" data-action="tour-finish">Start exploring</button>`;
+  if(last) primary = `<button class="btn btn-royal btn-block" data-action="tour-finish">Start exploring</button>`;
   else primary = `<button class="btn btn-royal btn-block" data-action="tour-next">Next</button>`;
   return `<div class="modal-overlay">
     <div class="modal-sheet center" style="text-align:center">
@@ -6922,8 +6864,6 @@ function tourModal(params){
     </div>
   </div>`;
 }
-// Called after a successful Insider purchase (and by the admin preview).
-function showInsiderWelcome(){ startTour("insider"); }
 function cleanUsername(raw){ return (raw||"").trim().replace(/\s+/g,"").toLowerCase(); }
 let usernameCheckTimer = null;
 function onUsernameInput(){
@@ -6941,7 +6881,7 @@ function onUsernameInput(){
     if(current !== name) return; // they kept typing
     if(error){ hint.style.color="var(--ink-soft)"; hint.textContent=""; return; }
     hint.style.color = taken ? "var(--danger-text)" : "var(--ink)";
-    hint.textContent = taken ? "✕ @"+name+" is already taken." : "✓ @"+name+" is available.";
+    hint.textContent = taken ? "✕ @"+name+" isn't available." : "✓ @"+name+" is available.";
   }, 400);
 }
 // A guest's quiz result waits on this phone until there's an account to save
@@ -7007,7 +6947,7 @@ async function submitLoginInner(){
     const pwError = validatePassword(password);
     if(pwError){ toast(pwError); return; }
     const { data: taken } = await sb.rpc("username_taken", { name: username });
-    if(taken){ toast("That username is already taken."); return; }
+    if(taken){ toast("That username isn't available. Try another."); return; }
     const captchaToken = await getCaptchaToken();
     const { data, error } = await sb.auth.signUp({ email, password, options:{ captchaToken, data:{ username, terms_version: TERMS_VERSION, terms_accepted_at: new Date().toISOString() } } });
     resetTurnstile();
@@ -7062,7 +7002,6 @@ function deleteAccountModal(){
       <div class="modal-handle"></div>
       <div class="modal-title">Delete your account?</div>
       <div class="modal-sub">This permanently deletes your account, profile, posts, photos, comments, likes, saved stores and routes, and shop notes. It can't be undone.</div>
-      ${state.user?.isMember && !state.user?.isAdmin ? `<div style="font-size:12.5px;line-height:1.5;color:var(--body-text);background:var(--cream-card);border-radius:14px;padding:12px 14px;margin-bottom:14px">Your Insider access ends when your account is deleted. There's no subscription or payment to cancel.</div>` : ""}
       <div class="form-group"><label>Type DELETE to confirm</label><input type="text" id="delete-confirm" autocapitalize="characters" autocomplete="off" placeholder="DELETE"></div>
       <button class="btn btn-block" style="background:var(--danger);color:#FFFFFF" data-action="confirm-delete-account">Delete my account</button>
       <button class="btn btn-ghost btn-block" style="margin-top:8px" data-action="close-modal">Cancel</button>
@@ -7331,7 +7270,7 @@ async function submitEditProfile(){
   const { error } = await sb.from("profiles").update({
     bio, fav_category: favCategory, neighborhood, avatar_url: avatarUrl
   }).eq("id", state.user.id);
-  if(error){ toast("Couldn't save your profile — try again."); return; }
+  if(error){ toast(dbErrorMessage(error, "Couldn't save your profile — try again.")); return; }
   state.user.bio = bio; state.user.favCategory = favCategory; state.user.neighborhood = neighborhood;
   if(pendingAvatarData){ state.user.avatarUrl = pendingAvatarData; pendingAvatarData = null; }
   editProfileDraft = null;
