@@ -457,6 +457,9 @@ main.view{padding:0 20px 116px;}
 .btn-secondary-hero,.btn-outline{border:2px solid var(--ink);}
 .btn-royal{background:var(--ink);color:var(--cream);}
 @media (hover:hover){.btn-royal:hover{background:var(--royal);}}
+/* The one colored call to action: "Build a route" on Home, in the brand terracotta. */
+.btn-accent{background:var(--royal);color:#FFFFFF;}
+@media (hover:hover){.btn-accent:hover{background:#B84A3E;}}
 .btn-ghost{border:1.5px solid var(--line);background:transparent;}
 .hscroll{gap:10px;margin-left:-20px;margin-right:-20px;padding-left:20px;padding-right:20px;}
 .home-open-card{border:2px solid var(--ink);background:var(--cream);border-radius:20px;overflow:hidden;flex:none;width:238px;text-align:left;color:var(--ink);cursor:pointer;}
@@ -2370,7 +2373,7 @@ function viewHome(){
         <p class="sub">A discovery and route planning guide to Atlanta's ${verifiedCount ? `${verifiedCount} verified` : state.stores.length} thrift, vintage, and antique stores.</p>
       </div>
       ${state.user ? `<div class="hero-btns" style="margin-bottom:32px">
-        <button class="btn btn-primary" style="flex:1;justify-content:center;padding:17px 20px" data-action="nav" data-view="route">Build a route</button>
+        <button class="btn btn-accent" style="flex:1;justify-content:center;padding:17px 20px" data-action="nav" data-view="route">Build a route</button>
         <button class="btn btn-secondary-hero" style="padding:15px 20px" data-action="nav" data-view="discover">Browse</button>
       </div>` : `<div style="margin-bottom:24px"></div>`}
 
