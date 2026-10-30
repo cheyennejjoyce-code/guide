@@ -4231,7 +4231,9 @@ function guessScanCategories(kind, name){
   return CATEGORIES.filter(c=>cats.includes(c));
 }
 // One sweep over every store that's linked to a Google listing: pull fresh
-// hours (converted to the badge format), rating, review count, and phone.
+// hours (converted to the badge format), rating, review count, phone, and
+// photo. Google's photo names expire after a while (the photo endpoint then
+// gets a 400), so this also swaps in a fresh one.
 let refreshingGoogle = false;
 async function adminRefreshFromGoogle(){
   if(!state.isAdmin || refreshingGoogle) return;
@@ -4239,7 +4241,7 @@ async function adminRefreshFromGoogle(){
   if(!linked.length){ toast("No stores are linked to Google yet."); return; }
   refreshingGoogle = true;
   toast(`Refreshing ${linked.length} stores from Google…`);
-  let updated = 0, failed = 0;
+  let updated = 0, failed = 0, photos = 0;
   const mismatched = [];
   // Words two names must share to count as the same business ("Labels" and
   // "Label" count as one word).
@@ -4249,7 +4251,7 @@ async function adminRefreshFromGoogle(){
   for(const st of linked){
     try{
       const resp = await fetch(`https://places.googleapis.com/v1/places/${encodeURIComponent(st.googlePlaceId)}?key=${GOOGLE_MAPS_JS_KEY}`, {
-        headers: { "X-Goog-FieldMask": "displayName,formattedAddress,regularOpeningHours,rating,userRatingCount,nationalPhoneNumber" }
+        headers: { "X-Goog-FieldMask": "displayName,formattedAddress,regularOpeningHours,rating,userRatingCount,nationalPhoneNumber,photos" }
       });
       if(!resp.ok){ failed++; continue; }
       const place = await resp.json();
@@ -4269,20 +4271,24 @@ async function adminRefreshFromGoogle(){
       if(place.rating != null) row.google_rating = place.rating;
       if(place.userRatingCount != null) row.google_review_count = place.userRatingCount;
       if(place.nationalPhoneNumber) row.phone = place.nationalPhoneNumber;
+      const photoName = place.photos && place.photos[0] && place.photos[0].name;
+      if(photoName) row.google_photo_name = photoName;
       if(!Object.keys(row).length){ continue; }
+      row.google_last_synced = new Date().toISOString();
       const { error } = await sb.from("stores").update(row).eq("id", st.id);
       if(error){ failed++; continue; }
       if(row.hours) st.hours = row.hours;
       if(row.google_rating != null) st.rating = row.google_rating;
       if(row.google_review_count != null) st.reviewCount = row.google_review_count;
       if(row.phone) st.phone = row.phone;
+      if(row.google_photo_name){ st.photoName = row.google_photo_name; photos++; }
       updated++;
     }catch(e){ failed++; }
   }
   refreshingGoogle = false;
   state.admin = state.admin || {};
   state.admin.googleMismatch = mismatched;
-  toast(`Refreshed ${updated} of ${linked.length} stores${failed ? ` (${failed} failed)` : ""}${mismatched.length ? ` — ${mismatched.length} look linked to the wrong business` : ""}.`);
+  toast(`Refreshed ${updated} of ${linked.length} stores (${photos} photos)${failed ? `, ${failed} failed` : ""}${mismatched.length ? ` — ${mismatched.length} look linked to the wrong business` : ""}.`);
   rerenderAdminStores();
 }
 function adminScanHide(pid){
@@ -4519,7 +4525,7 @@ function viewAdmin(){
   } else if(tab==="stores"){
     body = `
       <button class="btn btn-royal btn-block" data-action="admin-add-store">${ICONS.plus}Add a store</button>
-      <button class="btn btn-outline btn-block" style="margin-top:8px" data-action="admin-refresh-google">Refresh hours & ratings from Google</button>
+      <button class="btn btn-outline btn-block" style="margin-top:8px" data-action="admin-refresh-google">Refresh hours, ratings & photos from Google</button>
       ${(()=>{ const mm = (state.admin && state.admin.googleMismatch) || [];
         if(!mm.length) return "";
         return `<div style="margin-top:10px;border:1.5px solid var(--danger);border-radius:16px;padding:12px 14px">
