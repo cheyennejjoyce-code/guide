@@ -23,6 +23,43 @@
 // shape keeps this function from being used to fetch anything else.
 const PHOTO_NAME = /^places\/([A-Za-z0-9_-]+)\/photos\/[A-Za-z0-9_-]+$/;
 
+// Only stores in the guide get photos, so this function can't be used to
+// download (and bill us for) photos of any other Google place. The list of
+// the guide's Google place IDs comes from the public stores table with the
+// same public key app.html ships, and is kept in memory for 10 minutes. A
+// place ID that isn't on the list triggers one early re-check (at most every
+// 15 seconds), so a store the admin just added shows its photo right away. If
+// the list can't be loaded, photos are served anyway so they never break.
+const SUPABASE_URL = process.env.SUPABASE_URL || "https://rwrmnrpsbatubjgimstr.supabase.co";
+const SUPABASE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || "sb_publishable_1pyhvlnQ79-DnjjXv-hzfA_l7qi07wU";
+let guidePlaces = new Set(), guidePlacesOk = false, guidePlacesAt = 0, guidePlacesLoading = null;
+
+async function loadGuidePlaces() {
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/rest/v1/stores?select=google_place_id&google_place_id=not.is.null`, {
+      headers: { apikey: SUPABASE_KEY }, signal: AbortSignal.timeout(4000)
+    });
+    if (!resp.ok) throw new Error(`stores list returned ${resp.status}`);
+    const rows = await resp.json();
+    if (!Array.isArray(rows) || !rows.length) throw new Error("stores list was empty");
+    guidePlaces = new Set(rows.map(r => r.google_place_id));
+    guidePlacesOk = true;
+  } catch (err) {
+    guidePlacesOk = false;
+    console.warn(`photo allow-list failed: ${err.message}`);
+  }
+  guidePlacesAt = Date.now();
+}
+
+async function isGuidePlace(placeId) {
+  const age = Date.now() - guidePlacesAt;
+  if (age > 10 * 60 * 1000 || (age > 15 * 1000 && !(guidePlacesOk && guidePlaces.has(placeId)))) {
+    if (!guidePlacesLoading) guidePlacesLoading = loadGuidePlaces().finally(() => { guidePlacesLoading = null; });
+    await guidePlacesLoading;
+  }
+  return !guidePlacesOk || guidePlaces.has(placeId);
+}
+
 function fetchPhoto(name, apiKey) {
   return fetch(`https://places.googleapis.com/v1/${name}/media?maxWidthPx=800&key=${apiKey}`);
 }
@@ -40,6 +77,9 @@ export default async function handler(req, res) {
   const match = typeof name === "string" && name.match(PHOTO_NAME);
   if (!match) {
     return res.status(400).json({ error: "That isn't a Google photo name." });
+  }
+  if (!(await isGuidePlace(match[1]))) {
+    return res.status(404).json({ error: "That photo isn't for a store in the guide." });
   }
 
   try {
