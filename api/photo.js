@@ -30,23 +30,98 @@ const PHOTO_NAME = /^places\/([A-Za-z0-9_-]+)\/photos\/[A-Za-z0-9_-]+$/;
 // place ID that isn't on the list triggers one early re-check (at most every
 // 15 seconds), so a store the admin just added shows its photo right away. If
 // the list can't be loaded, photos are served anyway so they never break.
-const SUPABASE_URL = process.env.SUPABASE_URL || "https://rwrmnrpsbatubjgimstr.supabase.co";
-const SUPABASE_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || "sb_publishable_1pyhvlnQ79-DnjjXv-hzfA_l7qi07wU";
+//
+// Vercel settings SUPABASE_URL and SUPABASE_PUBLISHABLE_KEY are optional. If
+// they're set and loading the list with them fails, this tries once more with
+// the built-in values below. Every failure is written to Vercel's logs with
+// the reason, starting "photo allow-list". The logs never show a key or a
+// full web address.
+const BUILT_IN_URL = "https://rwrmnrpsbatubjgimstr.supabase.co";
+const BUILT_IN_KEY = "sb_publishable_1pyhvlnQ79-DnjjXv-hzfA_l7qi07wU";
+const ENV_URL = process.env.SUPABASE_URL || "";
+const ENV_KEY = process.env.SUPABASE_PUBLISHABLE_KEY || "";
+const SUPABASE_URL = ENV_URL || BUILT_IN_URL;
+const SUPABASE_KEY = ENV_KEY || BUILT_IN_KEY;
+// True when a Vercel setting changes what the first try uses.
+const USES_ENV = SUPABASE_URL !== BUILT_IN_URL || SUPABASE_KEY !== BUILT_IN_KEY;
 let guidePlaces = new Set(), guidePlacesOk = false, guidePlacesAt = 0, guidePlacesLoading = null;
+
+// Removes anything that could be a web address or a key before logging.
+function redact(text) {
+  return String(text)
+    .replace(/https?:\/\/\S*/gi, "[address]")
+    .replace(/\b(sb_[a-z]+_|eyJ)[\w.-]*/g, "[key]")
+    .slice(0, 200);
+}
+
+// A short, safe reason for a failed load.
+function reason(err) {
+  if (err && err.name === "TimeoutError") return "no answer within 4 seconds";
+  const message = String((err && err.message) || err);
+  if (/^Failed to parse URL/i.test(message) || /Invalid URL/i.test(message)) return "the address isn't a valid web address";
+  const code = err && err.cause && err.cause.code;
+  return redact(code ? `${message} (${code})` : message);
+}
+
+// Describes Vercel's two settings without printing them.
+function envSummary() {
+  const notes = [];
+  if (!ENV_URL) notes.push("SUPABASE_URL not set");
+  else if (ENV_URL === BUILT_IN_URL) notes.push("SUPABASE_URL same as built-in");
+  else {
+    const why = [];
+    if (ENV_URL !== ENV_URL.trim()) why.push("has extra spaces or a line break");
+    if (/\/+\s*$/.test(ENV_URL)) why.push("ends with a slash");
+    if (!/^\s*https:\/\//i.test(ENV_URL)) why.push("doesn't start with https");
+    if (!ENV_URL.includes(new URL(BUILT_IN_URL).hostname)) why.push("points somewhere else, likely a different Supabase project");
+    notes.push(`SUPABASE_URL differs from built-in${why.length ? ` (${why.join(", ")})` : ""}`);
+  }
+  if (!ENV_KEY) notes.push("SUPABASE_PUBLISHABLE_KEY not set");
+  else if (ENV_KEY === BUILT_IN_KEY) notes.push("SUPABASE_PUBLISHABLE_KEY same as built-in");
+  else {
+    const k = ENV_KEY.trim();
+    const kind = k.startsWith("sb_publishable_") ? "a publishable key"
+      : k.startsWith("sb_secret_") ? "a secret key, which shouldn't be used here"
+      : k.startsWith("eyJ") ? "an older-style key"
+      : "not a Supabase key";
+    notes.push(`SUPABASE_PUBLISHABLE_KEY differs from built-in (${kind}${k !== ENV_KEY ? ", has extra spaces or a line break" : ""})`);
+  }
+  return notes.join("; ");
+}
+
+async function fetchGuidePlaces(url, key) {
+  const resp = await fetch(`${url}/rest/v1/stores?select=google_place_id&google_place_id=not.is.null`, {
+    headers: { apikey: key }, signal: AbortSignal.timeout(4000)
+  });
+  if (!resp.ok) {
+    let detail = "";
+    try { detail = (await resp.text()).replace(/\s+/g, " ").trim().slice(0, 120); } catch (e) {}
+    throw new Error(`stores list returned ${resp.status}${detail ? `: ${detail}` : ""}`);
+  }
+  const rows = await resp.json();
+  if (!Array.isArray(rows) || !rows.length) throw new Error("stores list was empty");
+  return new Set(rows.map(r => r.google_place_id));
+}
 
 async function loadGuidePlaces() {
   try {
-    const resp = await fetch(`${SUPABASE_URL}/rest/v1/stores?select=google_place_id&google_place_id=not.is.null`, {
-      headers: { apikey: SUPABASE_KEY }, signal: AbortSignal.timeout(4000)
-    });
-    if (!resp.ok) throw new Error(`stores list returned ${resp.status}`);
-    const rows = await resp.json();
-    if (!Array.isArray(rows) || !rows.length) throw new Error("stores list was empty");
-    guidePlaces = new Set(rows.map(r => r.google_place_id));
+    guidePlaces = await fetchGuidePlaces(SUPABASE_URL, SUPABASE_KEY);
     guidePlacesOk = true;
   } catch (err) {
-    guidePlacesOk = false;
-    console.warn(`photo allow-list failed: ${err.message}`);
+    if (!USES_ENV) {
+      guidePlacesOk = false;
+      console.warn(`photo allow-list failed: ${reason(err)}. Photos are served for any place until it loads.`);
+    } else {
+      const first = reason(err);
+      try {
+        guidePlaces = await fetchGuidePlaces(BUILT_IN_URL, BUILT_IN_KEY);
+        guidePlacesOk = true;
+        console.warn(`photo allow-list: Vercel's Supabase settings failed (${first}). The built-in values worked. Settings: ${envSummary()}.`);
+      } catch (err2) {
+        guidePlacesOk = false;
+        console.warn(`photo allow-list failed: with Vercel's Supabase settings: ${first}. With built-in values: ${reason(err2)}. Settings: ${envSummary()}. Photos are served for any place until it loads.`);
+      }
+    }
   }
   guidePlacesAt = Date.now();
 }
